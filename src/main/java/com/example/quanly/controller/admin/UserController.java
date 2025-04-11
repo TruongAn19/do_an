@@ -12,12 +12,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,7 +32,7 @@ public class UserController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @RequestMapping("/admin/user")
+    @GetMapping("/admin/user")
     public String getUserPage(Model model) {
         List<User> users = this.userService.getAllUser();
         model.addAttribute("users", users);
@@ -52,10 +50,10 @@ public class UserController {
             BindingResult bindingResult,
             @RequestParam("avatarFile") MultipartFile file) {
 
-        List<FieldError> errors = bindingResult.getFieldErrors();
-        for (FieldError error : errors) {
-            System.out.println(">>>>" + error.getField() + " - " + error.getDefaultMessage());
-        }
+        // List<FieldError> errors = bindingResult.getFieldErrors();
+        // for (FieldError error : errors) {
+        //     System.out.println(">>>>" + error.getField() + " - " + error.getDefaultMessage());
+        // }
         if (bindingResult.hasErrors()) {
             return "admin/user/create";
         }
@@ -68,7 +66,7 @@ public class UserController {
         return "redirect:/admin/user";
     }
 
-    @RequestMapping("/admin/user/{userId}")
+    @GetMapping("/admin/user/{userId}")
     public String getUserDetail(Model model, @PathVariable long userId) {
         User user = this.userService.getUserById(userId);
         model.addAttribute("user", user);
@@ -76,7 +74,7 @@ public class UserController {
         return "admin/user/user_detail";
     }
 
-    @RequestMapping("/admin/user/update_user/{userId}") // GET
+    @GetMapping("/admin/user/update_user/{userId}") // GET
     public String getUpdateUserPage(Model model, @PathVariable long userId) {
         User currentUser = this.userService.getUserById(userId);
         model.addAttribute("newUser", currentUser);
@@ -84,13 +82,18 @@ public class UserController {
     }
 
     @PostMapping("/admin/user/update_user")
-    public String postUpdateUser(Model model, @ModelAttribute("newUser") User user) {
+    public String postUpdateUser(Model model, @ModelAttribute("newUser") User user,
+            @RequestParam("avatarFile") MultipartFile file) {
         User currentUser = this.userService.getUserById(user.getId());
         if (currentUser != null) {
             currentUser.setAddress(user.getAddress());
             currentUser.setFullName(user.getFullName());
             currentUser.setPhone(user.getPhone());
-
+            if (!file.isEmpty()) {
+                // Lưu ảnh mới và cập nhật đường dẫn
+                String avatar = this.uploadService.handleSaveUploadFile(file, "avatar");
+                currentUser.setAvatar(avatar);
+            }
             // bug here
             this.userService.handleSaveUser(currentUser);
         }
@@ -109,4 +112,5 @@ public class UserController {
         this.userService.deleteAUser(user.getId());
         return "redirect:/admin/user";
     }
+
 }

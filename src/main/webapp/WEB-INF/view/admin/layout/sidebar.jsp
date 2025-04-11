@@ -15,11 +15,14 @@
                             User
                         </a>
 
-                        <a class="nav-link" href="/admin/product">
+                        <a class="nav-link" href="/admin/mainProduct">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                            Product
+                            Main-Product
                         </a>
-
+                        <a class="nav-link" href="/admin/by-product">
+                            <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            By-Product
+                        </a>
                         <a class="nav-link" href="/admin/order">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                             Order

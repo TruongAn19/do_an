@@ -36,7 +36,7 @@ public class UploadService {
 
             File serverFile = new File(dir.getAbsolutePath() + File.separator + finalName);
             // uuid
-            System.out.println(serverFile);
+            // System.out.println(serverFile);
             BufferedOutputStream stream = new BufferedOutputStream(
                     new FileOutputStream(serverFile));
             stream.write(bytes);

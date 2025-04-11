@@ -10,11 +10,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 
@@ -29,20 +28,33 @@ public class User {
     @Email(message = "Email is not valid", regexp = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$")
     @NotEmpty(message = "Email cannot be empty")
     private String email;
-    @Size(min = 2, message = "Password phải có tối thiểu 2 ký tự")
+    
+    @Size(min = 3, message = "Password phải có tối thiểu 3 ký tự")
     private String password;
+
     @NotEmpty(message = "Full Name cannot be empty")
     private String fullName;
-    @NotEmpty(message = "Address cannot be empty")
+
+    // @NotEmpty(message = "Address cannot be empty")
     private String address;
+
     @NotEmpty(message = "PhoneNumber cannot be empty")
     private String phone;
+
     private String avatar;
+
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
+
     @OneToMany(mappedBy = "user")
     private List<Order> orders;
+
+    // @OneToMany(mappedBy = "user")
+    // private List<Product> products;
+
+    @OneToOne(mappedBy = "user")
+    private Cart cart;
     
     public Role getRole() {
         return role;
@@ -64,6 +76,12 @@ public class User {
     }
     public String getEmail() {
         return email;
+    }
+    public Cart getCart() {
+        return cart;
+    }
+    public void setCart(Cart cart) {
+        this.cart = cart;
     }
     public void setEmail(String email) {
         this.email = email;

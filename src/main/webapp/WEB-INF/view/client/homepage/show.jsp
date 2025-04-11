@@ -6,7 +6,7 @@
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Document</title>
+                <title>HomePage</title>
 
                 <!-- Google Web Fonts -->
                 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,35 +44,7 @@
 
                 <jsp:include page="../layout/header.jsp" />
 
-
-
-                <!-- Modal Search Start -->
-                <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-                    aria-hidden="true">
-                    <div class="modal-dialog modal-fullscreen">
-                        <div class="modal-content rounded-0">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="exampleModalLabel">Search by keyword</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body d-flex align-items-center">
-                                <div class="input-group w-75 mx-auto d-flex">
-                                    <input type="search" class="form-control p-3" placeholder="keywords"
-                                        aria-describedby="search-icon-1">
-                                    <span id="search-icon-1" class="input-group-text p-3"><i
-                                            class="fa fa-search"></i></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Modal Search End -->
-
                 <jsp:include page="../layout/banner.jsp" />
-
-                <jsp:include page="../layout/feature.jsp" />
-
 
                 <!-- Fruits Shop Start-->
                 <div class="container-fluid fruite py-5">
@@ -80,13 +52,12 @@
                         <div class="tab-class text-center">
                             <div class="row g-4">
                                 <div class="col-lg-4 text-start">
-                                    <h1>Sản phẩm nổi bật</h1>
+                                    <h1>Sản phẩm chính</h1>
                                 </div>
                                 <div class="col-lg-8 text-end">
                                     <ul class="nav nav-pills d-inline-flex text-center mb-5">
                                         <li class="nav-item">
-                                            <a class="d-flex m-2 py-2 bg-light rounded-pill active"
-                                                data-bs-toggle="pill" href="#tab-1">
+                                            <a class="d-flex m-2 py-2 bg-light rounded-pill active" href="/main-products">
                                                 <span class="text-dark" style="width: 130px;">All Products</span>
                                             </a>
                                         </li>
@@ -95,40 +66,139 @@
                             </div>
                             <div class="tab-content">
                                 <div id="tab-1" class="tab-pane fade show p-0 active">
-                                    <div class="row g-4">
+                                    <div class="row g-4 align-items-stretch"> 
+                                        <c:forEach var="mainProduct" items="${mainProducts}">
+                                            <div class="col-md-6 col-lg-4 col-xl-3 d-flex">
+                                                <div class="rounded position-relative fruite-item h-100 d-flex flex-column w-100 border border-secondary">
+                                                    <div class="fruite-img">
+                                                        <img src="/images/product/${mainProduct.image}" class="img-fluid w-100 rounded-top"
+                                                            style="object-fit: cover; aspect-ratio: 1/1;" alt="Sản phẩm">
+                                                    </div>
+                                    
+                                                    <div class="text-white bg-warning px-3 py-1 rounded position-absolute"
+                                                        style="top: 10px; left: 10px;">Sân</div>
+                                    
+                                                    <div class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
+                                                        <!-- Giữ chiều cao cố định cho tên -->
+                                                        <h4 class="text-success text-center" style="min-height: 40px; font-size: 20px;">
+                                                            <a href="/mainProduct/${mainProduct.id}" class="text-decoration-none">${mainProduct.name}</a>
+                                                        </h4>
+                                    
+                                                        <!-- Giữ chiều cao cố định cho mô tả -->
+                                                        <p class="text-center flex-grow-1" style="min-height: 50px;">
+                                                            ${mainProduct.shortDesc}
+                                                        </p>
+                                    
+                                                        <div class="mt-auto text-center">
+                                                            <h5 class="fw-bold mb-3">
+                                                                <c:choose>
+                                                                    <c:when test="${mainProduct.sale > 0}">
+                                                                        <del><fmt:formatNumber type="number" value="${mainProduct.price}" /> đ</del>
+                                                                    </c:when>
+                                                                    <c:otherwise>
+                                                                        <fmt:formatNumber type="number" value="${mainProduct.price}" /> đ
+                                                                    </c:otherwise>
+                                                                </c:choose>
+                                                            </h5>
+                                    
+                                                            <c:if test="${mainProduct.sale > 0}">
+                                                                <h5 class="fw-bold text-danger mb-3">
+                                                                    <fmt:formatNumber type="number" value="${mainProduct.price - (mainProduct.price * mainProduct.sale /100)}" /> đ
+                                                                    (<fmt:formatNumber type="number" value="${mainProduct.sale}" /> %)
+                                                                </h5>
+                                                            </c:if>
+                                    
+                                                            <a href="/booking/${mainProduct.id}" class="btn btn-outline-success rounded-pill px-3">
+                                                                <i class="fa fa-shopping-bag me-2"></i> Book a course
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </c:forEach>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="container-fluid fruite py-5">
+                    <div class="container py-5">
+                        <div class="tab-class text-center">
+                            <div class="row g-4">
+                                <div class="col-lg-4 text-start">
+                                    <h1>Sản phẩm phụ kiện</h1>
+                                </div>
+                                <div class="col-lg-8 text-end">
+                                    <ul class="nav nav-pills d-inline-flex text-center mb-5">
+                                        <li class="nav-item">
+                                            <a class="d-flex m-2 py-2 bg-light rounded-pill active" href="/by-products">
+                                                <span class="text-dark" style="width: 130px;">All Products</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="tab-content">
+                                <div id="tab-1" class="tab-pane fade show p-0 active">
+                                    <div class="row g-4 align-items-stretch">
                                         <div class="col-lg-12">
                                             <div class="row g-4">
-                                                <c:forEach var="product" items="${products}">
-                                                    <div class="col-md-6 col-lg-4 col-xl-3">
-
-                                                        <div class="rounded position-relative fruite-item">
+                                                <c:forEach var="byProduct" items="${byProducts}">
+                                                    <div class="col-md-6 col-lg-4 col-xl-3 d-flex">
+                                                        <div class="rounded position-relative fruite-item h-100 d-flex flex-column w-100 border border-secondary">
                                                             <div class="fruite-img">
-                                                                <img src="/images/product/${product.image}" 
-                                                                     class="img-fluid w-100  rounded-top" 
-                                                                     style="object-fit: cover; aspect-ratio: 1/1;" 
-                                                                     alt="Sản phẩm">
+                                                                <img src="/images/product/${byProduct.image}"
+                                                                    class="img-fluid w-100 rounded-top"
+                                                                    style="object-fit: cover; aspect-ratio: 1/1;"
+                                                                    alt="Sản phẩm">
                                                             </div>
-                                                            
-                                                            
+                                    
                                                             <div class="text-white bg-secondary px-3 py-1 rounded position-absolute"
-                                                                style="top: 10px; left: 10px;">Sân</div>
-                                                            <div
-                                                                class="p-4 border border-secondary border-top-0 rounded-bottom">
-                                                                <h4 style="font-size: 16px;">
-                                                                    <a href="/product/${product.id}">
-                                                                        ${product.name}
+                                                                style="top: 10px; left: 10px;">Phụ kiện</div>
+                                    
+                                                            <div class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
+                                                                <!-- Tên sản phẩm -->
+                                                                <h4 class="text-center" style="font-size: 16px; min-height: 40px;">
+                                                                    <a href="/byProduct/${byProduct.id}" class="text-decoration-none">
+                                                                        ${byProduct.name}
                                                                     </a>
-                                                                <p>${product.shortDesc}</p>
-                                                                <div class="d-flex  flex-lg-wrap">
-                                                                    <p style="font-size: 16px; text-align: center; width: 100%;"
-                                                                        class="text-dark  fw-bold mb-3">
-                                                                        <fmt:formatNumber type="number"
-                                                                            value="${product.price}" /> đ
-                                                                    </p>
-                                                                    <a href="#"
-                                                                        class="mx-auto btn border border-secondary rounded-pill px-3 text-primary"><i
-                                                                            class="fa fa-shopping-bag me-2 text-primary"></i>
-                                                                        Add to cart</a>
+                                                                </h4>
+                                    
+                                                                <!-- Mô tả sản phẩm -->
+                                                                <p class="text-center flex-grow-1" style="min-height: 50px;">
+                                                                    ${byProduct.shortDesc}
+                                                                </p>
+                                    
+                                                                <div class="mt-auto text-center">
+                                                                    <!-- Hiển thị giá -->
+                                                                    <h5 class="fw-bold mb-3">
+                                                                        <c:choose>
+                                                                            <c:when test="${byProduct.sale > 0}">
+                                                                                <del><fmt:formatNumber type="number" value="${byProduct.price}" /> đ</del>
+                                                                            </c:when>
+                                                                            <c:otherwise>
+                                                                                <fmt:formatNumber type="number" value="${byProduct.price}" /> đ
+                                                                            </c:otherwise>
+                                                                        </c:choose>
+                                                                    </h5>
+                                    
+                                                                    <!-- Giá sau khi giảm -->
+                                                                    <c:if test="${byProduct.sale > 0}">
+                                                                        <h5 class="fw-bold mb-3">
+                                                                            <fmt:formatNumber type="number" value="${byProduct.price - (byProduct.price * byProduct.sale /100)}" /> đ
+                                                                            (<fmt:formatNumber type="number" value="${byProduct.sale}" /> %)
+                                                                        </h5>
+                                                                    </c:if>
+                                    
+                                                                    <!-- Nút thêm vào giỏ hàng -->
+                                                                    <form action="/add-product-to-cart/${byProduct.id}" method="post">
+                                                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                                                        <button class="btn btn-outline-primary rounded-pill px-3">
+                                                                            <i class="fa fa-shopping-bag me-2"></i> Add to cart
+                                                                        </button>
+                                                                    </form>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -137,16 +207,16 @@
                                             </div>
                                         </div>
                                     </div>
+                                    
                                 </div>
-                                
+
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <jsp:include page="../layout/feature.jsp" />
                 <!-- Fruits Shop End-->
-
-
-
                 <jsp:include page="../layout/footer.jsp" />
 
 
