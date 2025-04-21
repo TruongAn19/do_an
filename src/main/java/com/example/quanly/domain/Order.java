@@ -1,6 +1,7 @@
 
 package com.example.quanly.domain;
 
+
 import java.util.List;
 
 import jakarta.persistence.Entity;
@@ -117,5 +118,6 @@ public class Order {
     public void setAvailableTime(AvailableTime availableTime) {
         this.availableTime = availableTime;
     }
+
 
 }

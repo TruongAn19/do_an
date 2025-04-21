@@ -127,8 +127,8 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <div class="input-group quantity mb-5 mb-0 mt-4" style="width: 100px;">
-                                                    <select name="time" id="time">
+                                                <div class="input-group quantity mb-5 mb-0 mt-4" style="width: 150px;">
+                                                    <select name="time" id="timeSelect" class="form-select">
                                                         <c:forEach var="availableTime" items="${availableTime}">
                                                             <option value="${availableTime.id}">${availableTime.time}
                                                             </option>
@@ -147,6 +147,7 @@
                                     </tbody>
                                 </table>
                             </div>
+
                             <c:if test="${not empty product}">
                                 <form:form action="/place-booking" method="post">
                                     <!-- CSRF Token -->
@@ -157,8 +158,9 @@
                                     <input type="hidden" name="price" value="${product.price}" />
                                     <input type="hidden" name="sale" value="${product.sale}" />
 
+
                                     <!-- Thời gian được chọn -->
-                                    <input type="" name="availableTimeId" id="hiddenAvailableTimeId" />
+                                    <input type="hidden" name="availableTimeId" id="hiddenAvailableTimeId" />
                                     <!-- Số lượng -->
                                     <input type="hidden" name="quantity" id="hiddenQuantity" />
 
@@ -166,14 +168,14 @@
                                         <!-- Thông tin người nhận -->
                                         <div class="col-12 col-md-6">
                                             <div class="p-4">
-                                                <h5>Thông Tin Người Nhận</h5>
+                                                <h5>Thông Tin Người Đặt</h5>
                                                 <div class="row">
                                                     <div class="col-12 form-group mb-3">
-                                                        <label>Tên người nhận</label>
+                                                        <label>Tên người đặt</label>
                                                         <input class="form-control" name="receiverName" required />
                                                     </div>
                                                     <div class="col-12 form-group mb-3">
-                                                        <label>Địa chỉ người nhận</label>
+                                                        <label>Địa chỉ người đặt</label>
                                                         <input class="form-control" name="receiverAddress" required />
                                                     </div>
                                                     <div class="col-12 form-group mb-3">
@@ -188,15 +190,10 @@
                                         <div class="col-12 col-md-6">
                                             <div class="bg-light rounded">
                                                 <div class="p-4">
-                                                    <h1 class="display-6 mb-4">Thông Tin <span class="fw-normal">Thanh
-                                                            Toán</span></h1>
-                                                    <div class="d-flex justify-content-between">
-                                                        <h5 class="mb-0 me-4">Phí vận chuyển</h5>
-                                                        <p class="mb-0">0 đ</p>
-                                                    </div>
+                                                    <h1 class="display-6 mb-4">Thông Tin <span class="fw-normal">Đặt sân</span></h1>
                                                     <div class="mt-3 d-flex justify-content-between">
                                                         <h5 class="mb-0 me-4">Hình thức</h5>
-                                                        <p class="mb-0">Thanh toán khi nhận hàng (COD)</p>
+                                                        <p class="mb-0">Thanh toán tại sân (COD)</p>
                                                     </div>
                                                 </div>
                                                 <div
@@ -208,7 +205,7 @@
                                                 </div>
                                                 <button
                                                     class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 ms-4">
-                                                    Xác nhận thanh toán
+                                                    Xác nhận đặt sân
                                                 </button>
                                             </div>
                                         </div>
@@ -241,6 +238,7 @@
 
                     <!-- Template Javascript -->
                     <script src="/client/js/main.js"></script>
+
                 </body>
 
                 </html>

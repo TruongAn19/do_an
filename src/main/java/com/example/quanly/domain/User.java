@@ -50,8 +50,8 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<Order> orders;
 
-    // @OneToMany(mappedBy = "user")
-    // private List<Product> products;
+    @OneToMany(mappedBy = "user")
+    private List<Product> products;
 
     @OneToOne(mappedBy = "user")
     private Cart cart;

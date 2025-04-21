@@ -1,5 +1,6 @@
 package com.example.quanly.service;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -309,35 +310,37 @@ public class ProductService {
             String receiverName, String receiverAddress, String receiverPhone,
             long id, long productId, int quantity, long timeId) {
 
-        // Lấy user và product từ database
         user = userRepository.findById(id);
         Product product = productRepository.getById(productId);
         AvailableTime time = timeRepository.getById(timeId);
 
-        // Tạo đơn hàng (Order)
+        // Kiểm tra nếu giờ đã qua thì không cho đặt nữa
+        LocalTime currentTime = LocalTime.now();
+        LocalTime selectedTime = time.getTime(); // Không cần parse
+
+        if (selectedTime.isBefore(currentTime)) {
+            throw new IllegalArgumentException("Khung giờ đã hết, vui lòng chọn giờ khác.");
+        }
+
         Order order = new Order();
         order.setUser(user);
         order.setReceiverName(receiverName);
         order.setReceiverAddress(receiverAddress);
         order.setReceiverPhone(receiverPhone);
-        order.setAvailableTime(time); // Nếu có
+        order.setAvailableTime(time);
         order.setStatus("Đã đặt");
 
-        // Tính tổng giá
         double pricePerItem = product.getPrice() - (product.getPrice() * product.getSale() / 100);
         double total = pricePerItem * quantity;
-
         order.setTotalPrice(total);
         orderRepository.save(order);
 
-        // Tạo chi tiết đơn hàng (OrderDetail)
         OrderDetail orderDetail = new OrderDetail();
         orderDetail.setOrder(order);
         orderDetail.setProduct(product);
-        orderDetail.setPrice(pricePerItem); // Giá sau giảm
+        orderDetail.setPrice(pricePerItem);
         orderDetail.setQuantity(quantity);
         orderDetail.setAvailableTime(time);
-
         orderDetailRepository.save(orderDetail);
     }
 

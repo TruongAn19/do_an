@@ -133,7 +133,7 @@
                                                     </p>
                                                 </td>
                                                 <td> <p class="mb-0 mt-4">${order.status}</p></td>
-
+                                                <td><p class="mb-0 mt-4">${orderDetail.availableTime.time}</p></td></td>
                                             </tr>
                                         </c:forEach>
                                     </c:forEach>

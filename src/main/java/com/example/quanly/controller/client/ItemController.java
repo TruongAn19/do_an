@@ -1,11 +1,13 @@
 package com.example.quanly.controller.client;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 
 // import static org.mockito.Mockito.times;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -178,6 +180,61 @@ public class ItemController {
         return "client/product/detailByProduct";
     }
 
+    @GetMapping("/booking/{productId}")
+    public String getBookingPage(Model model,
+            HttpServletRequest request,
+            @PathVariable long productId) {
+        User currentUser = new User();// null
+        HttpSession session = request.getSession(false);
+        long id = (long) session.getAttribute("id");
+        currentUser.setId(id);
+
+        Product product = this.productService.getProductByID(productId);
+        System.out.println(product);
+        List<AvailableTime> allTimes  = this.productService.getAllTime();
+        double totalPrice = 0;
+
+        // Lọc giờ chưa qua
+        LocalTime now = LocalTime.now();
+        List<AvailableTime> availableTime = allTimes.stream()
+                .filter(t -> t.getTime().isAfter(now)) // Không cần parse
+                .collect(Collectors.toList());
+
+        double price = product.getPrice();
+        long quantity = 1;
+        double discount = product.getSale() / 100.0;
+
+        totalPrice += (price * quantity) - (price * quantity * discount);
+
+        model.addAttribute("product", product);
+        model.addAttribute("totalPrice", totalPrice);
+        model.addAttribute("availableTime", availableTime);
+        return "client/booking/booking_page";
+    }
+
+    @PostMapping("/place-booking")
+    public String handlePlaceOrderBooking(
+            HttpServletRequest request,
+            @RequestParam("receiverName") String receiverName,
+            @RequestParam("receiverAddress") String receiverAddress,
+            @RequestParam("receiverPhone") String receiverPhone,
+            @RequestParam("productId") long productId,
+            @RequestParam("quantity") int quantity,
+            @RequestParam("availableTimeId") long timeId) {
+
+        HttpSession session = request.getSession(false);
+        long id = (long) session.getAttribute("id");
+
+        User currentUser = new User();
+        currentUser.setId(id);
+
+        productService.handlePlaceBooking(currentUser, session,
+                receiverName, receiverAddress, receiverPhone,
+                id, productId, quantity, timeId);
+
+        return "redirect:/thanks";
+    }
+
     @PostMapping("/add-product-to-cart/{id}")
     public String addProductToCart(@PathVariable long id, HttpServletRequest request) {
         HttpSession session = request.getSession(false);
@@ -288,54 +345,4 @@ public class ItemController {
         this.productService.handleAddProductToCart(email, id, session, quantity);
         return "redirect:/byProduct/" + id;
     }
-
-    @GetMapping("/booking/{productId}")
-    public String getBookingPage(Model model,
-            HttpServletRequest request,
-            @PathVariable long productId) {
-        User currentUser = new User();// null
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
-
-        Product product = this.productService.getProductByID(productId);
-        System.out.println(product);
-        List<AvailableTime> availableTime = this.productService.getAllTime();
-        double totalPrice = 0;
-
-        double price = product.getPrice();
-        long quantity = 1;
-        double discount = product.getSale() / 100.0;
-
-        totalPrice += (price * quantity) - (price * quantity * discount);
-
-        model.addAttribute("product", product);
-        model.addAttribute("totalPrice", totalPrice);
-        model.addAttribute("availableTime", availableTime);
-        return "client/booking/booking_page";
-    }
-
-    @PostMapping("/place-booking")
-    public String handlePlaceOrderBooking(
-            HttpServletRequest request,
-            @RequestParam("receiverName") String receiverName,
-            @RequestParam("receiverAddress") String receiverAddress,
-            @RequestParam("receiverPhone") String receiverPhone,
-            @RequestParam("productId") long productId,
-            @RequestParam("quantity") int quantity,
-            @RequestParam("availableTimeId") long timeId) {
-
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-
-        User currentUser = new User();
-        currentUser.setId(id);
-
-        productService.handlePlaceBooking(currentUser, session,
-                receiverName, receiverAddress, receiverPhone,
-                id, productId, quantity, timeId);
-
-        return "redirect:/thanks";
-    }
-
 }

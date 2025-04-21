@@ -305,29 +305,51 @@
         $(`input[type="radio"][name="radio-sort"][value="${sort}"]`).prop('checked', true);
     }
 
+    // time-handler
     $(document).ready(function () {
-        function updateHiddenTimeId() {
-            const selectedTimeId = $('#time').val();
+        function updateSelectedTimeId() {
+            const selectedTimeId = $('#timeSelect').val();
             console.log("Time ID đang chọn: ", selectedTimeId);
             $('#hiddenAvailableTimeId').val(selectedTimeId);
         }
-
+    
         // Gọi lúc trang load
-        updateHiddenTimeId();
-
+        updateSelectedTimeId();
+    
         // Gọi khi người dùng đổi dropdown
-        $('#time').on('change', updateHiddenTimeId);
+        $('#timeSelect').on('change', updateSelectedTimeId);
+    });
+    
 
-        // Khi tăng/giảm số lượng
+    // quantity-handler
+    $(document).ready(function () {
+        // Cập nhật thời gian được chọn
+        function updateSelectedTimeId() {
+            const selectedTimeId = $('#timeSelect').val();
+            console.log("Time ID đang chọn: ", selectedTimeId);
+            $('#hiddenAvailableTimeId').val(selectedTimeId);
+        }
+    
+        // Cập nhật số lượng
+        function updateQuantity() {
+            const quantityInput = $('.quantity-input').val(); // Nếu có nhiều input, cần chỉ rõ dòng
+            $('#hiddenQuantity').val(quantityInput);
+        }
+    
+        // Gọi lúc trang load
+        updateSelectedTimeId();
+        updateQuantity();
+    
+        // Khi đổi thời gian
+        $('#timeSelect').on('change', updateSelectedTimeId);
+    
+        // Khi click tăng/giảm
         $('.btn-plus, .btn-minus').click(function () {
-            setTimeout(() => {
-                // Tìm phần tử input gần button được click
-                var quantityInput = $(this).closest('.input-group').find('.quantity-input');
-                var quantity = quantityInput.val();
-                $('#hiddenQuantity').val(quantity);
-            }, 100);
+            setTimeout(updateQuantity, 100);
         });
     });
+    
+
 
 
 })(jQuery);

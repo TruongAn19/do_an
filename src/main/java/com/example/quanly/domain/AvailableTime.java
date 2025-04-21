@@ -22,7 +22,7 @@ public class AvailableTime {
     @OneToMany(mappedBy = "availableTime")
     private Set<Order> orders;
 
-    @OneToMany(mappedBy = "availableTime") 
+    @OneToMany(mappedBy = "availableTime")
     private Set<OrderDetail> orderDetails;
 
     @ManyToMany(mappedBy = "availableTimes")
