@@ -1,5 +1,6 @@
 package com.example.quanly.controller.client;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 
@@ -7,12 +8,14 @@ import java.util.ArrayList;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +25,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.Cart;
 import com.example.quanly.domain.CartDetail;
+import com.example.quanly.domain.OrderDetail;
 import com.example.quanly.domain.Product;
 import com.example.quanly.domain.Product_;
+import com.example.quanly.domain.SubCourt;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.repository.OrderDetailRepository;
+import com.example.quanly.repository.ProductRepository;
+import com.example.quanly.repository.SubCourtRepository;
 import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.ProductService;
 
@@ -34,22 +42,39 @@ import jakarta.servlet.http.HttpSession;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class ItemController {
 
-    // private final TimeRepository timeRepository;
+    private final ProductRepository productRepository;
+
+    private final OrderDetailRepository orderDetailRepository;
+
+    private final SubCourtRepository subCourtRepository;
+
+    private final TimeRepository timeRepository;
     private final ProductService productService;
 
-    public ItemController(ProductService productService, TimeRepository timeRepository) {
+    public ItemController(
+            ProductService productService,
+            TimeRepository timeRepository,
+            SubCourtRepository subCourtRepository,
+            OrderDetailRepository orderDetailRepository,
+            ProductRepository productRepository) {
         this.productService = productService;
-        // this.timeRepository = timeRepository;
+        this.timeRepository = timeRepository;
+        this.subCourtRepository = subCourtRepository;
+        this.orderDetailRepository = orderDetailRepository;
+        this.productRepository = productRepository;
     }
 
     @GetMapping("/main-products")
     public String getMainProductPage(Model model,
             ProductCriteriaDTO productCriteriaDTO,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            @RequestParam(value = "search", required = false) String searchTerm) {
         int page = 1;
         try {
             if (productCriteriaDTO.getPage().isPresent()) {
@@ -78,26 +103,27 @@ public class ItemController {
         }
 
         Page<Product> mainProduct;
-        if (sortOpt != null && sortOpt.isPresent()
+        if (searchTerm != null && !searchTerm.isEmpty()) {
+            // Chỉ tìm kiếm theo tên nếu có từ khóa
+            mainProduct = productService.findByNameContaining(searchTerm, pageable);
+        } 
+        else if (sortOpt != null && sortOpt.isPresent()
                 && (productCriteriaDTO.getAddress() != null || productCriteriaDTO.getPrice() != null)) {
-            mainProduct = this.productService.getAllMainProductWithSpec(pageable, productCriteriaDTO);
-        } else if (sortOpt != null && sortOpt.orElse("").isEmpty()) {
-            mainProduct = this.productService.getAllMainProduct(pageable);
+            mainProduct = this.productService.getAllProductWithSpec(pageable, productCriteriaDTO);
         } else {
-            mainProduct = this.productService.getAllMainProduct(pageable);
+            mainProduct = this.productService.getAllProduct(pageable);
         }
-
-        List<Product> listMainProducts = mainProduct.getContent().size() > 0 ? mainProduct.getContent()
-                : new ArrayList<Product>();
-
+        
+        int totalPages = Math.max(mainProduct.getTotalPages(), 0);
+        
         String qs = request.getQueryString();
         if (qs != null && !qs.isBlank()) {
-            // remove page
             qs = qs.replace("page=" + page, "");
         }
-        model.addAttribute("listMainProducts", listMainProducts);
+        
+        model.addAttribute("listMainProducts", mainProduct.getContent());
         model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", mainProduct.getTotalPages());
+        model.addAttribute("totalPages", totalPages);
         model.addAttribute("queryString", qs);
         return "client/product/main_product";
     }
@@ -136,11 +162,11 @@ public class ItemController {
         Page<Product> byProduct;
         if (sortOpt != null && sortOpt.isPresent()
                 && (productCriteriaDTO.getFactory() != null || productCriteriaDTO.getPrice() != null)) {
-            byProduct = this.productService.getAllByProductWithSpec(pageable, productCriteriaDTO);
+            byProduct = this.productService.getAllProductWithSpec(pageable, productCriteriaDTO);
         } else if (sortOpt != null && sortOpt.orElse("").isEmpty()) {
-            byProduct = this.productService.getAllByProduct(pageable);
+            byProduct = this.productService.getAllProduct(pageable);
         } else {
-            byProduct = this.productService.getAllByProduct(pageable);
+            byProduct = this.productService.getAllProduct(pageable);
         }
 
         List<Product> listByProduct = byProduct.getContent().size() > 0 ? byProduct.getContent()
@@ -190,49 +216,112 @@ public class ItemController {
         currentUser.setId(id);
 
         Product product = this.productService.getProductByID(productId);
-        System.out.println(product);
-        List<AvailableTime> allTimes  = this.productService.getAllTime();
+        List<AvailableTime> allTimes = this.productService.getAllTime();
         double totalPrice = 0;
-
-        // Lọc giờ chưa qua
-        LocalTime now = LocalTime.now();
-        List<AvailableTime> availableTime = allTimes.stream()
-                .filter(t -> t.getTime().isAfter(now)) // Không cần parse
-                .collect(Collectors.toList());
 
         double price = product.getPrice();
         long quantity = 1;
         double discount = product.getSale() / 100.0;
+        // totalPrice = (price * quantity) - (price * quantity * discount);
 
         totalPrice += (price * quantity) - (price * quantity * discount);
 
+        List<SubCourt> courts = this.productService.getAllCourtsByProduct(product);
+        model.addAttribute("courts", courts);
+
         model.addAttribute("product", product);
         model.addAttribute("totalPrice", totalPrice);
-        model.addAttribute("availableTime", availableTime);
+        model.addAttribute("availableTime", allTimes);
         return "client/booking/booking_page";
     }
 
+    @GetMapping("/api/available-time")
+    @ResponseBody
+    public List<AvailableTime> getAvailableTimes(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("courtId") Long courtId) {
+        List<AvailableTime> allTimes = timeRepository.findAll();
+        SubCourt court = subCourtRepository.getById(courtId);
+
+        List<OrderDetail> bookings = orderDetailRepository.findBySubCourtAndDate(court, date);
+        Set<Long> bookedTimeIds = bookings.stream()
+                .map(o -> o.getAvailableTime().getId())
+                .collect(Collectors.toSet());
+
+        return allTimes.stream()
+                .filter(time -> {
+                    if (date.equals(LocalDate.now()) && time.getTime().isBefore(LocalTime.now())) {
+                        return false;
+                    }
+                    return !bookedTimeIds.contains(time.getId());
+                })
+                .collect(Collectors.toList());
+    }
+
     @PostMapping("/place-booking")
-    public String handlePlaceOrderBooking(
+    public String handlePlaceBooking(Model model,
             HttpServletRequest request,
             @RequestParam("receiverName") String receiverName,
             @RequestParam("receiverAddress") String receiverAddress,
             @RequestParam("receiverPhone") String receiverPhone,
             @RequestParam("productId") long productId,
             @RequestParam("quantity") int quantity,
-            @RequestParam("availableTimeId") long timeId) {
+            @RequestParam("availableTimeId") long timeId,
+            @RequestParam("courtId") long subCourtId,
+            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+            RedirectAttributes redirectAttributes) {
 
         HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
+        if (session == null || session.getAttribute("id") == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Vui lòng đăng nhập để đặt sân");
+            return "redirect:/login";
+        }
 
+        long userId = (long) session.getAttribute("id");
         User currentUser = new User();
-        currentUser.setId(id);
+        currentUser.setId(userId);
 
-        productService.handlePlaceBooking(currentUser, session,
-                receiverName, receiverAddress, receiverPhone,
-                id, productId, quantity, timeId);
+        // Lấy thông tin sản phẩm và các dữ liệu cần thiết
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại"));
+        List<SubCourt> subCourts = subCourtRepository.findAll();
+        List<AvailableTime> allTimes = timeRepository.findAll();
 
-        return "redirect:/thanks";
+        try {
+            productService.handlePlaceBooking(currentUser, session,
+                    receiverName, receiverAddress, receiverPhone,
+                    productId, quantity, timeId, subCourtId, bookingDate);
+
+            redirectAttributes.addFlashAttribute("successMessage", "Đặt sân thành công!");
+            return "redirect:/thanks";
+
+        } catch (IllegalArgumentException e) {
+            // Tính toán lại tổng tiền
+            double price = product.getPrice();
+            double discount = product.getSale() / 100.0;
+            double totalPrice = (price * quantity) - (price * quantity * discount);
+
+            // Thiết lập lại các thông tin cần hiển thị
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("product", product);
+            model.addAttribute("courts", subCourts);
+            model.addAttribute("availableTime", allTimes);
+            model.addAttribute("totalPrice", totalPrice);
+
+            // Giữ lại các giá trị đã nhập
+            model.addAttribute("receiverName", receiverName);
+            model.addAttribute("receiverAddress", receiverAddress);
+            model.addAttribute("receiverPhone", receiverPhone);
+            model.addAttribute("selectedCourtId", subCourtId);
+            model.addAttribute("selectedTimeId", timeId);
+            model.addAttribute("selectedBookingDate", bookingDate);
+
+            return "client/booking/booking_page";
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Có lỗi xảy ra khi đặt sân: " + e.getMessage());
+            return "redirect:/booking_page";
+        }
     }
 
     @PostMapping("/add-product-to-cart/{id}")

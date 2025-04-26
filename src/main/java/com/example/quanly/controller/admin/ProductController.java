@@ -1,6 +1,5 @@
 package com.example.quanly.controller.admin;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -36,33 +35,31 @@ public class ProductController {
 
     @GetMapping("/admin/mainProduct")
     public String getMainProductPage(Model model,
-    @RequestParam("page") Optional<String> optionalPage) {
-        int page = 1;
-        Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Product> mainProducts = this.productService.getAllMainProduct(pageable);
-        List<Product> listMainProducts = mainProducts.getContent();
-        model.addAttribute("mainProducts", listMainProducts);
-        return "admin/product/main-product";
-    }
-
-    @GetMapping("/admin/by-product")
-    public String getByProductPage(Model model,
-            @RequestParam("page") Optional<String> optionalPage) {
+            @RequestParam("page") Optional<String> optionalPage,
+            @RequestParam(value = "search", required = false) String searchTerm) {
         int page = 1;
         try {
             if (optionalPage.isPresent()) {
                 page = Integer.parseInt(optionalPage.get());
-            } else {}
+            } else {
+            }
         } catch (Exception e) {
             // TODO: handle exception
         }
         Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Product> byProducts = this.productService.getAllByProduct(pageable);
-        List<Product> listByProducts = byProducts.getContent();
-        model.addAttribute("byProducts", listByProducts);
+        Page<Product> mainProducts;
+        if (searchTerm != null && !searchTerm.isEmpty()) {
+            // Tìm kiếm sản phẩm theo tên
+            mainProducts = this.productService.findByNameContaining(searchTerm, pageable);
+            model.addAttribute("searchTerm", searchTerm); // Giữ lại từ khóa tìm kiếm
+        } else {
+            // Lấy tất cả sản phẩm
+            mainProducts = this.productService.getAllProduct(pageable);
+        }
+        model.addAttribute("mainProducts", mainProducts.getContent());
         model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", byProducts.getTotalPages());
-        return "admin/product/by-product";
+        model.addAttribute("totalPages", mainProducts.getTotalPages());
+        return "admin/product/main-product";
     }
 
     @GetMapping("/admin/product/create_mainProduct")
@@ -79,7 +76,7 @@ public class ProductController {
 
     @PostMapping(value = "/admin/product/create")
     public String createProductPage(Model model, @ModelAttribute("newProduct") Product product,
-            @RequestParam("productImg") MultipartFile file, @RequestParam("productType") String productType ) {
+            @RequestParam("productImg") MultipartFile file, @RequestParam("productType") String productType) {
         String productImage = this.uploadService.handleSaveUploadFile(file, "product");
         product.setDetailDesc(product.getDetailDesc().replace("\n", "<br>"));
         product.setImage(productImage);
@@ -99,26 +96,11 @@ public class ProductController {
         return "admin/product/mainProduct_detail";
     }
 
-    @GetMapping("/admin/byProduct/{productId}")
-    public String getMethodName(Model model, @PathVariable long productId) {
-        Product product = this.productService.getProductByID(productId);
-        model.addAttribute("product", product);
-        model.addAttribute("id", productId);
-        return "admin/product/byProduct_detail";
-    }
-
     @GetMapping("/admin/product/update_mainProduct/{productId}")
     public String getUpdateMainProductPage(Model model, @PathVariable long productId) {
         Product existProduct = this.productService.getProductByID(productId);
         model.addAttribute("editProduct", existProduct);
         return "admin/product/update_mainProduct";
-    }
-
-    @GetMapping("/admin/product/update_byProduct/{productId}")
-    public String getUpdateByProductPage(Model model, @PathVariable long productId) {
-        Product existProduct = this.productService.getProductByID(productId);
-        model.addAttribute("editProduct", existProduct);
-        return "admin/product/update_byProduct";
     }
 
     @PostMapping("/admin/product/update_product")
@@ -133,8 +115,7 @@ public class ProductController {
             existProduct.setAddress(product.getAddress());
             existProduct.setSale(product.getSale());
             existProduct.setPrice(product.getPrice());
-            existProduct.setFactory(product.getFactory());
-
+            // existProduct.setFactory(product.getFactory());
 
             // Kiểm tra nếu người dùng có tải lên ảnh mới
             if (!file.isEmpty()) {

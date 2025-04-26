@@ -21,7 +21,7 @@ public class DashboardController {
     @RequestMapping("/admin")
     public String getDashBoard(Model model) {
         model.addAttribute("countUser", this.userService.countUser());
-        model.addAttribute("countByProduct", this.userService.countByProduct());
+        // model.addAttribute("countByProduct", this.userService.countByProduct());
         model.addAttribute("countMainProduct", this.userService.countMainProduct());
         model.addAttribute("countOrder", this.userService.countOrder());
         return "admin/dashboard/show";

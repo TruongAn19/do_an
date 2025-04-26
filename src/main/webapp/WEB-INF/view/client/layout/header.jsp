@@ -44,6 +44,8 @@
                                         <li><a class="dropdown-item" href="/profile">Quản lý tài khoản</a></li>
 
                                         <li><a class="dropdown-item" href="/order-history">Lịch sử giao dịch</a></li>
+                                        <li><a class="dropdown-item" href="/booking-history">Lịch sử đặt sân</a></li>
+
                                         <li>
                                             <hr class="dropdown-divider">
                                         </li>

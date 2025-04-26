@@ -33,8 +33,8 @@
                                         <div class="col-md-6 col-12 mx-auto">
                                             <h3>Update a product</h3>
                                             <hr />
-                                            <form:form method="post" action="/admin/product/update_product"
-                                                modelAttribute="editProduct" enctype="multipart/form-data">
+                                            <form:form method="post" action="/admin/racket/update_racket"
+                                                modelAttribute="editRacket" enctype="multipart/form-data">
                                                 <input type="hidden" name="productType" value="byProduct">
                                                 <div class="mb-3" style="display: none;">
                                                     <label class="form-label">Id:</label>
@@ -51,26 +51,16 @@
                                                     <form:input type="name" class="form-control" path="factory"/>
                                                 </div>
 
-                                                <div class="mb-3">
-                                                    <label class="form-label">Quantity:</label>
-                                                    <form:input type="text" class="form-control" path="quantity" />
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">DetailDesc:</label>
-                                                    <form:textarea type="text" class="form-control" path="detailDesc" />
-                                                </div>
+                        
                                                 <div class="mb-3">
                                                     <label class="form-label">Price:</label>
                                                     <form:input type="text" class="form-control" path="price" />
                                                 </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Sale:</label>
-                                                    <form:input type="text" class="form-control" path="sale" />
-                                                </div>
+                                                
                                                 <div class="mb-3 col-12 col-md-6">
                                                     <label for="avatarFile" class="form-label">Image:</label>
-                                                    <input class="form-control" type="file" id="productImg"
-                                                        accept=".png, .jpg, .jpeg" name="productImg" />
+                                                    <input class="form-control" type="file" id="racketImg"
+                                                        accept=".png, .jpg, .jpeg" name="racketImg" />
                                                 </div>
                                                 <div class="col-12 mb-3">
                                                     <img style="max-height: 250px; display: none;" alt="avatar preview"

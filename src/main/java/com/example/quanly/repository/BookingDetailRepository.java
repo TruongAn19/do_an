@@ -8,15 +8,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.OrderDetail;
+import com.example.quanly.domain.BookingDetail;
 import com.example.quanly.domain.SubCourt;
 
 @Repository
-public interface OrderDetailRepository extends JpaRepository<OrderDetail, Long> {
-
-    Optional<OrderDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
+public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long>{
+    Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
             LocalDate bookingDate);
 
-    List<OrderDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
-
+    List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
 }

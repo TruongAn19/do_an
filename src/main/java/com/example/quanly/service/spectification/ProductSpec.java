@@ -17,9 +17,9 @@ public class ProductSpec {
                 criteriaBuilder.equal(root.get("address"), ""));
     }
 
-    public static Specification<Product> factoryLike(String factory) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.FACTORY), "%" + factory + "%");
-    }
+    // public static Specification<Product> factoryLike(String factory) {
+    //     return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.FACTORY), "%" + factory + "%");
+    // }
 
     public static Specification<Product> nameLike(String name) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.NAME), "%" + name + "%");
@@ -36,14 +36,14 @@ public class ProductSpec {
     }
 
     // case3
-    public static Specification<Product> matchFactory(String factory) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(Product_.FACTORY), factory);
-    }
+    // public static Specification<Product> matchFactory(String factory) {
+    //     return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(Product_.FACTORY), factory);
+    // }
 
     // case4
-    public static Specification<Product> matchListFactory(List<String> factory) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.in(root.get(Product_.FACTORY)).value(factory);
-    }
+    // public static Specification<Product> matchListFactory(List<String> factory) {
+    //     return (root, query, criteriaBuilder) -> criteriaBuilder.in(root.get(Product_.FACTORY)).value(factory);
+    // }
 
     public static Specification<Product> matchAddressContainsAny(String rawAddress) {
         return (root, query, criteriaBuilder) -> {

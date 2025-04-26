@@ -31,7 +31,29 @@
                                     <div class="col-12 mx-auto">
                                         <div class="d-flex justify-content-between">
                                             <h3>Table Main Product</h3>
-                                            <a href="/admin/product/create_mainProduct" class="btn btn-primary">Create Main Product</a>
+                                            <div class="mb-3">
+                                                <form action="/admin/mainProduct" method="get" class="row g-3">
+                                                    <div>
+                                                        <div class="input-group">
+                                                            <input type="text" class="form-control" name="search"
+                                                                placeholder="Tìm kiếm theo tên sản phẩm..."
+                                                                value="${not empty searchTerm ? searchTerm : ''}">
+                                                            <button class="btn btn-outline-secondary" type="submit">
+                                                                <i class="fas fa-search"></i>
+                                                            </button>
+                                                            <c:if test="${not empty searchTerm}">
+                                                                <a href="/admin/mainProduct"
+                                                                    class="btn btn-outline-danger">
+                                                                    <i class="fas fa-times"></i>
+                                                                </a>
+                                                            </c:if>
+                                                        </div>
+                                                    </div>
+                                                    <input type="hidden" name="page" value="1">
+                                                </form>
+                                            </div>
+                                            <a href="/admin/product/create_mainProduct" class="btn btn-primary">Create
+                                                Main Product</a>
                                         </div>
 
                                         <hr />
@@ -67,10 +89,40 @@
                                                 </c:forEach>
                                             </tbody>
                                         </table>
+                                        <nav aria-label="Page navigation example">
+                                            <ul class="pagination justify-content-center">
+                                                <li class="page-item">
+                                                    <a class="${1 eq currentPage ? 'disabled page-link' : 'page-link'}"
+                                                        href="/main-products?page=${currentPage - 1}${not empty param.search ? '&search=' += param.search : ''}"
+                                                        aria-label="Previous">
+                                                        <span aria-hidden="true">&laquo;</span>
+                                                    </a>
+                                                </li>
+                                                <c:if test="${totalPages > 0}">
+                                                    <c:forEach begin="0" end="${totalPages - 1}" varStatus="loop">
+                                                        <li class="page-item">
+                                                            <a class="${(loop.index + 1) eq currentPage ? 'active page-link' : 'page-link'}"
+                                                                href="/main-products?page=${loop.index + 1}${not empty param.search ? '&search=' += param.search : ''}">
+                                                                ${loop.index + 1}
+                                                            </a>
+                                                        </li>
+                                                    </c:forEach>
+                                                </c:if>
+
+
+                                                <li class="page-item">
+                                                    <a class="${totalPages eq currentPage ? 'disabled page-link' : 'page-link'}"
+                                                       href="/main-products?page=${currentPage + 1}${not empty param.search ? '&search=' += param.search : ''}" 
+                                                       aria-label="Next">
+                                                        <span aria-hidden="true">&raquo;</span>
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </nav>
                                     </div>
                                 </div>
                             </div>
-                            
+
                         </div>
                     </main>
                     <jsp:include page="../layout/footer.jsp" />

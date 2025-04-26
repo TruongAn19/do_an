@@ -23,6 +23,10 @@
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                             By-Product
                         </a>
+                        <a class="nav-link" href="/admin/booking">
+                            <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
+                            Booking
+                        </a>
                         <a class="nav-link" href="/admin/order">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                             Order

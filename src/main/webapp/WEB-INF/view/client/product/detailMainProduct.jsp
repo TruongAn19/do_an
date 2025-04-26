@@ -68,7 +68,9 @@
                                         <h5 class="fw-bold mb-3">
                                             <c:choose>
                                                 <c:when test="${product.sale > 0}">
-                                                    <del><fmt:formatNumber type="number" value="${product.price}" /> đ</del>
+                                                    <del>
+                                                        <fmt:formatNumber type="number" value="${product.price}" /> đ
+                                                    </del>
                                                 </c:when>
                                                 <c:otherwise>
                                                     <fmt:formatNumber type="number" value="${product.price}" /> đ
@@ -78,7 +80,8 @@
                                         <c:if test="${product.sale > 0}">
                                             <h5 class="fw-bold mb-3">
                                                 <fmt:formatNumber type="number" value="${discountPrice}" /> đ
-                                                (<fmt:formatNumber type="number" value="${product.sale}" /> %)
+                                                (
+                                                <fmt:formatNumber type="number" value="${product.sale}" /> %)
                                             </h5>
                                         </c:if>
                                         <!-- <div class="d-flex mb-4">
@@ -89,13 +92,24 @@
                                             <i class="fa fa-star"></i>
                                         </div> -->
                                         <p class="mb-4">Địa Chỉ: ${product.address}</p>
-                                        <div class="input-group quantity mb-5" style="width: 100px;">
-                                            <select name="time" id="time">
+
+                                        <div class="mb-5">
+                                            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3">
                                                 <c:forEach var="availableTime" items="${availableTime}">
-                                                    <option value="${availableTime}">${availableTime.time}</option>
+                                                    <div class="col">
+                                                        <div class="card text-center h-100 border-primary shadow-sm time-slot"
+                                                            style="cursor: pointer;">
+                                                            <div
+                                                                class="card-body d-flex align-items-center justify-content-center p-2">
+                                                                <span
+                                                                    class="fw-bold text-primary">${availableTime.time}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </c:forEach>
-                                            </select>
+                                            </div>
                                         </div>
+
                                         <p class="mb-4">Số lượng sân: ${product.quantity}</p>
                                         <a href="/booking/${product.id}"
                                             class="btn border border-secondary rounded-pill px-4 py-2 mb-4 text-primary"><i
@@ -122,36 +136,7 @@
 
                                 </div>
                             </div>
-                            <div class="col-lg-4 col-xl-3">
-                                <div class="row g-4 fruite">
-                                    <div class="col-lg-12">
 
-                                        <div class="mb-4">
-                                            <h4>Categories</h4>
-                                            <ul class="list-unstyled fruite-categorie">
-                                                <li>
-                                                    <div class="d-flex justify-content-between fruite-name">
-                                                        <a href="#"><i class="fas fa-apple-alt me-2"></i>Advanced</a>
-                                                        <span>(3)</span>
-                                                    </div>
-                                                </li>
-                                                <li>
-                                                    <div class="d-flex justify-content-between fruite-name">
-                                                        <a href="#"><i class="fas fa-apple-alt me-2"></i>Medium</a>
-                                                        <span>(5)</span>
-                                                    </div>
-                                                </li>
-                                                <li>
-                                                    <div class="d-flex justify-content-between fruite-name">
-                                                        <a href="#"><i class="fas fa-apple-alt me-2"></i>Basic</a>
-                                                        <span>(2)</span>
-                                                    </div>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                     </div>

@@ -10,7 +10,7 @@
                 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
                 <meta name="description" content="Hỏi Dân IT - Dự án laptopshop" />
                 <meta name="author" content="Hỏi Dân IT" />
-                <title>Delete Order - Sân cầu lông</title>
+                <title>Delete Booking - Sân cầu lông</title>
                 <link href="/css/styles.css" rel="stylesheet" />
 
                 <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
@@ -23,25 +23,25 @@
                     <div id="layoutSidenav_content">
                         <main>
                             <div class="container-fluid px-4">
-                                <h1 class="mt-4">Orders</h1>
+                                <h1 class="mt-4">Booking</h1>
                                 <ol class="breadcrumb mb-4">
                                     <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
-                                    <li class="breadcrumb-item"><a href="/admin/order">Order</a></li>
+                                    <li class="breadcrumb-item"><a href="/admin/booking">booking</a></li>
                                     <li class="breadcrumb-item active">Delete</li>
                                 </ol>
                                 <div class=" mt-5">
                                     <div class="row">
                                         <div class="col-12 mx-auto">
                                             <div class="d-flex justify-content-between">
-                                                <h3>Delete the order with id = ${id}</h3>
+                                                <h3>Delete the booking with id = ${id}</h3>
                                             </div>
 
                                             <hr />
                                             <div class="alert alert-danger">
-                                                Are you sure to delete this order ?
+                                                Are you sure to delete this booking ?
                                             </div>
-                                            <form:form method="post" action="/admin/order/delete"
-                                                modelAttribute="newOrder">
+                                            <form:form method="post" action="/admin/booking/delete"
+                                                modelAttribute="newBooking">
                                                 <div class="mb-3" style="display: none;">
                                                     <label class="form-label">Id:</label>
                                                     <form:input value="${id}" type="text" class="form-control"

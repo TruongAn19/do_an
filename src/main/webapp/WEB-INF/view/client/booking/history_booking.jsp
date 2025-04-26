@@ -7,7 +7,7 @@
 
             <head>
                 <meta charset="utf-8">
-                <title> Lịch sử mua hàng - Sân cầu lông</title>
+                <title> Lịch sử đặt sân - Sân cầu lông</title>
                 <meta content="width=device-width, initial-scale=1.0" name="viewport">
                 <meta content="" name="keywords">
                 <meta content="" name="description">
@@ -53,8 +53,8 @@
                         <div class="mb-3">
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="/">Home</a></li>
-                                    <li class="breadcrumb-item active" aria-current="page">Lịch sử mua hàng</li>
+                                    <li class="breadcrumb-item"><a href="/HomePage">Home</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">Lịch sử đặt sân</li>
                                 </ol>
                             </nav>
                         </div>
@@ -73,68 +73,76 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <c:if test="${ empty orders}">
+                                    <c:if test="${ empty bookings}">
                                         <tr>
                                             <td colspan="6">
                                                 Không có đơn hàng nào được tạo
                                             </td>
                                         </tr>
                                     </c:if>
-                                    <c:forEach var="order" items="${orders}">
+                                    <c:forEach var="booking" items="${bookings}">
                                         <tr>
-                                            <td colspan="2">Order Id = ${order.id}</td>
+                                            <td colspan="2">Booking Id = ${booking.id}</td>
                                             <td colspan="1">
-                                                <fmt:formatNumber type="number" value=" ${order.totalPrice}" />
-                                                đ
+                                                <fmt:formatNumber type="number"
+                                                    value="${bookingDetail.price * bookingDetail.quantity - (bookingDetail.price * bookingDetail.quantity * bookingDetail.product.sale / 100)}" />
+
                                             </td>
                                             <td colspan="1"></td>
                                             <td colspan="2"></td>
                                             <td colspan="1">
-                                                ${order.status}
+                                                ${booking.status}
                                             </td>
                                         </tr>
-                                        <c:forEach var="orderDetail" items="${order.orderDetails}">
+                                        <c:forEach var="bookingDetail" items="${booking.bookingDetails}">
                                             <tr>
                                                 <th scope="row">
                                                     <div class="d-flex align-items-center">
-                                                        <img src="/images/product/${orderDetail.product.image}"
+                                                        <img src="/images/product/${bookingDetail.product.image}"
                                                             class="img-fluid me-5 rounded-circle"
                                                             style="width: 80px; height: 80px;" alt="">
                                                     </div>
                                                 </th>
                                                 <td>
                                                     <p class="mb-0 mt-4">
-                                                        <a href="/mainProduct/${orderDetail.product.id}" target="_blank">
-                                                            ${orderDetail.product.name}
+                                                        <a href="/mainProduct/${bookingDetail.product.id}"
+                                                            target="_blank">
+                                                            ${bookingDetail.product.name}
                                                         </a>
                                                     </p>
                                                 </td>
                                                 <td>
                                                     <p class="mb-0 mt-4">
-                                                        <fmt:formatNumber type="number" value="${orderDetail.price}" />đ
+                                                        <fmt:formatNumber type="number"
+                                                            value="${bookingDetail.price}" />đ
                                                     </p>
                                                 </td>
                                                 <td>
                                                     <p class="mb-0 mt-4">
-                                                        <fmt:formatNumber type="number" value="${orderDetail.product.sale}" />% 
+                                                        <fmt:formatNumber type="number"
+                                                            value="${bookingDetail.sale}" />%
                                                     </p>
                                                 </td>
                                                 <td>
                                                     <div class="input-group quantity mt-4" style="width: 100px;">
                                                         <input type="text"
                                                             class="form-control form-control-sm text-center border-0"
-                                                            value="${orderDetail.quantity}">
+                                                            value="${bookingDetail.quantity}">
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <p class="mb-0 mt-4" data-cart-detail-id="${orderDetail.id}">
+                                                    <p class="mb-0 mt-4" data-cart-detail-id="${bookingDetail.id}">
                                                         <fmt:formatNumber type="number"
-                                                        value="${orderDetail.price * orderDetail.quantity - (orderDetail.price * orderDetail.quantity * orderDetail.product.sale / 100)}" /> đ
+                                                            value="${bookingDetail.price * bookingDetail.quantity - (bookingDetail.price * orderDetail.quantity * orderDetail.product.sale / 100)}" />
+                                                        đ
                                                     </p>
                                                 </td>
-                                                <td> <p class="mb-0 mt-4">${order.status}</p></td>
-                                                <td><p class="mb-0 mt-4">${orderDetail.availableTime.time}</p></td></td>
-                                                <td><p class="mb-0 mt-4">${orderDetail.subCourt.name}</p></td></td>
+                                                <td>
+                                                    <p class="mb-0 mt-4">${booking.status}</p>
+                                                </td>
+                                                <td><p class="mb-0 mt-4">${bookingDetail.availableTime.time}</p></td>
+                                                <td><p class="mb-0 mt-4">${bookingDetail.subCourt.name}</p></td>
+                                                
                                             </tr>
                                         </c:forEach>
                                     </c:forEach>

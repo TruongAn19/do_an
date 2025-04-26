@@ -1,0 +1,129 @@
+package com.example.quanly.controller.admin;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.Racket;
+import com.example.quanly.repository.ProductRepository;
+import com.example.quanly.service.RacketService;
+import com.example.quanly.service.UploadService;
+
+@Controller
+public class RacketConTroller {
+    @Autowired
+    private RacketService racketService;
+
+    @Autowired
+    private UploadService uploadService;
+
+    @Autowired
+    private  ProductRepository productRepository  ;
+
+    @GetMapping("/admin/by-product")
+    public String getByProductPage(Model model,
+            @RequestParam("page") Optional<String> optionalPage) {
+        int page = 1;
+        try {
+            if (optionalPage.isPresent()) {
+                page = Integer.parseInt(optionalPage.get());
+            } else {
+            }
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        Pageable pageable = PageRequest.of(page - 1, 4);
+        Page<Racket> byProducts = this.racketService.getAllRacket(pageable);
+        List<Racket> listByProducts = byProducts.getContent();
+        model.addAttribute("byProducts", listByProducts);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", byProducts.getTotalPages());
+        return "admin/racket/by-product";
+    }
+
+    @GetMapping("/admin/racket/{productId}")
+    public String getMethodName(Model model, @PathVariable long productId) {
+        Optional<Racket> racket = this.racketService.getRacketById(productId);
+        model.addAttribute("racket", racket);
+        model.addAttribute("id", productId);
+        return "admin/racket/byProduct_detail";
+    }
+
+    @GetMapping("/admin/racket/create_racket")
+    public String getCreateRacketPage(Model model) {
+        List<Product> product = this.productRepository.findAll();
+        model.addAttribute("newRacket", new Racket());
+        model.addAttribute("productList", product);
+        return "admin/racket/create_byProduct";
+    }
+
+    @PostMapping(value = "/admin/racket/create")
+    public String createProductPage(Model model, @ModelAttribute("newRacket") Racket racket,
+            @RequestParam("racketImg") MultipartFile file) {
+        String racketImage = this.uploadService.handleSaveUploadFile(file, "racket");
+        // racket.setDetailDesc(racket.getDetailDesc().replace("\n", "<br>"));
+        racket.setImage(racketImage);
+        this.racketService.handSaveRacket(racket);
+        return "redirect:/admin/by-product";
+
+    }
+
+    @GetMapping("/admin/racket/update_byProduct/{racketId}")
+    public String getUpdateByProductPage(Model model, @PathVariable long racketId) {
+        Optional<Racket> existRacket = this.racketService.getRacketById(racketId);
+        model.addAttribute("existRacket", existRacket);
+        return "admin/racket/update_byProduct";
+    }
+
+    @PostMapping("/admin/racket/update_racket")
+    public String postUpdateProduct(Model model, @ModelAttribute("editRacket") Racket racket,
+            @RequestParam("racketImg") MultipartFile file) {
+        Optional<Racket> existRacket = this.racketService.getRacketById(racket.getId());
+
+        if (existRacket.isPresent()) {
+            Racket existing = existRacket.get();
+
+            existing.setName(racket.getName());
+            existing.setPrice(racket.getPrice());
+            existing.setFactory(racket.getFactory());
+            existing.setAvailable(racket.isAvailable());
+            existing.setProduct(racket.getProduct()); // nhớ lấy product
+
+            if (!file.isEmpty()) {
+                String racketImg = this.uploadService.handleSaveUploadFile(file, "racket");
+                existing.setImage(racketImg);
+            }
+
+            this.racketService.handSaveRacket(existing);
+        }
+
+        return "redirect:/admin/by-product";
+    }
+
+    @GetMapping("/admin/racket/delete_racket/{racketId}")
+    public String getDeleteProductPage(Model model, @PathVariable long racketId) {
+        Optional<Racket> racket = this.racketService.getRacketById(racketId);
+        model.addAttribute("racket", racket.orElse(new Racket())); // Để binding với form
+        model.addAttribute("racketId", racketId);
+        return "admin/racket/delete_racket";
+    }
+
+    @PostMapping("/admin/racket/delete_racket")
+    public String postDeleteProduct(@ModelAttribute("racket") Racket racket) {
+        this.racketService.deleteRacket(racket.getId());
+        return "redirect:/admin/by-product"; // Redirect đúng trang list sản phẩm của bạn
+    }
+}

@@ -1,14 +1,15 @@
 package com.example.quanly.domain;
 
-import java.sql.Time;
 
+import java.time.LocalDate;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -19,17 +20,30 @@ public class BookingDetail {
     private long id;
 
     private long quantity;
-    private double price;
-    private Time time;
 
-    @OneToOne()
-    @JoinColumn(name = "user_id")
-    private User user;
+    private double price;
+    private long sale;
+
+    
+    @ManyToOne
+    @JoinColumn(name = "booking_id")
+    private Booking booking;
 
     // product_id: long
     @ManyToOne
     @JoinColumn(name = "product_id")
     private Product product;
+
+    @ManyToOne
+    @JoinColumn(name = "available_time_id", nullable = true) // Khóa ngoại trỏ đến AvailableTime
+    private AvailableTime availableTime;
+
+    @ManyToOne
+    @JoinColumn(name = "sub_court_id", nullable = true)
+    private SubCourt subCourt;
+
+    @Column(name = "date")
+    private LocalDate date;
 
     public long getId() {
         return id;
@@ -55,12 +69,20 @@ public class BookingDetail {
         this.price = price;
     }
 
-    public Time getTime() {
-        return time;
+    public long getSale() {
+        return sale;
     }
 
-    public void setTime(Time time) {
-        this.time = time;
+    public void setSale(long sale) {
+        this.sale = sale;
+    }
+
+    public Booking getBooking() {
+        return booking;
+    }
+
+    public void setBooking(Booking booking) {
+        this.booking = booking;
     }
 
     public Product getProduct() {
@@ -71,13 +93,30 @@ public class BookingDetail {
         this.product = product;
     }
 
-    public User getUser() {
-        return user;
+    public AvailableTime getAvailableTime() {
+        return availableTime;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setAvailableTime(AvailableTime availableTime) {
+        this.availableTime = availableTime;
     }
 
+    public SubCourt getSubCourt() {
+        return subCourt;
+    }
+
+    public void setSubCourt(SubCourt subCourt) {
+        this.subCourt = subCourt;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    
     
 }

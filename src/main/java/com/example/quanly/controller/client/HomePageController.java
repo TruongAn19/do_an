@@ -14,10 +14,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
+import com.example.quanly.domain.Booking;
 import com.example.quanly.domain.Order;
 import com.example.quanly.domain.Product;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
+import com.example.quanly.service.BookingService;
 import com.example.quanly.service.OrderService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.UploadService;
@@ -39,18 +41,21 @@ public class HomePageController {
     private final PasswordEncoder passwordEncoder;
     private final OrderService orderService;
     private final UploadService uploadService;
+    private final BookingService bookingService;
     
         public HomePageController(
                 ProductService productService,
                 UserService userService,
                 PasswordEncoder passwordEncoder,
                 OrderService orderService,
-                UploadService uploadService) {
+                UploadService uploadService,
+                BookingService bookingService) {
             this.productService = productService;
             this.userService = userService;
             this.passwordEncoder = passwordEncoder;
             this.orderService = orderService;
             this.uploadService = uploadService;
+            this.bookingService = bookingService;
     }
 
     @GetMapping("/HomePage")
@@ -68,8 +73,8 @@ public class HomePageController {
             // TODO: handle exception
         }
         Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Product> mainProducts = this.productService.getAllMainProduct(pageable);
-        Page<Product> byProducts = this.productService.getAllByProduct(pageable);
+        Page<Product> mainProducts = this.productService.getAllProduct(pageable);
+        Page<Product> byProducts = this.productService.getAllProduct(pageable);
         List<Product> listMainProducts = mainProducts.getContent();
         List<Product> listByProducts = byProducts.getContent();
         model.addAttribute("mainProducts", listMainProducts);
@@ -118,6 +123,18 @@ public class HomePageController {
         List<Order> orders = this.orderService.fetchOrderByUser(currentUser);
         model.addAttribute("orders", orders);
         return "client/cart/history_order";
+    }
+
+    @GetMapping("/booking-history")
+    public String getBookingHistoryPage(Model model, HttpServletRequest request) {
+        User currentUser = new User();// null
+        HttpSession session = request.getSession(false);
+        long id = (long) session.getAttribute("id");
+        currentUser.setId(id);
+
+        List<Booking> bookings = this.bookingService.fetchBookingByUser(currentUser);
+        model.addAttribute("bookings", bookings);
+        return "client/booking/history_booking";
     }
 
     @GetMapping("/profile")

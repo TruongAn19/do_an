@@ -95,13 +95,13 @@ public class UserService {
         return this.userRepository.count();
     }
 
-    public long countByProduct() {
-        long count = this.productRepository.countByProduct();
-        return count;
-    }
+    // public long countByProduct() {
+    //     long count = this.productRepository.countByProduct();
+    //     return count;
+    // }
 
     public long countMainProduct() {
-        return this.productRepository.countMainProduct();
+        return this.productRepository.count();
     }
 
     public long countOrder() {

@@ -312,45 +312,39 @@
             console.log("Time ID đang chọn: ", selectedTimeId);
             $('#hiddenAvailableTimeId').val(selectedTimeId);
         }
-    
+
         // Gọi lúc trang load
         updateSelectedTimeId();
-    
+
         // Gọi khi người dùng đổi dropdown
         $('#timeSelect').on('change', updateSelectedTimeId);
     });
-    
 
-    // quantity-handler
     $(document).ready(function () {
-        // Cập nhật thời gian được chọn
-        function updateSelectedTimeId() {
-            const selectedTimeId = $('#timeSelect').val();
-            console.log("Time ID đang chọn: ", selectedTimeId);
-            $('#hiddenAvailableTimeId').val(selectedTimeId);
-        }
-    
-        // Cập nhật số lượng
-        function updateQuantity() {
-            const quantityInput = $('.quantity-input').val(); // Nếu có nhiều input, cần chỉ rõ dòng
-            $('#hiddenQuantity').val(quantityInput);
-        }
-    
-        // Gọi lúc trang load
-        updateSelectedTimeId();
-        updateQuantity();
-    
-        // Khi đổi thời gian
-        $('#timeSelect').on('change', updateSelectedTimeId);
-    
-        // Khi click tăng/giảm
-        $('.btn-plus, .btn-minus').click(function () {
-            setTimeout(updateQuantity, 100);
+        $("#timeSelect").change(function () {
+            $("#hiddenAvailableTimeId").val($(this).val());
+        });
+
+        $("#courtSelect").change(function () {
+            $("#hiddenCourtId").val($(this).val());
+        });
+
+        // Khởi tạo giá trị ban đầu
+        $("#hiddenAvailableTimeId").val($("#timeSelect").val());
+        $("#hiddenCourtId").val($("#courtSelect").val());
+    });
+
+    $(document).ready(function() {
+        // Đảm bảo quantity luôn có giá trị
+        $('#quantity').val(1);
+        
+        $('#courtSelect').change(function() {
+            if ($(this).val()) {
+                $('#quantity').val(1);
+                console.log('Quantity set to 1');
+            }
         });
     });
-    
-
-
 
 })(jQuery);
 

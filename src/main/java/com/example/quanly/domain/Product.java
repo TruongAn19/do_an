@@ -1,7 +1,9 @@
 package com.example.quanly.domain;
 
 
+import java.util.List;
 import java.util.Set;
+
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,8 +14,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
-// import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
+
 
 @Entity
 @Table(name = "products")
@@ -31,7 +35,7 @@ public class Product {
     private long quantity;
     private long sale;
     private String address;
-    private String factory;
+    
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -44,6 +48,9 @@ public class Product {
         inverseJoinColumns = @JoinColumn(name = "time_id") // Khóa ngoại tham chiếu đến thời gian
     )
     private Set<AvailableTime> availableTimes;
+
+    @OneToMany
+    private List<Racket> rackets;
 
     public long getId() {
         return id;
@@ -125,13 +132,12 @@ public class Product {
         this.availableTimes = availableTimes;
     }
 
-    public String getFactory() {
-        return factory;
+    public User getUser() {
+        return user;
     }
 
-    public void setFactory(String factory) {
-        this.factory = factory;
+    public void setUser(User user) {
+        this.user = user;
     }
 
-    
 }

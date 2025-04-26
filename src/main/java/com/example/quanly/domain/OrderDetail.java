@@ -1,5 +1,8 @@
 package com.example.quanly.domain;
 
+import java.time.LocalDate;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,6 +19,7 @@ public class OrderDetail {
     private long id;
 
     private long quantity;
+
     private double price;
 
     // order_id: long
@@ -32,20 +36,19 @@ public class OrderDetail {
     @JoinColumn(name = "available_time_id", nullable = true) // Khóa ngoại trỏ đến AvailableTime
     private AvailableTime availableTime;
 
+    @ManyToOne
+    @JoinColumn(name = "sub_court_id", nullable = true)
+    private SubCourt subCourt;
+
+    @Column(name = "date")
+    private LocalDate date;
+
     public long getId() {
         return id;
     }
 
     public void setId(long id) {
         this.id = id;
-    }
-
-    public long getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(long quantity) {
-        this.quantity = quantity;
     }
 
     public double getPrice() {
@@ -78,6 +81,30 @@ public class OrderDetail {
 
     public void setAvailableTime(AvailableTime availableTime) {
         this.availableTime = availableTime;
+    }
+
+    public SubCourt getSubCourt() {
+        return subCourt;
+    }
+
+    public void setSubCourt(SubCourt subCourt) {
+        this.subCourt = subCourt;
+    }
+
+    public long getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(long quantity) {
+        this.quantity = quantity;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
     }
 
     
