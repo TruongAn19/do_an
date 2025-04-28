@@ -17,19 +17,19 @@
 
                         <a class="nav-link" href="/admin/mainProduct">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                            Main-Product
+                            Badminton Court
                         </a>
-                        <a class="nav-link" href="/admin/by-product">
+                        <a class="nav-link" href="/admin/racket">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                            By-Product
+                            Racket
                         </a>
                         <a class="nav-link" href="/admin/booking">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                             Booking
                         </a>
-                        <a class="nav-link" href="/admin/order">
+                        <a class="nav-link" href="/admin/rental">
                             <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                            Order
+                            Rental Manager
                         </a>
                     </div>
                 </div>

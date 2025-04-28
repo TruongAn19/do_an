@@ -45,6 +45,7 @@
 
                                         <li><a class="dropdown-item" href="/order-history">Lịch sử giao dịch</a></li>
                                         <li><a class="dropdown-item" href="/booking-history">Lịch sử đặt sân</a></li>
+                                        <li><a class="dropdown-item" href="/rental-history">Lịch sử thuê dụng cụ</a></li>
 
                                         <li>
                                             <hr class="dropdown-divider">

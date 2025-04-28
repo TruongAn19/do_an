@@ -50,10 +50,6 @@ public class UserController {
             BindingResult bindingResult,
             @RequestParam("avatarFile") MultipartFile file) {
 
-        // List<FieldError> errors = bindingResult.getFieldErrors();
-        // for (FieldError error : errors) {
-        //     System.out.println(">>>>" + error.getField() + " - " + error.getDefaultMessage());
-        // }
         if (bindingResult.hasErrors()) {
             return "admin/user/create";
         }

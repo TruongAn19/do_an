@@ -48,7 +48,13 @@ public class UserService {
             admin.setPhone("0963931420");
             admin.setAddress("Hà Nội");
             admin.setPassword(passwordEncoder.encode("123456"));
-            admin.setRole(getRoleByName("ADMIN"));
+            Role adminRole = new Role();
+            adminRole.setName("ADMIN");
+            Role userRole = new Role();
+            userRole.setName("USER");
+            roleRepository.save(adminRole);
+            roleRepository.save(userRole);
+            admin.setRole(adminRole);
             userRepository.save(admin);
         }
     }
@@ -111,4 +117,5 @@ public class UserService {
     public User updateToUser(long id) {
         return this.userRepository.findById(id);
     }
+
 }

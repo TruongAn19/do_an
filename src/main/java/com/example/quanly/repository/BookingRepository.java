@@ -18,4 +18,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
     // Tìm các Booking có ít nhất một BookingDetail với ngày cụ thể
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date")
     List<Booking> findByBookingDetailsDate(@Param("date") LocalDate date);
-} 
+
+    Booking findByBookingCode(String bookingCode);
+}

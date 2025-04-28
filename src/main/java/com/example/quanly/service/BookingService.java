@@ -4,11 +4,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.quanly.domain.*;
+import com.example.quanly.repository.RentalToolRepository;
 import org.springframework.stereotype.Service;
 
-import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.BookingDetail;
-import com.example.quanly.domain.User;
 import com.example.quanly.repository.BookingDetailRepository;
 import com.example.quanly.repository.BookingRepository;
 
@@ -17,12 +16,14 @@ import com.example.quanly.repository.BookingRepository;
 public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingDetailRepository bookingDetailRepository;
+    private final RentalToolRepository rentalToolRepository;
 
     public BookingService(
             BookingRepository bookingRepository,
-            BookingDetailRepository bookingDetailRepository) {
+            BookingDetailRepository bookingDetailRepository, RentalToolRepository rentalToolRepository) {
         this.bookingDetailRepository = bookingDetailRepository;
         this.bookingRepository = bookingRepository;
+        this.rentalToolRepository = rentalToolRepository;
     }
 
     public List<Booking> fetchAllBookings() {
@@ -49,11 +50,19 @@ public class BookingService {
 
     public void updateBooking(Booking booking) {
         Optional<Booking> bOptional = this.fetchBookingById(booking.getId());
-        if (bOptional.isPresent()) {
+        if (bOptional.isEmpty())
+            return;
             Booking currentBooking = bOptional.get();
             currentBooking.setStatus(booking.getStatus());
             this.bookingRepository.save(currentBooking);
-        }
+            if(currentBooking.getStatus().equals("Đã thanh toán")) {
+                List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(currentBooking.getId()+"");
+                for (RentalTool rentalTool : rentalTools) {
+                    rentalTool.setStatus(RentalToolStatus.COMPLETED);
+                    rentalToolRepository.save(rentalTool);
+                }
+            }
+
     }
 
     public List<Booking> fetchBookingByUser(User user) {

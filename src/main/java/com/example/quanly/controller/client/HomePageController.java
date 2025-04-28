@@ -3,9 +3,13 @@ package com.example.quanly.controller.client;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.quanly.domain.*;
+import com.example.quanly.repository.RentalToolRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,10 +18,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
-import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.Order;
-import com.example.quanly.domain.Product;
-import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
 import com.example.quanly.service.BookingService;
 import com.example.quanly.service.OrderService;
@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Controller
 public class HomePageController {
 
@@ -42,20 +43,22 @@ public class HomePageController {
     private final OrderService orderService;
     private final UploadService uploadService;
     private final BookingService bookingService;
-    
-        public HomePageController(
+    private final RentalToolRepository rentalToolRepository;
+
+    public HomePageController(
                 ProductService productService,
                 UserService userService,
                 PasswordEncoder passwordEncoder,
                 OrderService orderService,
                 UploadService uploadService,
-                BookingService bookingService) {
+                BookingService bookingService, RentalToolRepository rentalToolRepository) {
             this.productService = productService;
             this.userService = userService;
             this.passwordEncoder = passwordEncoder;
             this.orderService = orderService;
             this.uploadService = uploadService;
             this.bookingService = bookingService;
+        this.rentalToolRepository = rentalToolRepository;
     }
 
     @GetMapping("/HomePage")
@@ -135,6 +138,14 @@ public class HomePageController {
         List<Booking> bookings = this.bookingService.fetchBookingByUser(currentUser);
         model.addAttribute("bookings", bookings);
         return "client/booking/history_booking";
+    }
+
+    @GetMapping("/rental-history")
+    public String getRentalHistoryPage(Model model) {
+        List<RentalTool> rentalTools = rentalToolRepository.findAll();
+        log.info("check: {}", rentalTools);
+        model.addAttribute("rentalHistories", rentalTools);
+        return "client/racket/rental_history"; // Tên file HTML/JSP bạn đặt (ví dụ: rental-history.jsp hoặc rental-history.html)
     }
 
     @GetMapping("/profile")

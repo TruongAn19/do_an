@@ -23,7 +23,7 @@ import com.example.quanly.service.RacketService;
 import com.example.quanly.service.UploadService;
 
 @Controller
-public class RacketConTroller {
+public class RacketController {
     @Autowired
     private RacketService racketService;
 
@@ -33,7 +33,7 @@ public class RacketConTroller {
     @Autowired
     private  ProductRepository productRepository  ;
 
-    @GetMapping("/admin/by-product")
+    @GetMapping("/admin/racket")
     public String getByProductPage(Model model,
             @RequestParam("page") Optional<String> optionalPage) {
         int page = 1;
@@ -54,11 +54,11 @@ public class RacketConTroller {
         return "admin/racket/by-product";
     }
 
-    @GetMapping("/admin/racket/{productId}")
-    public String getMethodName(Model model, @PathVariable long productId) {
-        Optional<Racket> racket = this.racketService.getRacketById(productId);
-        model.addAttribute("racket", racket);
-        model.addAttribute("id", productId);
+    @GetMapping("/admin/racket/{racketId}")
+    public String getDetailRacket(Model model, @PathVariable long racketId) {
+        Optional<Racket> racket = this.racketService.getRacketById(racketId);
+        model.addAttribute("racket", racket.get());
+        model.addAttribute("id", racketId);
         return "admin/racket/byProduct_detail";
     }
 
@@ -74,17 +74,18 @@ public class RacketConTroller {
     public String createProductPage(Model model, @ModelAttribute("newRacket") Racket racket,
             @RequestParam("racketImg") MultipartFile file) {
         String racketImage = this.uploadService.handleSaveUploadFile(file, "racket");
-        // racket.setDetailDesc(racket.getDetailDesc().replace("\n", "<br>"));
         racket.setImage(racketImage);
         this.racketService.handSaveRacket(racket);
-        return "redirect:/admin/by-product";
+        return "redirect:/admin/racket";
 
     }
 
     @GetMapping("/admin/racket/update_byProduct/{racketId}")
     public String getUpdateByProductPage(Model model, @PathVariable long racketId) {
         Optional<Racket> existRacket = this.racketService.getRacketById(racketId);
-        model.addAttribute("existRacket", existRacket);
+        model.addAttribute("editRacket", existRacket);
+        List<Product> product = this.productRepository.findAll();
+        model.addAttribute("productList", product);
         return "admin/racket/update_byProduct";
     }
 
@@ -100,8 +101,11 @@ public class RacketConTroller {
             existing.setPrice(racket.getPrice());
             existing.setFactory(racket.getFactory());
             existing.setAvailable(racket.isAvailable());
-            existing.setProduct(racket.getProduct()); // nhớ lấy product
-
+            existing.setRentalPricePerDay(racket.getRentalPricePerDay());
+            existing.setRentalPricePerPlay(racket.getRentalPricePerPlay());
+            existing.setBookingStockQuantity(racket.getBookingStockQuantity());
+            existing.setQuantity(racket.getQuantity());
+            existing.setProduct(racket.getProduct());// nhớ lấy product
             if (!file.isEmpty()) {
                 String racketImg = this.uploadService.handleSaveUploadFile(file, "racket");
                 existing.setImage(racketImg);
@@ -110,7 +114,7 @@ public class RacketConTroller {
             this.racketService.handSaveRacket(existing);
         }
 
-        return "redirect:/admin/by-product";
+        return "redirect:/admin/racket";
     }
 
     @GetMapping("/admin/racket/delete_racket/{racketId}")
@@ -124,6 +128,8 @@ public class RacketConTroller {
     @PostMapping("/admin/racket/delete_racket")
     public String postDeleteProduct(@ModelAttribute("racket") Racket racket) {
         this.racketService.deleteRacket(racket.getId());
-        return "redirect:/admin/by-product"; // Redirect đúng trang list sản phẩm của bạn
+        return "redirect:/admin/racket"; // Redirect đúng trang list sản phẩm của bạn
     }
+
+
 }

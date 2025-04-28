@@ -28,50 +28,71 @@
                                     <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>
                                     <li class="breadcrumb-item active">Products</li>
                                 </ol>
-                                <div class=" mt-5">
+                                <div class="mt-5">
                                     <div class="row">
-                                        <div class="col-md-6 col-12 mx-auto">
+                                        <div class="col-md-8 col-12 mx-auto">
                                             <h3>Update a product</h3>
                                             <hr />
-                                            <form:form method="post" action="/admin/racket/update_racket"
-                                                modelAttribute="editRacket" enctype="multipart/form-data">
+                                            <form:form method="post" action="/admin/racket/update_racket" modelAttribute="editRacket" enctype="multipart/form-data">
                                                 <input type="hidden" name="productType" value="byProduct">
-                                                <div class="mb-3" style="display: none;">
-                                                    <label class="form-label">Id:</label>
-                                                    <form:input type="text" class="form-control" path="id" />
+
+                                                <div class="row">
+                                                    <!-- First column -->
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Id:</label>
+                                                            <form:input type="text" class="form-control" path="id" readonly="true"/>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Name:</label>
+                                                            <form:input type="text" class="form-control" path="name"/>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Factory:</label>
+                                                            <form:input type="text" class="form-control" path="factory"/>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Price:</label>
+                                                            <form:input type="text" class="form-control" path="price" />
+                                                        </div>
+                                                    </div>
+                                                    <!-- Second column -->
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Giá thuê theo ngày:</label>
+                                                            <form:input type="text" class="form-control" path="rentalPricePerDay" />
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Giá thuê tại sân:</label>
+                                                            <form:input type="text" class="form-control" path="rentalPricePerPlay" />
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Product:</label>
+                                                            <form:select path="product.id" class="form-control">
+                                                                <form:options items="${productList}" itemValue="id" itemLabel="name" />
+                                                            </form:select>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label for="avatarFile" class="form-label">Image:</label>
+                                                            <input class="form-control" type="file" id="racketImg" accept=".png, .jpg, .jpeg" name="racketImg" />
+                                                        </div>
+                                                    </div>
                                                 </div>
 
-                                                <div class="mb-3">
-                                                    <label class="form-label">Name:</label>
-                                                    <form:input type="name" class="form-control" path="name"/>
-                                                </div>
-
-                                                <div class="mb-3">
-                                                    <label class="form-label">factory:</label>
-                                                    <form:input type="name" class="form-control" path="factory"/>
-                                                </div>
-
-                        
-                                                <div class="mb-3">
-                                                    <label class="form-label">Price:</label>
-                                                    <form:input type="text" class="form-control" path="price" />
-                                                </div>
-                                                
-                                                <div class="mb-3 col-12 col-md-6">
-                                                    <label for="avatarFile" class="form-label">Image:</label>
-                                                    <input class="form-control" type="file" id="racketImg"
-                                                        accept=".png, .jpg, .jpeg" name="racketImg" />
-                                                </div>
                                                 <div class="col-12 mb-3">
-                                                    <img style="max-height: 250px; display: none;" alt="avatar preview"
-                                                        id="avatarPreview" />
+                                                    <img style="max-height: 250px; display: none;" alt="avatar preview" id="avatarPreview" />
                                                 </div>
+
                                                 <button type="submit" class="btn btn-warning">Update</button>
                                             </form:form>
                                         </div>
-
                                     </div>
-
                                 </div>
                             </div>
                         </main>

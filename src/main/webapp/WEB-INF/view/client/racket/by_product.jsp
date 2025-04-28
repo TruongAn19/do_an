@@ -82,24 +82,24 @@
                                                     <label class="form-check-label" for="target-2">Li-Ning</label>
                                                 </div>
                                                 <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="target-3"
+                                                    <input class="form-check-input" type="checkbox" id="target-4"
                                                         value="Victor">
-                                                    <label class="form-check-label" for="target-3">Victor</label>
+                                                    <label class="form-check-label" for="target-4">Victor</label>
                                                 </div>
                                                 <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="target-3"
+                                                    <input class="form-check-input" type="checkbox" id="target-5"
                                                         value="Babolat">
-                                                    <label class="form-check-label" for="target-3"> Babolat</label>
+                                                    <label class="form-check-label" for="target-5"> Babolat</label>
                                                 </div>
                                                 <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="target-3"
+                                                    <input class="form-check-input" type="checkbox" id="target-6"
                                                         value="Carlton">
-                                                    <label class="form-check-label" for="target-3">Carlton</label>
+                                                    <label class="form-check-label" for="target-6">Carlton</label>
                                                 </div>
                                                 <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="checkbox" id="target-3"
+                                                    <input class="form-check-input" type="checkbox" id="target-7"
                                                         value="Apacs">
-                                                    <label class="form-check-label" for="target-3">Apacs</label>
+                                                    <label class="form-check-label" for="target-7">Apacs</label>
                                                 </div>
                                             </div>
                                             <div class="col-12" id="priceFilter">
@@ -164,51 +164,35 @@
                                     </div>
                                     <div class="col-12 col-md-8 text-center">
                                         <div class="row g-4">
-                                            <c:if test="${totalPages ==  0}">
+                                            <c:if test="${empty listByProduct}">
                                                 <div>Không tìm thấy sản phẩm</div>
                                             </c:if>
-                                            <c:forEach var="byProduct" items="${listByProduct}">
+                                            <c:forEach var="racket" items="${listByProduct}">
                                                 <div class="col-md-6 col-lg-4 d-flex">
-                                                    <div
-                                                        class="rounded position-relative fruite-item h-100 d-flex flex-column w-100 border border-secondary">
-                                                        <!-- Ảnh sản phẩm -->
+                                                    <div class="rounded position-relative fruite-item h-100 d-flex flex-column w-100 border border-secondary">
+                                                        <!-- Product Image -->
                                                         <div class="fruite-img">
-                                                            <img src="/images/product/${byProduct.image}"
-                                                                class="img-fluid w-100 rounded-top"
-                                                                style="object-fit: cover; aspect-ratio: 4/3;" alt="">
+                                                            <img src="/images/racket/${racket.image}"
+                                                                 class="img-fluid w-100 rounded-top"
+                                                                 style="object-fit: cover; aspect-ratio: 4/3;" alt="">
                                                         </div>
 
-                                                        <!-- Danh mục -->
-                                                        <div class="text-white bg-secondary px-3 py-1 rounded position-absolute"
-                                                            style="top: 10px; left: 10px;">Phụ kiện</div>
-
-                                                        <!-- Nội dung sản phẩm -->
-                                                        <div
-                                                            class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
-                                                            <h4 class="text-center text-primary"
-                                                                style="font-size: 15px;">
-                                                                <a
-                                                                    href="/byProduct/${byProduct.id}">${byProduct.name}</a>
+                                                        <!-- Product Content -->
+                                                        <div class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
+                                                            <h4 class="text-center text-primary" style="font-size: 15px;">
+                                                                <a href="/byProduct/${racket.id}">${racket.name}</a>
                                                             </h4>
-                                                            <p class="text-center flex-grow-1" style="font-size: 13px;">
-                                                                ${byProduct.shortDesc}</p>
 
-                                                            <!-- Giá tiền -->
-                                                            <p class="fw-bold text-dark text-center"
-                                                                style="font-size: 15px;">
-                                                                <fmt:formatNumber type="number"
-                                                                    value="${byProduct.price}" /> đ
+                                                            <!-- Product Price -->
+                                                            <p class="fw-bold text-dark text-center" style="font-size: 15px;">
+                                                                <fmt:formatNumber type="number" value="${racket.price}" /> đ
                                                             </p>
 
-                                                            <!-- Nút thêm vào giỏ hàng -->
-                                                            <form action="/add-product-to-cart/${byProduct.id}"
-                                                                method="post" class="mt-auto">
-                                                                <input type="hidden" name="${_csrf.parameterName}"
-                                                                    value="${_csrf.token}" />
-                                                                <button
-                                                                    class="btn border border-secondary rounded-pill px-3 text-primary d-flex align-items-center mx-auto">
-                                                                    <i class="fa fa-shopping-bag me-2 text-primary"></i>
-                                                                    Add to cart
+                                                            <!-- Add to Cart Button -->
+                                                            <form action="/user/rental-page/${racket.id}" method="get" class="mt-auto">
+                                                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                                                <button class="btn border border-secondary rounded-pill px-3 text-primary d-flex align-items-center mx-auto">
+                                                                    <i class="fa fa-shopping-bag me-2 text-primary"></i> Rental racket
                                                                 </button>
                                                             </form>
                                                         </div>
@@ -216,29 +200,27 @@
                                                 </div>
                                             </c:forEach>
 
-                                            <!-- Phân trang -->
+                                            <!-- Pagination -->
                                             <c:if test="${totalPages > 0}">
                                                 <nav aria-label="Page navigation example">
                                                     <div class="pagination d-flex justify-content-center mt-5">
                                                         <li class="page-item">
                                                             <a class="${1 eq currentPage ? 'disabled page-link' : 'page-link'}"
-                                                                href="/by-products?page=${currentPage - 1}${queryString}"
-                                                                aria-label="Previous">
+                                                               href="/by-products?page=${currentPage - 1}${queryString}" aria-label="Previous">
                                                                 <span aria-hidden="true">&laquo;</span>
                                                             </a>
                                                         </li>
                                                         <c:forEach begin="0" end="${totalPages - 1}" varStatus="loop">
                                                             <li class="page-item">
                                                                 <a class="${(loop.index + 1) eq currentPage ? 'active page-link' : 'page-link'}"
-                                                                    href="/by-products?page=${loop.index + 1}${queryString}">
-                                                                    ${loop.index + 1}
+                                                                   href="/by-products?page=${loop.index + 1}${queryString}">
+                                                                        ${loop.index + 1}
                                                                 </a>
                                                             </li>
                                                         </c:forEach>
                                                         <li class="page-item">
                                                             <a class="${totalPages eq currentPage ? 'disabled page-link' : 'page-link'}"
-                                                                href="/by-products?page=${currentPage + 1}${queryString}"
-                                                                aria-label="Next">
+                                                               href="/by-products?page=${currentPage + 1}${queryString}" aria-label="Next">
                                                                 <span aria-hidden="true">&raquo;</span>
                                                             </a>
                                                         </li>
@@ -246,7 +228,6 @@
                                                 </nav>
                                             </c:if>
                                         </div>
-
                                     </div>
                                 </div>
                             </div>
@@ -256,11 +237,9 @@
 
                     <jsp:include page="../layout/footer.jsp" />
 
-
                     <!-- Back to Top -->
                     <a href="#" class="btn btn-primary border-3 border-primary rounded-circle back-to-top"><i
                             class="fa fa-arrow-up"></i></a>
-
 
                     <!-- JavaScript Libraries -->
                     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>

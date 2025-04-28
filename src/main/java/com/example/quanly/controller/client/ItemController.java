@@ -11,6 +11,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.PaymentRequest;
+import com.example.quanly.domain.dto.VnpayResponse;
+import com.example.quanly.repository.*;
+import com.example.quanly.service.*;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,20 +31,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.Cart;
-import com.example.quanly.domain.CartDetail;
-import com.example.quanly.domain.OrderDetail;
-import com.example.quanly.domain.Product;
-import com.example.quanly.domain.Product_;
-import com.example.quanly.domain.SubCourt;
-import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
-import com.example.quanly.repository.OrderDetailRepository;
-import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.repository.SubCourtRepository;
-import com.example.quanly.repository.TimeRepository;
-import com.example.quanly.service.ProductService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -46,35 +42,33 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ItemController {
 
-    private final ProductRepository productRepository;
+    ProductRepository productRepository;
 
-    private final OrderDetailRepository orderDetailRepository;
+    OrderDetailRepository orderDetailRepository;
 
-    private final SubCourtRepository subCourtRepository;
+    SubCourtRepository subCourtRepository;
 
-    private final TimeRepository timeRepository;
-    private final ProductService productService;
+    TimeRepository timeRepository;
+    ProductService productService;
+    RacketService racketService;
+    private final UserService userService;
+    private final BookingRepository bookingRepository;
+    private final RentalToolService rentalToolService;
+    private final RentalToolRepository rentalToolRepository;
+    private final RacketRepository racketRepository;
+    private final RestTemplateAutoConfiguration restTemplateAutoConfiguration;
+    private final PaymentService paymentService;
 
-    public ItemController(
-            ProductService productService,
-            TimeRepository timeRepository,
-            SubCourtRepository subCourtRepository,
-            OrderDetailRepository orderDetailRepository,
-            ProductRepository productRepository) {
-        this.productService = productService;
-        this.timeRepository = timeRepository;
-        this.subCourtRepository = subCourtRepository;
-        this.orderDetailRepository = orderDetailRepository;
-        this.productRepository = productRepository;
-    }
 
     @GetMapping("/main-products")
     public String getMainProductPage(Model model,
-            ProductCriteriaDTO productCriteriaDTO,
-            HttpServletRequest request,
-            @RequestParam(value = "search", required = false) String searchTerm) {
+                                     ProductCriteriaDTO productCriteriaDTO,
+                                     HttpServletRequest request,
+                                     @RequestParam(value = "search", required = false) String searchTerm) {
         int page = 1;
         try {
             if (productCriteriaDTO.getPage().isPresent()) {
@@ -106,21 +100,20 @@ public class ItemController {
         if (searchTerm != null && !searchTerm.isEmpty()) {
             // Chỉ tìm kiếm theo tên nếu có từ khóa
             mainProduct = productService.findByNameContaining(searchTerm, pageable);
-        } 
-        else if (sortOpt != null && sortOpt.isPresent()
+        } else if (sortOpt != null && sortOpt.isPresent()
                 && (productCriteriaDTO.getAddress() != null || productCriteriaDTO.getPrice() != null)) {
             mainProduct = this.productService.getAllProductWithSpec(pageable, productCriteriaDTO);
         } else {
             mainProduct = this.productService.getAllProduct(pageable);
         }
-        
+
         int totalPages = Math.max(mainProduct.getTotalPages(), 0);
-        
+
         String qs = request.getQueryString();
         if (qs != null && !qs.isBlank()) {
             qs = qs.replace("page=" + page, "");
         }
-        
+
         model.addAttribute("listMainProducts", mainProduct.getContent());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
@@ -130,59 +123,34 @@ public class ItemController {
 
     @GetMapping("/by-products")
     public String getByProductPage(Model model,
-            ProductCriteriaDTO productCriteriaDTO,
-            HttpServletRequest request) {
-        int page = 1;
+                                   ProductCriteriaDTO productCriteriaDTO,
+                                   HttpServletRequest request) {
+        // Lấy thông tin phân trang từ request
+        int page = 0;
+        int size = 10;
         try {
-            if (productCriteriaDTO.getPage().isPresent()) {
-                // convert from String to int
-                page = Integer.parseInt(productCriteriaDTO.getPage().get());
-            } else {
-                // page = 1
-            }
+            page = Integer.parseInt(request.getParameter("page"));
+            if (page < 0) page = 0;
         } catch (Exception e) {
-            // page = 1
-            // TODO: handle exception
+            page = 0;
         }
+        Pageable pageable = PageRequest.of(page, size);
 
-        // check sort price
-        Pageable pageable = PageRequest.of(page - 1, 6);
+        // Gọi service để lấy danh sách Racket có phân trang
+        Page<Racket> byProduct = racketService.getAllRacket(pageable);
 
-        Optional<String> sortOpt = productCriteriaDTO.getSort();
-
-        if (sortOpt != null && sortOpt.isPresent()) {
-            String sort = sortOpt.get();
-            if (sort.equals("gia-tang-dan")) {
-                pageable = PageRequest.of(page - 1, 6, Sort.by(Product_.PRICE).ascending());
-            } else if (sort.equals("gia-giam-dan")) {
-                pageable = PageRequest.of(page - 1, 6, Sort.by(Product_.PRICE).descending());
-            }
-        }
-
-        Page<Product> byProduct;
-        if (sortOpt != null && sortOpt.isPresent()
-                && (productCriteriaDTO.getFactory() != null || productCriteriaDTO.getPrice() != null)) {
-            byProduct = this.productService.getAllProductWithSpec(pageable, productCriteriaDTO);
-        } else if (sortOpt != null && sortOpt.orElse("").isEmpty()) {
-            byProduct = this.productService.getAllProduct(pageable);
-        } else {
-            byProduct = this.productService.getAllProduct(pageable);
-        }
-
-        List<Product> listByProduct = byProduct.getContent().size() > 0 ? byProduct.getContent()
-                : new ArrayList<Product>();
-
-        String qs = request.getQueryString();
-        if (qs != null && !qs.isBlank()) {
-            // remove page
-            qs = qs.replace("page=" + page, "");
-        }
-        model.addAttribute("listByProduct", listByProduct);
+        // Đưa dữ liệu ra model
+        model.addAttribute("listByProduct", byProduct.getContent());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", byProduct.getTotalPages());
-        model.addAttribute("queryString", qs);
-        return "client/product/by_product";
+
+        // QueryString để giữ nguyên filter/search nếu có
+        String qs = request.getQueryString();
+        model.addAttribute("queryString", qs != null ? qs : "");
+
+        return "client/racket/by_product";
     }
+
 
     @GetMapping("/mainProduct/{productId}")
     public String getMainProducts(Model model, @PathVariable long productId) {
@@ -208,8 +176,8 @@ public class ItemController {
 
     @GetMapping("/booking/{productId}")
     public String getBookingPage(Model model,
-            HttpServletRequest request,
-            @PathVariable long productId) {
+                                 HttpServletRequest request,
+                                 @PathVariable long productId) {
         User currentUser = new User();// null
         HttpSession session = request.getSession(false);
         long id = (long) session.getAttribute("id");
@@ -260,16 +228,16 @@ public class ItemController {
 
     @PostMapping("/place-booking")
     public String handlePlaceBooking(Model model,
-            HttpServletRequest request,
-            @RequestParam("receiverName") String receiverName,
-            @RequestParam("receiverAddress") String receiverAddress,
-            @RequestParam("receiverPhone") String receiverPhone,
-            @RequestParam("productId") long productId,
-            @RequestParam("quantity") int quantity,
-            @RequestParam("availableTimeId") long timeId,
-            @RequestParam("courtId") long subCourtId,
-            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
-            RedirectAttributes redirectAttributes) {
+                                     HttpServletRequest request,
+                                     @RequestParam("receiverName") String receiverName,
+                                     @RequestParam("receiverAddress") String receiverAddress,
+                                     @RequestParam("receiverPhone") String receiverPhone,
+                                     @RequestParam("productId") long productId,
+                                     @RequestParam("quantity") int quantity,
+                                     @RequestParam("availableTimeId") long timeId,
+                                     @RequestParam("courtId") long subCourtId,
+                                     @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+                                     RedirectAttributes redirectAttributes) {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("id") == null) {
@@ -419,7 +387,6 @@ public class ItemController {
 
     @GetMapping("/thanks")
     public String getThankYouPage(Model model) {
-
         return "client/cart/thanks";
     }
 
@@ -434,4 +401,6 @@ public class ItemController {
         this.productService.handleAddProductToCart(email, id, session, quantity);
         return "redirect:/byProduct/" + id;
     }
+
+
 }
