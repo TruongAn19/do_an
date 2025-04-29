@@ -402,6 +402,23 @@
         });
     });
 </script>
+<!-- Script xử lý hiển thị lỗi -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        <%-- Nếu có errorMessage từ server --%>
+        <c:if test="${not empty errorMessage}">
+        var errorAlert = document.getElementById('errorAlert');
+        var errorMessageSpan = document.getElementById('errorMessage');
+        errorMessageSpan.textContent = '${errorMessage}';
+        errorAlert.style.display = 'block';
+
+        // Auto ẩn sau 5 giây
+        setTimeout(function() {
+            errorAlert.style.display = 'none';
+        }, 5000);
+        </c:if>
+    });
+</script>
 </body>
 
 </html>

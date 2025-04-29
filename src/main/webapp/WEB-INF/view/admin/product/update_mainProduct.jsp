@@ -45,11 +45,6 @@
                                                     <label class="form-label">Name:</label>
                                                     <form:input type="name" class="form-control" path="name"/>
                                                 </div>
-
-                                                <div class="mb-3">
-                                                    <label class="form-label">Quantity:</label>
-                                                    <form:input type="text" class="form-control" path="quantity" />
-                                                </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">DetailDesc:</label>
                                                     <form:textarea type="text" class="form-control" path="detailDesc" />

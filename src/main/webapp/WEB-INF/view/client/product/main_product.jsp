@@ -193,23 +193,26 @@
 
                                                             <div class="mt-auto text-center">
                                                                 <!-- Hiển thị giá -->
-                                                                <p style="font-size: 15px; text-align: center; width: 100%;"
-                                                                    class="text-dark fw-bold mb-3">
-                                                                    <fmt:formatNumber type="number"
-                                                                        value="${mainProduct.price}" /> đ
-                                                                </p>
+                                                                <h5 class="fw-bold mb-3">
+                                                                    <c:choose>
+                                                                        <c:when test="${mainProduct.sale > 0}">
+                                                                            <del><fmt:formatNumber type="number" value="${mainProduct.price}" /> đ</del>
+                                                                        </c:when>
+                                                                        <c:otherwise>
+                                                                            <fmt:formatNumber type="number" value="${mainProduct.price}" /> đ
+                                                                        </c:otherwise>
+                                                                    </c:choose>
+                                                                </h5>
 
-                                                                <!-- Nút thêm vào giỏ hàng -->
-                                                                <!-- <form action="/add-product-to-cart/${mainProduct.id}" method="post">
-                                                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                                                                    <button class="btn border border-secondary rounded-pill px-3 text-primary">
-                                                                        <i class="fa fa-shopping-bag me-2 text-primary"></i> Add to cart
-                                                                    </button>
-                                                                </form> -->
-                                                                <a href="/booking/${mainProduct.id}"
-                                                                    class="btn btn-outline-success rounded-pill px-3">
-                                                                    <i class="fa fa-shopping-bag me-2"></i> Book a
-                                                                    course
+                                                                <c:if test="${mainProduct.sale > 0}">
+                                                                    <h5 class="fw-bold text-danger mb-3">
+                                                                        <fmt:formatNumber type="number" value="${mainProduct.price - (mainProduct.price * mainProduct.sale /100)}" /> đ
+                                                                        (<fmt:formatNumber type="number" value="${mainProduct.sale}" /> %)
+                                                                    </h5>
+                                                                </c:if>
+
+                                                                <a href="/booking/${mainProduct.id}" class="btn btn-outline-success rounded-pill px-3">
+                                                                    <i class="fa fa-shopping-bag me-2"></i> Book a course
                                                                 </a>
                                                             </div>
                                                         </div>

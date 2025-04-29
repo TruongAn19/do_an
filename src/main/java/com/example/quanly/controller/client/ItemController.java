@@ -20,6 +20,11 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration;
+import com.example.quanly.domain.*;
+import com.example.quanly.repository.*;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +37,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.service.ProductService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -48,20 +54,20 @@ public class ItemController {
 
     ProductRepository productRepository;
 
-    OrderDetailRepository orderDetailRepository;
 
     SubCourtRepository subCourtRepository;
 
     TimeRepository timeRepository;
     ProductService productService;
     RacketService racketService;
-    private final UserService userService;
-    private final BookingRepository bookingRepository;
-    private final RentalToolService rentalToolService;
-    private final RentalToolRepository rentalToolRepository;
-    private final RacketRepository racketRepository;
-    private final RestTemplateAutoConfiguration restTemplateAutoConfiguration;
-    private final PaymentService paymentService;
+    UserService userService;
+    BookingRepository bookingRepository;
+    RentalToolService rentalToolService;
+    RentalToolRepository rentalToolRepository;
+    RacketRepository racketRepository;
+    RestTemplateAutoConfiguration restTemplateAutoConfiguration;
+    PaymentService paymentService;
+    BookingDetailRepository bookingDetailRepository;
 
 
     @GetMapping("/main-products")
@@ -164,15 +170,7 @@ public class ItemController {
         return "client/product/detailMainProduct";
     }
 
-    @GetMapping("/byProduct/{productId}")
-    public String getByProducts(Model model, @PathVariable long productId) {
-        Product product = this.productService.getProductByID(productId);
-        double discountPrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
-        model.addAttribute("discountPrice", discountPrice);
-        model.addAttribute("product", product);
-        model.addAttribute("id", productId);
-        return "client/product/detailByProduct";
-    }
+
 
     @GetMapping("/booking/{productId}")
     public String getBookingPage(Model model,
@@ -210,12 +208,10 @@ public class ItemController {
             @RequestParam("courtId") Long courtId) {
         List<AvailableTime> allTimes = timeRepository.findAll();
         SubCourt court = subCourtRepository.getById(courtId);
-
-        List<OrderDetail> bookings = orderDetailRepository.findBySubCourtAndDate(court, date);
+        List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
         Set<Long> bookedTimeIds = bookings.stream()
                 .map(o -> o.getAvailableTime().getId())
                 .collect(Collectors.toSet());
-
         return allTimes.stream()
                 .filter(time -> {
                     if (date.equals(LocalDate.now()) && time.getTime().isBefore(LocalTime.now())) {
@@ -224,20 +220,20 @@ public class ItemController {
                     return !bookedTimeIds.contains(time.getId());
                 })
                 .collect(Collectors.toList());
+
     }
 
     @PostMapping("/place-booking")
     public String handlePlaceBooking(Model model,
-                                     HttpServletRequest request,
-                                     @RequestParam("receiverName") String receiverName,
-                                     @RequestParam("receiverAddress") String receiverAddress,
-                                     @RequestParam("receiverPhone") String receiverPhone,
-                                     @RequestParam("productId") long productId,
-                                     @RequestParam("quantity") int quantity,
-                                     @RequestParam("availableTimeId") long timeId,
-                                     @RequestParam("courtId") long subCourtId,
-                                     @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
-                                     RedirectAttributes redirectAttributes) {
+            HttpServletRequest request,
+            @RequestParam("receiverName") String receiverName,
+            @RequestParam("receiverAddress") String receiverAddress,
+            @RequestParam("receiverPhone") String receiverPhone,
+            @RequestParam("productId") long productId,
+            @RequestParam("availableTimeId") long timeId,
+            @RequestParam("courtId") long subCourtId,
+            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+            RedirectAttributes redirectAttributes) {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("id") == null) {
@@ -252,13 +248,13 @@ public class ItemController {
         // Lấy thông tin sản phẩm và các dữ liệu cần thiết
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại"));
-        List<SubCourt> subCourts = subCourtRepository.findAll();
+        List<SubCourt> subCourts = this.productService.getAllCourtsByProduct(product);
         List<AvailableTime> allTimes = timeRepository.findAll();
 
         try {
             productService.handlePlaceBooking(currentUser, session,
                     receiverName, receiverAddress, receiverPhone,
-                    productId, quantity, timeId, subCourtId, bookingDate);
+                    productId, timeId, subCourtId, bookingDate);
 
             redirectAttributes.addFlashAttribute("successMessage", "Đặt sân thành công!");
             return "redirect:/thanks";
@@ -267,7 +263,7 @@ public class ItemController {
             // Tính toán lại tổng tiền
             double price = product.getPrice();
             double discount = product.getSale() / 100.0;
-            double totalPrice = (price * quantity) - (price * quantity * discount);
+            double totalPrice = price  - (price * discount);
 
             List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
 
@@ -295,115 +291,8 @@ public class ItemController {
         }
     }
 
-    @PostMapping("/add-product-to-cart/{id}")
-    public String addProductToCart(@PathVariable long id, HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        long productId = id;
-        String email = (String) session.getAttribute("email");
-
-        this.productService.handleAddProductToCart(email, productId, session, 1);
-        return "redirect:/HomePage";
-    }
-
-    @GetMapping("/cart")
-    public String getCart(Model model, HttpServletRequest request) {
-        User currentUser = new User();// null
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
-
-        Cart cart = this.productService.fetchByUser(currentUser);
-
-        List<CartDetail> cartDetails = cart == null ? new ArrayList<CartDetail>() : cart.getCartDetails();
-
-        double totalPrice = 0;
-        for (CartDetail cartDetail : cartDetails) {
-            double price = cartDetail.getPrice();
-            long quantity = cartDetail.getQuantity();
-            double discount = cartDetail.getProduct().getSale() / 100.0;
-
-            totalPrice += (price * quantity) - (price * quantity * discount);
-        }
-
-        model.addAttribute("cartDetails", cartDetails);
-        model.addAttribute("totalPrice", totalPrice);
-        model.addAttribute("cart", cart);
-        return "client/cart/show";
-    }
-
-    @PostMapping("/delete-cart-product/{id}")
-    public String deleteCartDetail(@PathVariable long id, HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        long cartDetailId = id;
-        this.productService.handleRemoveCartDetail(cartDetailId, session);
-        return "redirect:/cart";
-    }
-
-    @GetMapping("/checkout")
-    public String getCheckOutPage(Model model, HttpServletRequest request) {
-        User currentUser = new User();// null
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
-
-        Cart cart = this.productService.fetchByUser(currentUser);
-
-        List<CartDetail> cartDetails = cart == null ? new ArrayList<CartDetail>() : cart.getCartDetails();
-
-        double totalPrice = 0;
-        for (CartDetail cartDetail : cartDetails) {
-            double price = cartDetail.getPrice();
-            long quantity = cartDetail.getQuantity();
-            double discount = cartDetail.getProduct().getSale() / 100.0;
-
-            totalPrice += (price * quantity) - (price * quantity * discount);
-        }
-
-        model.addAttribute("cartDetails", cartDetails);
-        model.addAttribute("totalPrice", totalPrice);
-
-        return "client/cart/checkout";
-    }
-
-    @PostMapping("/confirm-checkout")
-    public String getCheckOutPage(@ModelAttribute("cart") Cart cart) {
-        List<CartDetail> cartDetails = cart == null ? new ArrayList<CartDetail>() : cart.getCartDetails();
-        this.productService.handleUpdateCartBeforeCheckout(cartDetails);
-        return "redirect:/checkout";
-    }
-
-    @PostMapping("/place-order")
-    public String handlePlaceOrder(
-            HttpServletRequest request,
-            @RequestParam("receiverName") String receiverName,
-            @RequestParam("receiverAddress") String receiverAddress,
-            @RequestParam("receiverPhone") String receiverPhone) {
-        User currentUser = new User();// null
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
-
-        this.productService.handlePlaceOrder(currentUser, session, receiverName, receiverAddress, receiverPhone);
-
-        return "redirect:/thanks";
-    }
-
     @GetMapping("/thanks")
-    public String getThankYouPage(Model model) {
-        return "client/cart/thanks";
+    public String bookingSuccess() {
+        return "client/booking/thanks";
     }
-
-    @PostMapping("/add-product-from-view-detail")
-    public String handleAddProductFromViewDetail(
-            @RequestParam("id") long id,
-            @RequestParam(value = "quantity", required = false, defaultValue = "1") long quantity,
-            HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-
-        String email = (String) session.getAttribute("email");
-        this.productService.handleAddProductToCart(email, id, session, quantity);
-        return "redirect:/byProduct/" + id;
-    }
-
-
 }

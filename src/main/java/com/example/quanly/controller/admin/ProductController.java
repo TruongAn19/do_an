@@ -84,11 +84,9 @@ public class ProductController {
         product.setDetailDesc(product.getDetailDesc().replace("\n", "<br>"));
         product.setImage(productImage);
         this.productService.handSaveProduct(product);
-        if ("byProduct".equals(productType)) {
-            return "redirect:/admin/by-product";
-        } else {
-            return "redirect:/admin/mainProduct";
-        }
+
+        return "redirect:/admin/mainProduct";
+
     }
 
     @GetMapping("/admin/mainProduct/{productId}")
@@ -108,17 +106,15 @@ public class ProductController {
 
     @PostMapping("/admin/product/update_product")
     public String postUpdateProduct(Model model, @ModelAttribute("editProduct") Product product,
-            @RequestParam("productImg") MultipartFile file, @RequestParam("productType") String productType) {
+            @RequestParam("productImg") MultipartFile file) {
         Product existProduct = this.productService.getProductByID(product.getId());
 
         if (existProduct != null) {
             existProduct.setName(product.getName());
-            existProduct.setQuantity(product.getQuantity());
-            existProduct.setDetailDesc(product.getDetailDesc().replace("\n", "<br>"));
+            existProduct.setDetailDesc(product.getDetailDesc());
             existProduct.setAddress(product.getAddress());
             existProduct.setSale(product.getSale());
             existProduct.setPrice(product.getPrice());
-            // existProduct.setFactory(product.getFactory());
 
             // Kiểm tra nếu người dùng có tải lên ảnh mới
             if (!file.isEmpty()) {
@@ -128,12 +124,8 @@ public class ProductController {
             }
             this.productService.handSaveProduct(existProduct);
         }
+        return "redirect:/admin/mainProduct";
 
-        if ("byProduct".equals(productType)) {
-            return "redirect:/admin/by-product";
-        } else {
-            return "redirect:/admin/mainProduct";
-        }
     }
 
     @GetMapping("/admin/product/delete_product/{productId}")
@@ -148,7 +140,7 @@ public class ProductController {
     public String postMethodName(Model model, @ModelAttribute("product") Product product) {
         this.productService.deleteAllProduct(product.getId());
 
-        return "redirect:/admin/product";
+        return "redirect:/admin/mainProduct";
     }
 
 }
