@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,10 +19,6 @@ import org.springframework.stereotype.Service;
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.Booking;
 import com.example.quanly.domain.BookingDetail;
-import com.example.quanly.domain.Cart;
-import com.example.quanly.domain.CartDetail;
-import com.example.quanly.domain.Order;
-import com.example.quanly.domain.OrderDetail;
 import com.example.quanly.domain.Product;
 import com.example.quanly.domain.SubCourt;
 import com.example.quanly.domain.SubCourtAvailableTime;
@@ -27,10 +26,6 @@ import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
 import com.example.quanly.repository.BookingDetailRepository;
 import com.example.quanly.repository.BookingRepository;
-import com.example.quanly.repository.CartDetailRepository;
-import com.example.quanly.repository.CartRepository;
-import com.example.quanly.repository.OrderDetailRepository;
-import com.example.quanly.repository.OrderRepository;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.SubCourtAvailableTimeRepository;
 import com.example.quanly.repository.SubCourtRepository;
@@ -42,48 +37,20 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.persistence.criteria.Predicate;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ProductService {
 
-    private final UserRepository userRepository;
+    UserRepository userRepository;
+    ProductRepository productRepository;
+    TimeRepository timeRepository;
+    SubCourtRepository subCourtRepository;
+    SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
 
-    private final ProductRepository productRepository;
-    private final TimeRepository timeRepository;
-    private final CartDetailRepository cartDetailRepository;
-    private final CartRepository cartRepository;
-    private final UserService userService;
-    private final OrderRepository orderRepository;
-    private final OrderDetailRepository orderDetailRepository;
-    private final SubCourtRepository subCourtRepository;
-    private SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
+    BookingDetailRepository bookingDetailRepository;
 
-    private final BookingDetailRepository bookingDetailRepository;
+    BookingRepository bookingRepository;
 
-    private final BookingRepository bookingRepository;
-
-    public ProductService(ProductRepository productRepository,
-            UserRepository userRepository,
-            TimeRepository timeRepository,
-            CartDetailRepository cartDetailRepository,
-            CartRepository cartRepository, UserService userService,
-            OrderRepository orderRepository,
-            OrderDetailRepository orderDetailRepository,
-            SubCourtRepository subCourtRepository,
-            SubCourtAvailableTimeRepository subCourtAvailableTimeRepository,
-            BookingDetailRepository bookingDetailRepository,
-            BookingRepository bookingRepository) {
-        this.productRepository = productRepository;
-        this.timeRepository = timeRepository;
-        this.cartDetailRepository = cartDetailRepository;
-        this.cartRepository = cartRepository;
-        this.userService = userService;
-        this.orderDetailRepository = orderDetailRepository;
-        this.orderRepository = orderRepository;
-        this.userRepository = userRepository;
-        this.subCourtRepository = subCourtRepository;
-        this.subCourtAvailableTimeRepository = subCourtAvailableTimeRepository;
-        this.bookingDetailRepository = bookingDetailRepository;
-        this.bookingRepository = bookingRepository;
-    }
 
     // Sân đấu
     public Page<Product> getAllProduct(Pageable pageable) {
@@ -131,7 +98,6 @@ public class ProductService {
         return this.productRepository.findAll(combinedSpec, pageable);
     }
 
-    
 
     // lọc giá
     public Specification<Product> buildPriceSpecification(List<String> price) {
@@ -187,7 +153,6 @@ public class ProductService {
                 SubCourtAvailableTime subCourtAvailableTime = new SubCourtAvailableTime();
                 subCourtAvailableTime.setSubCourt(subCourt);
                 subCourtAvailableTime.setAvailableTime(availableTime);
-                // subCourtAvailableTime.setBooked(false);
                 subCourtAvailableTimeRepository.save(subCourtAvailableTime);
             }
         }
@@ -215,147 +180,10 @@ public class ProductService {
         return this.subCourtRepository.findByProduct(product);
     }
 
-    public void handleAddProductToCart(String email, long productId, HttpSession session, long quantity) {
-
-        User user = this.userService.getUserByEmail(email);
-        if (user != null) {
-            // check user đã có Cart chưa ? nếu chưa -> tạo mới
-            Cart cart = this.cartRepository.findByUser(user);
-
-            if (cart == null) {
-                // tạo mới cart
-                Cart otherCart = new Cart();
-                otherCart.setUser(user);
-                otherCart.setSum(0);
-
-                cart = this.cartRepository.save(otherCart);
-            }
-
-            // save cart_detail
-            // tìm product by id
-
-            Optional<Product> productOptional = this.productRepository.findById(productId);
-            if (productOptional.isPresent()) {
-                Product realProduct = productOptional.get();
-
-                // check sản phẩm đã từng được thêm vào giỏ hàng trước đây chưa ?
-                CartDetail oldDetail = this.cartDetailRepository.findByCartAndProduct(cart, realProduct);
-                //
-                if (oldDetail == null) {
-                    CartDetail cd = new CartDetail();
-                    cd.setCart(cart);
-                    cd.setProduct(realProduct);
-                    cd.setPrice(realProduct.getPrice());
-                    cd.setQuantity(quantity);
-                    this.cartDetailRepository.save(cd);
-
-                    // update cart (sum);
-                    int s = cart.getSum() + 1;
-                    cart.setSum(s);
-                    this.cartRepository.save(cart);
-                    session.setAttribute("sum", s);
-                } else {
-                    oldDetail.setQuantity(oldDetail.getQuantity() + quantity);
-                    this.cartDetailRepository.save(oldDetail);
-                }
-
-            }
-
-        }
-    }
-
-    public Cart fetchByUser(User user) {
-        return this.cartRepository.findByUser(user);
-    }
-
-    public void handleRemoveCartDetail(long id, HttpSession session) {
-        Optional<CartDetail> optionalCartDetail = this.cartDetailRepository.findById(id);
-        if (optionalCartDetail.isPresent()) {
-            CartDetail cartDetail = optionalCartDetail.get();
-            Cart currentCart = cartDetail.getCart();
-            this.cartDetailRepository.deleteById(id);
-
-            if (currentCart.getSum() >= 1) {
-                int sum = currentCart.getSum() - 1;
-                currentCart.setSum(sum);
-                session.setAttribute("sum", sum);
-                this.cartRepository.save(currentCart);
-            } else {
-                this.cartRepository.deleteById(currentCart.getId());
-                session.setAttribute("sum", 0);
-            }
-        }
-    }
-
-    public void handleUpdateCartBeforeCheckout(List<CartDetail> cartDetails) {
-        for (CartDetail cartDetail : cartDetails) {
-            Optional<CartDetail> cdOptional = this.cartDetailRepository.findById(cartDetail.getId());
-            if (cdOptional.isPresent()) {
-                CartDetail currentCartDetail = cdOptional.get();
-                currentCartDetail.setQuantity(cartDetail.getQuantity());
-                this.cartDetailRepository.save(currentCartDetail);
-            }
-        }
-    }
-
-    public void handlePlaceOrder(
-            User user, HttpSession session,
-            String receiverName, String receiverAddress, String receiverPhone) {
-
-        // step 1: get cart by user
-        Cart cart = this.cartRepository.findByUser(user);
-        if (cart != null) {
-            List<CartDetail> cartDetails = cart.getCartDetails();
-
-            if (cartDetails != null) {
-
-                // create order
-                Order order = new Order();
-                order.setUser(user);
-                order.setReceiverName(receiverName);
-                order.setReceiverAddress(receiverAddress);
-                order.setReceiverPhone(receiverPhone);
-                order.setStatus("PENDING");
-
-                double sum = 0;
-                for (CartDetail cd : cartDetails) {
-                    sum += cd.getPrice() - (cd.getPrice() * cd.getProduct().getSale() / 100);
-                }
-                order.setTotalPrice(sum);
-                order = this.orderRepository.save(order);
-
-                // create orderDetail
-
-                for (CartDetail cd : cartDetails) {
-                    OrderDetail orderDetail = new OrderDetail();
-                    orderDetail.setOrder(order);
-                    orderDetail.setProduct(cd.getProduct());
-                    orderDetail.setPrice(cd.getPrice());
-                    // orderDetail.setQuantity(cd.getQuantity());
-
-                    this.orderDetailRepository.save(orderDetail);
-                }
-
-                // step 2: delete cart_detail and cart
-                for (CartDetail cd : cartDetails) {
-                    cd.setCart(null);
-                    this.cartDetailRepository.deleteById(cd.getId());
-                    System.out.println(cd.getId());
-                }
-                this.cartDetailRepository.flush();
-
-                cart.setSum(0);
-                this.cartRepository.save(cart);
-                // step 3 : update session
-                session.setAttribute("sum", 0);
-            }
-
-        }
-    }
 
     public void handlePlaceBooking(User user, HttpSession session,
-            String receiverName, String receiverAddress, String receiverPhone,
-            long productId, int quantity, long timeId, long subCourtId, LocalDate bookingDate) {
+                                   String receiverName, String receiverAddress, String receiverPhone,
+                                   long productId, long timeId, long subCourtId, LocalDate bookingDate) {
 
         // 1. Kiểm tra người dùng
         user = userRepository.findById(user.getId());
@@ -402,7 +230,7 @@ public class ProductService {
 
         // 7. Tính toán giá
         double pricePerItem = product.getPrice() - (product.getPrice() * product.getSale() / 100);
-        booking.setTotalPrice(pricePerItem * quantity);
+        booking.setTotalPrice(pricePerItem);
         booking = bookingRepository.save(booking); // Lưu để có ID
 
         // 8. Tạo booking detail
@@ -410,7 +238,6 @@ public class ProductService {
         bookingDetail.setBooking(booking);
         bookingDetail.setProduct(product);
         bookingDetail.setPrice(pricePerItem);
-        bookingDetail.setQuantity(quantity);
         bookingDetail.setSubCourt(subCourt);
         bookingDetail.setDate(bookingDate);
         bookingDetail.setSale(product.getSale());

@@ -19,8 +19,6 @@ public class BookingDetail {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    private long quantity;
-
     private double price;
     private long sale;
 
@@ -51,14 +49,6 @@ public class BookingDetail {
 
     public void setId(long id) {
         this.id = id;
-    }
-
-    public long getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(long quantity) {
-        this.quantity = quantity;
     }
 
     public double getPrice() {

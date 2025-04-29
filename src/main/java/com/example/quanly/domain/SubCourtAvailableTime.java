@@ -25,8 +25,6 @@ public class SubCourtAvailableTime {
     @JoinColumn(name = "available_time_id")
     private AvailableTime availableTime;
 
-    // @Column(nullable = false)
-    // private boolean isBooked = false; // Mặc định: chưa đặt
 
     public Long getId() {
         return id;

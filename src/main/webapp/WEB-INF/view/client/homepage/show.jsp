@@ -145,61 +145,38 @@
                                     <div class="row g-4 align-items-stretch">
                                         <div class="col-lg-12">
                                             <div class="row g-4">
-                                                <c:forEach var="byProduct" items="${byProducts}">
+                                                <c:forEach var="racket" items="${racketList}">
                                                     <div class="col-md-6 col-lg-4 col-xl-3 d-flex">
                                                         <div class="rounded position-relative fruite-item h-100 d-flex flex-column w-100 border border-secondary">
                                                             <div class="fruite-img">
-                                                                <img src="/images/product/${byProduct.image}"
+                                                                <img src="/images/racket/${racket.image}"
                                                                     class="img-fluid w-100 rounded-top"
                                                                     style="object-fit: cover; aspect-ratio: 1/1;"
                                                                     alt="Sản phẩm">
                                                             </div>
-                                    
+
                                                             <div class="text-white bg-secondary px-3 py-1 rounded position-absolute"
                                                                 style="top: 10px; left: 10px;">Phụ kiện</div>
-                                    
+
                                                             <div class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
                                                                 <!-- Tên sản phẩm -->
                                                                 <h4 class="text-center" style="font-size: 16px; min-height: 40px;">
-                                                                    <a href="/byProduct/${byProduct.id}" class="text-decoration-none">
-                                                                        ${byProduct.name}
+                                                                    <a href="/byProduct/${racket.id}" class="text-decoration-none">
+                                                                        ${racket.name}
                                                                     </a>
                                                                 </h4>
-                                    
-                                                                <!-- Mô tả sản phẩm -->
-                                                                <p class="text-center flex-grow-1" style="min-height: 50px;">
-                                                                    ${byProduct.shortDesc}
+                                                                <!-- Product Price -->
+                                                                <p class="fw-bold text-dark text-center" style="font-size: 15px;">
+                                                                    <fmt:formatNumber type="number" value="${racket.price}" /> đ
                                                                 </p>
-                                    
-                                                                <div class="mt-auto text-center">
-                                                                    <!-- Hiển thị giá -->
-                                                                    <h5 class="fw-bold mb-3">
-                                                                        <c:choose>
-                                                                            <c:when test="${byProduct.sale > 0}">
-                                                                                <del><fmt:formatNumber type="number" value="${byProduct.price}" /> đ</del>
-                                                                            </c:when>
-                                                                            <c:otherwise>
-                                                                                <fmt:formatNumber type="number" value="${byProduct.price}" /> đ
-                                                                            </c:otherwise>
-                                                                        </c:choose>
-                                                                    </h5>
-                                    
-                                                                    <!-- Giá sau khi giảm -->
-                                                                    <c:if test="${byProduct.sale > 0}">
-                                                                        <h5 class="fw-bold mb-3">
-                                                                            <fmt:formatNumber type="number" value="${byProduct.price - (byProduct.price * byProduct.sale /100)}" /> đ
-                                                                            (<fmt:formatNumber type="number" value="${byProduct.sale}" /> %)
-                                                                        </h5>
-                                                                    </c:if>
-                                    
-                                                                    <!-- Nút thêm vào giỏ hàng -->
-                                                                    <form action="/add-product-to-cart/${byProduct.id}" method="post">
-                                                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                                                                        <button class="btn btn-outline-primary rounded-pill px-3">
-                                                                            <i class="fa fa-shopping-bag me-2"></i> Add to cart
-                                                                        </button>
-                                                                    </form>
-                                                                </div>
+
+                                                                <!-- Add to Cart Button -->
+                                                                <form action="/user/rental-page/${racket.id}" method="get" class="mt-auto">
+                                                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                                                    <button class="btn border border-secondary rounded-pill px-3 text-primary d-flex align-items-center mx-auto">
+                                                                        <i class="fa fa-shopping-bag me-2 text-primary"></i> Rental racket
+                                                                    </button>
+                                                                </form>
                                                             </div>
                                                         </div>
                                                     </div>

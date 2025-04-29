@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.example.quanly.domain.Role;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
-import com.example.quanly.repository.OrderRepository;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.RoleRepository;
 import com.example.quanly.repository.UserRepository;
@@ -22,21 +21,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final ProductRepository productRepository;
-    private final OrderRepository orderRepository;
-    
+
 
     public UserService(UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             ProductRepository productRepository,
-            OrderRepository orderRepository,
             UploadService uploadService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.productRepository = productRepository;
-        this.orderRepository = orderRepository;
-        
+
     }
 
     @PostConstruct
@@ -110,9 +106,6 @@ public class UserService {
         return this.productRepository.count();
     }
 
-    public long countOrder() {
-        return this.orderRepository.count();
-    }
 
     public User updateToUser(long id) {
         return this.userRepository.findById(id);

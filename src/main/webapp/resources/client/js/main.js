@@ -228,11 +228,6 @@
         let addressArr = [];
         let priceArr = [];
 
-        //factory filter
-        $("#factoryFilter .form-check-input:checked").each(function () {
-            factoryArr.push($(this).val());
-        });
-
         //address filter (sửa từ 'target' thành 'address')
         $("#addressFilter .form-check-input:checked").each(function () {
             addressArr.push($(this).val());
@@ -254,7 +249,7 @@
         searchParams.set('sort', sortValue);
 
         //reset old filters
-        searchParams.delete('factory');
+
         searchParams.delete('address'); // sửa từ target
         searchParams.delete('price');
 
@@ -274,14 +269,6 @@
 
     //handle auto checkbox after page loading
     const params = new URLSearchParams(window.location.search);
-
-    // Set checkboxes for 'factory'
-    if (params.has('factory')) {
-        const factories = params.get('factory').split(',');
-        factories.forEach(factory => {
-            $(`#factoryFilter .form-check-input[value="${factory}"]`).prop('checked', true);
-        });
-    }
 
     // Set checkboxes for 'address' (sửa từ target)
     if (params.has('address')) {
@@ -345,6 +332,48 @@
             }
         });
     });
+
+    function loadAvailableTimes() {
+        const date = $("#bookingDate").val();     // Lấy ngày người dùng chọn
+        const courtId = $("#subCourt").val();      // Lấy ID sân người dùng chọn
+
+        if (!date || !courtId) return;             // Nếu thiếu ngày hoặc sân thì không gọi API
+
+        $.get("/api/available-time", { date, courtId }, function (data) {
+            const timeSelect = $("#availableTime");
+            timeSelect.empty();                   // Xóa hết các option cũ trong select khung giờ
+
+            if (data.length === 0) {
+                timeSelect.append('<option disabled selected>Không còn giờ nào</option>');
+            } else {
+                data.forEach(t => {
+                    timeSelect.append(`<option value="${t.id}">${t.time}</option>`);
+                });
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        $("#bookingDate, #subCourt").on("change", loadAvailableTimes);
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const courtSelects = document.querySelectorAll('.court-select');
+        const hiddenQuantity = document.getElementById('hiddenQuantity');
+
+        courtSelects.forEach(function (select) {
+            select.addEventListener('change', function () {
+                hiddenQuantity.value = 1; // Mặc định chọn sân thì số lượng là 1
+                document.getElementById('hiddenCourtId').value = this.value; // Cập nhật sân được chọn
+            });
+        });
+
+        const timeSelect = document.getElementById('timeSelect');
+        timeSelect.addEventListener('change', function () {
+            document.getElementById('hiddenAvailableTimeId').value = this.value; // Cập nhật giờ được chọn
+        });
+    });
+
 
 })(jQuery);
 
