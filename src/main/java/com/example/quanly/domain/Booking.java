@@ -15,24 +15,16 @@ public class Booking {
     private long id;
 
     private double totalPrice;
-
     private String receiverName;
     private String bookingCode;
-
     private String receiverAddress;
-
     private String receiverPhone;
-
     private String status;
-
-    @Transient
     private LocalDate bookingDate;
-
     // user id
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
-
     @OneToMany(mappedBy = "booking")
     private List<BookingDetail> bookingDetails;
 

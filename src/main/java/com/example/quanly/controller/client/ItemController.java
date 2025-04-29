@@ -269,7 +269,10 @@ public class ItemController {
             double discount = product.getSale() / 100.0;
             double totalPrice = (price * quantity) - (price * quantity * discount);
 
+            List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
+
             // Thiết lập lại các thông tin cần hiển thị
+            model.addAttribute("rackets", rackets);
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("product", product);
             model.addAttribute("courts", subCourts);

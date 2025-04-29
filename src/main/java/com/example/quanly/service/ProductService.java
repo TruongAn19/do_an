@@ -398,6 +398,7 @@ public class ProductService {
         booking.setReceiverAddress(receiverAddress);
         booking.setReceiverPhone(receiverPhone);
         booking.setAvailableTime(time);
+        booking.setBookingDate(bookingDate);
         booking.setStatus("Đã đặt");
 
         // 7. Tính toán giá

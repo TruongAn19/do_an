@@ -3,6 +3,7 @@ package com.example.quanly.controller.admin;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.quanly.service.RacketStockByDateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +33,8 @@ public class RacketController {
 
     @Autowired
     private  ProductRepository productRepository  ;
+    @Autowired
+    private RacketStockByDateService racketStockByDateService;
 
     @GetMapping("/admin/racket")
     public String getByProductPage(Model model,
@@ -75,7 +78,8 @@ public class RacketController {
             @RequestParam("racketImg") MultipartFile file) {
         String racketImage = this.uploadService.handleSaveUploadFile(file, "racket");
         racket.setImage(racketImage);
-        this.racketService.handSaveRacket(racket);
+        Racket saveRacket = this.racketService.handSaveRacket(racket);
+        racketStockByDateService.generateStockForRacket(saveRacket);
         return "redirect:/admin/racket";
 
     }

@@ -20,4 +20,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
     List<Booking> findByBookingDetailsDate(@Param("date") LocalDate date);
 
     Booking findByBookingCode(String bookingCode);
+
+
+    @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
+    List<Booking> findBookingsByStatusAndDate(String status, LocalDate date);
 }

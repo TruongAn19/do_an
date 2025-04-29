@@ -42,7 +42,7 @@ public class RentalToolController {
     public String getRentalDetail(@PathVariable Long id, Model model) {
         RentalTool rentalTool = rentalToolService.getRentalToolById(id);
         // Lấy thông tin vợt từ bảng racket
-        Racket racket = racketService.getRacketById(Long.parseLong(rentalTool.getRacketId())).get();
+        Racket racket = racketService.getRacketById((rentalTool.getRacketId())).get();
 
         // Thêm thông tin vợt vào mô hình (model)
         model.addAttribute("rentalTool", rentalTool);
@@ -58,7 +58,7 @@ public class RentalToolController {
     public String showUpdateRentalToolForm(@PathVariable Long id, Model model) {
         RentalTool rentalTool = rentalToolService.getRentalToolById(id);
         // Lấy thông tin vợt từ bảng racket
-        Racket racket = racketService.getRacketById(Long.parseLong(rentalTool.getRacketId())).get();
+        Racket racket = racketService.getRacketById(rentalTool.getRacketId()).get();
 
         // Thêm thông tin vợt vào mô hình (model) cho form cập nhật
         model.addAttribute("rentalTool", rentalTool);

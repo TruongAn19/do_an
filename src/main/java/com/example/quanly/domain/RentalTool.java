@@ -17,9 +17,8 @@ public class RentalTool {
     private String phone;
     private String type; // DAILY or ON_SITE
     private String bookingId;
-
-    private String racketId;
-    private String productId;
+    private Long racketId;
+    private Long productId;
     private double price;
     private double rentalPrice;
     @Enumerated(EnumType.STRING)

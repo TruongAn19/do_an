@@ -83,7 +83,7 @@ public class RentalToolService {
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
-        Long racketId = Long.valueOf(rentalTool.getRacketId());
+        Long racketId = rentalTool.getRacketId();
 
         // 1. Kiểm tra tồn kho
         for (int i = 0; i < quantityDay; i++) {
@@ -121,7 +121,7 @@ public class RentalToolService {
             throw new RuntimeException("Đơn thuê không ở trạng thái PENDING");
         }
 
-        Long racketId = Long.valueOf(rentalTool.getRacketId());
+        Long racketId = (rentalTool.getRacketId());
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
