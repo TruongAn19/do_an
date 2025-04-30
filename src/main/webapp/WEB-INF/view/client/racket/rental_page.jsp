@@ -130,47 +130,57 @@
         <button type="submit" class="btn btn-primary w-100">Xác Nhận Thuê Vợt</button>
     </form>
 </div>
-
 <script>
-    // JavaScript để hiển thị/ẩn trường Mã Booking và Số ngày thuê khi chọn loại thuê
     document.getElementById('type').addEventListener('change', function () {
         var type = this.value;
         var bookingIdDiv = document.getElementById('bookingIdDiv');
         var rentalDaysDiv = document.getElementById('rentalDaysDiv');
         var rentalDateDiv = document.getElementById('rentalDateDiv');
+        var quantityDayInput = document.getElementById('numberDate');
 
-        // Ẩn hoặc hiện trường Mã Booking và Số ngày thuê dựa trên loại thuê
         if (type === 'ON_SITE') {
             bookingIdDiv.style.display = 'block';
             rentalDaysDiv.style.display = 'none';
+            rentalDateDiv.style.display = 'none';
+
+            // Disable trường số ngày thuê để không bị validate
+            quantityDayInput.disabled = true;
+            quantityDayInput.removeAttribute('name');
         } else if (type === 'DAILY') {
-            rentalDaysDiv.style.display = 'block';
             bookingIdDiv.style.display = 'none';
+            rentalDaysDiv.style.display = 'block';
             rentalDateDiv.style.display = 'block';
+
+            // Enable trường số ngày thuê lại
+            quantityDayInput.disabled = false;
+            quantityDayInput.setAttribute('name', 'quantityDay');
         }
 
-
+        calculateRentalPrice(); // Gọi lại hàm tính tiền khi thay đổi loại thuê
     });
 
-
+    // Hàm tính tiền thuê
     function calculateRentalPrice() {
         const type = document.getElementById('type').value;
-        const rentalPricePerDay = ${racket.rentalPricePerDay}; // Giá thuê theo ngày
-        const rentalPricePerPlay = ${racket.rentalPricePerPlay}; // Giá thuê tại sân
-        const rentalDaysInput = document.getElementById('numberDate'); // Trường số ngày thuê
+        const rentalPricePerDay = ${racket.rentalPricePerDay};
+        const rentalPricePerPlay = ${racket.rentalPricePerPlay};
+        const rentalDaysInput = document.getElementById('numberDate');
         const rentalMoneyInput = document.getElementById('rentalPrice');
         const quantity = document.getElementById('quantity');
+        const quantitys = parseInt(quantity.value) || 0;
+
         if (type === 'DAILY') {
-            const days = parseInt(rentalDaysInput.value) || 0; // Lấy số ngày thuê, mặc định 0 nếu không nhập
-            const quantitys = parseInt(quantity.value) || 0; // Lấy số lượng vợt, mặc định 0 nếu không nhập
-            rentalMoneyInput.value = days * rentalPricePerDay*quantitys ; // Tính tiền thuê thqeo số ngày
+            const days = parseInt(rentalDaysInput.value) || 0;
+            rentalMoneyInput.value = days * rentalPricePerDay * quantitys;
         } else {
-            rentalMoneyInput.value = rentalPricePerPlay*quantitys ; // Giá thuê tại sân
+            rentalMoneyInput.value = rentalPricePerPlay * quantitys;
         }
     }
 
-    // Gọi hàm để tính tiền ngay khi trang được load
-    calculateRentalPrice();
+    // Gọi khi trang load
+    window.onload = function () {
+        document.getElementById('type').dispatchEvent(new Event('change'));
+    };
 </script>
 
 <style>

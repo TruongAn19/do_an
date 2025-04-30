@@ -19,6 +19,7 @@ import com.example.quanly.service.*;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration;
 import com.example.quanly.domain.*;
 import com.example.quanly.repository.*;
@@ -47,6 +48,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
@@ -194,7 +196,10 @@ public class ItemController {
 
         List<SubCourt> courts = this.productService.getAllCourtsByProduct(product);
         model.addAttribute("courts", courts);
-
+        List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
+        log.info("raket ---- {}", rackets);
+        // Thêm thông tin về vợt vào model để sử dụng trong giao diện
+        model.addAttribute("rackets", rackets);
         model.addAttribute("product", product);
         model.addAttribute("totalPrice", totalPrice);
         model.addAttribute("availableTime", allTimes);
@@ -266,7 +271,7 @@ public class ItemController {
             double totalPrice = price  - (price * discount);
 
             List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
-
+            log.info("raket ---- {}", rackets);
             // Thiết lập lại các thông tin cần hiển thị
             model.addAttribute("rackets", rackets);
             model.addAttribute("errorMessage", e.getMessage());

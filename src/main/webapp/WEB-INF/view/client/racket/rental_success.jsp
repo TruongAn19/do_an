@@ -92,7 +92,7 @@
 
         <!-- Kiểm tra loại thuê (DAILY hay ON_SITE) để hiển thị thông tin phù hợp -->
         <c:if test="${rentalTool.type == 'ON_SITE'}">
-            <p><strong>Mã booking:</strong> ${rentalTool.bookingId}</p>
+            <p><strong>Mã booking:</strong> ${rentalTool.bookingCode}</p>
         </c:if>
 
         <c:if test="${rentalTool.type == 'DAILY'}">
