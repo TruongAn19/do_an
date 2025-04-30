@@ -68,7 +68,7 @@ public class RacketStatisticsController {
         model.addAttribute("rentalsByMonth", rentalsByMonth);
         model.addAttribute("revenueByMonth", revenueByMonth);
 
-        return "admin/dashboard/racket-statistics";
+        return "admin/statistics/racket-statistics";
     }
 
 }

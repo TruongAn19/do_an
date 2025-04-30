@@ -1,27 +1,21 @@
 package com.example.quanly.controller.client;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.ArrayList;
-
 // import static org.mockito.Mockito.times;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.example.quanly.domain.*;
-import com.example.quanly.domain.dto.PaymentRequest;
-import com.example.quanly.domain.dto.VnpayResponse;
-import com.example.quanly.repository.*;
+import com.example.quanly.repository.BookingDetailRepository;
+import com.example.quanly.repository.ProductRepository;
+import com.example.quanly.repository.SubCourtRepository;
+import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.*;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration;
-import com.example.quanly.domain.*;
-import com.example.quanly.repository.*;
+import jakarta.servlet.http.HttpSession;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,19 +26,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
 import com.example.quanly.service.ProductService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -52,23 +39,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ItemController {
 
-    ProductRepository productRepository;
-
-
-    SubCourtRepository subCourtRepository;
-
-    TimeRepository timeRepository;
     ProductService productService;
     RacketService racketService;
-    UserService userService;
-    BookingRepository bookingRepository;
-    RentalToolService rentalToolService;
-    RentalToolRepository rentalToolRepository;
-    RacketRepository racketRepository;
-    RestTemplateAutoConfiguration restTemplateAutoConfiguration;
-    PaymentService paymentService;
+    SubCourtRepository subCourtRepository;
+    TimeRepository timeRepository;
     BookingDetailRepository bookingDetailRepository;
-
+    BookingService bookingService;
+    ProductRepository productRepository;
 
     @GetMapping("/main-products")
     public String getMainProductPage(Model model,
@@ -170,8 +147,6 @@ public class ItemController {
         return "client/product/detailMainProduct";
     }
 
-
-
     @GetMapping("/booking/{productId}")
     public String getBookingPage(Model model,
                                  HttpServletRequest request,
@@ -225,15 +200,15 @@ public class ItemController {
 
     @PostMapping("/place-booking")
     public String handlePlaceBooking(Model model,
-            HttpServletRequest request,
-            @RequestParam("receiverName") String receiverName,
-            @RequestParam("receiverAddress") String receiverAddress,
-            @RequestParam("receiverPhone") String receiverPhone,
-            @RequestParam("productId") long productId,
-            @RequestParam("availableTimeId") long timeId,
-            @RequestParam("courtId") long subCourtId,
-            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
-            RedirectAttributes redirectAttributes) {
+                                     HttpServletRequest request,
+                                     @RequestParam("receiverName") String receiverName,
+                                     @RequestParam("receiverAddress") String receiverAddress,
+                                     @RequestParam("receiverPhone") String receiverPhone,
+                                     @RequestParam("productId") long productId,
+                                     @RequestParam("availableTimeId") long timeId,
+                                     @RequestParam("courtId") long subCourtId,
+                                     @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+                                     RedirectAttributes redirectAttributes) {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("id") == null) {
@@ -252,7 +227,7 @@ public class ItemController {
         List<AvailableTime> allTimes = timeRepository.findAll();
 
         try {
-            productService.handlePlaceBooking(currentUser, session,
+            bookingService.handlePlaceBooking(currentUser, session,
                     receiverName, receiverAddress, receiverPhone,
                     productId, timeId, subCourtId, bookingDate);
 

@@ -58,6 +58,11 @@
                                     <form:input type="text" class="form-control" path="price" />
                                 </div>
 
+                                <div class="mb-3 col-12 col-md-6">
+                                    <label class="form-label">Deposit Price:</label>
+                                    <form:input type="text" class="form-control" path="depositPrice" />
+                                </div>
+
                                 <div class="mb-3 col-12">
                                     <label class="form-label">Detail description:</label>
                                     <form:textarea class="form-control" path="detailDesc" />
@@ -112,63 +117,3 @@
 </body>
 
 </html>
-
-
-<div class="mb-3 col-12">--%>
-    <%--                                    <label class="form-label">Select Time Slot:</label>--%>
-    <%--                                    <select id="timeSlot" class="form-select">--%>
-    <%--                                        <option value="">Chọn khung giờ</option>--%>
-    <%--                                        <option value="08:00 AM">08:00 AM</option>--%>
-    <%--                                        <option value="09:00 AM">09:00 AM</option>--%>
-    <%--                                        <option value="10:00 AM">10:00 AM</option>--%>
-    <%--                                        <option value="11:00 AM">11:00 AM</option>--%>
-    <%--                                        <option value="12:00 PM">12:00 PM</option>--%>
-    <%--                                        <option value="01:00 PM">01:00 PM</option>--%>
-    <%--                                        <option value="02:00 PM">02:00 PM</option>--%>
-    <%--                                        <option value="03:00 PM">03:00 PM</option>--%>
-    <%--                                        <option value="04:00 PM">04:00 PM</option>--%>
-    <%--                                        <option value="05:00 PM">05:00 PM</option>--%>
-    <%--                                        <option value="06:00 PM">06:00 PM</option>--%>
-    <%--                                        <option value="07:00 PM">07:00 PM</option>--%>
-    <%--                                        <option value="08:00 PM">08:00 PM</option>--%>
-    <%--                                        <option value="09:00 PM">09:00 PM</option>--%>
-    <%--                                    </select>--%>
-    <%--                                </div>--%>
-
-    <%--                                <div class="mb-3 col-12">--%>
-    <%--                                    <button class="btn btn-secondary" onclick="addTimeSlot(event)">Thêm Khung Giờ</button>--%>
-    <%--                                </div>--%>
-
-    <%--                                <div class="mb-3 col-12">--%>
-    <%--                                    <label class="form-label">Khung giờ đã chọn:</label>--%>
-    <%--                                    <input type="text" id="timeSlotsInput" class="form-control" readonly />--%>
-<%--                                </div>
-<%--
-function addTimeSlot(event) {
-            event.preventDefault();  // Prevent form submission
-
-            // Get the selected time slot value
-            const timeSlot = document.getElementById("timeSlot").value;
-
-            // If a time slot is selected, add it to the input field
-            if (timeSlot) {
-                // Get the existing value of the input field
-                let currentValue = document.getElementById("timeSlotsInput").value;
-
-                // Check if the input already contains the time slot
-                if (currentValue.includes(timeSlot)) {
-                    alert("Khung giờ này đã được thêm.");
-                    return;
-                }
-
-                // If input is empty, just add the new time slot
-                if (currentValue === "") {
-                    document.getElementById("timeSlotsInput").value = timeSlot;
-                } else {
-                    // Otherwise, append the time slot to the existing value
-                    document.getElementById("timeSlotsInput").value += ", " + timeSlot;
-                }
-            } else {
-                alert("Vui lòng chọn một khung giờ.");
-            }
-        }--%>

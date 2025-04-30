@@ -100,13 +100,14 @@
         <!-- Thông tin Mã Booking (hiển thị khi chọn "Thuê tại sân") -->
         <div class="mb-3" id="bookingIdDiv" style="display: block;">
             <label for="bookingId" class="form-label">Mã Booking</label>
-            <input type="text" class="form-control" id="bookingId" name="bookingId" placeholder="Nhập mã booking">
+            <input type="text" class="form-control" id="bookingId" name="bookingId"
+                   placeholder="Nhập mã booking"   onchange="calculateRentalPrice()">
         </div>
 
         <!-- Thông tin Số ngày thuê (hiển thị khi chọn "Thuê theo ngày") -->
         <div class="mb-3" id="rentalDaysDiv" style="display: none;">
             <label for="numberDate" class="form-label">Số ngày thuê</label>
-            <input type="number" class="form-control" id="numberDate" name="quantityDay" min="1"
+            <input type="number" class="form-control" id="numberDate" name="quantityDay" min= 1
                    placeholder="Nhập số ngày thuê" onchange="calculateRentalPrice()">
         </div>
 
@@ -143,6 +144,8 @@
         if (type === 'ON_SITE') {
             bookingIdDiv.style.display = 'block';
             rentalDaysDiv.style.display = 'none';
+            rentalDateDiv.style.display = 'none';
+            quantityDayInput.disabled = true;
         } else if (type === 'DAILY') {
             rentalDaysDiv.style.display = 'block';
             bookingIdDiv.style.display = 'none';
@@ -160,11 +163,12 @@
         const rentalDaysInput = document.getElementById('numberDate'); // Trường số ngày thuê
         const rentalMoneyInput = document.getElementById('rentalPrice');
         const quantity = document.getElementById('quantity');
+        const quantitys = parseInt(quantity.value) || 0;
         if (type === 'DAILY') {
             const days = parseInt(rentalDaysInput.value) || 0; // Lấy số ngày thuê, mặc định 0 nếu không nhập
-            const quantitys = parseInt(quantity.value) || 0; // Lấy số lượng vợt, mặc định 0 nếu không nhập
             rentalMoneyInput.value = days * rentalPricePerDay*quantitys ; // Tính tiền thuê thqeo số ngày
         } else {
+            rentalDaysInput.value = 0;
             rentalMoneyInput.value = rentalPricePerPlay*quantitys ; // Giá thuê tại sân
         }
     }

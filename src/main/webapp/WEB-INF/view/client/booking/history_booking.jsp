@@ -118,6 +118,8 @@
                             <td>
                                 <p class="mb-0 mt-4">${bookingDetail.date}</p>
                             </td>
+                            <td><p class="mb-0 mt-4">${bookingDetail.availableTime.time}</p></td>
+                            <td><p class="mb-0 mt-4">${bookingDetail.subCourt.name}</p></td>
                             <td>
                                 <p class="mb-0 mt-4" data-cart-detail-id="${bookingDetail.id}">
                                     <fmt:formatNumber type="number"
@@ -125,8 +127,7 @@
                                     đ
                                 </p>
                             </td>
-                            <td><p class="mb-0 mt-4">${bookingDetail.availableTime.time}</p></td>
-                            <td><p class="mb-0 mt-4">${bookingDetail.subCourt.name}</p></td>
+
                             <td>
                                 <p class="mb-0 mt-4">${booking.status}</p>
                             </td>

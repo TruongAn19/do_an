@@ -262,6 +262,13 @@
                                     <fmt:formatNumber type="number" value="${totalPrice}"/> đ
                                 </p>
                             </div>
+                            <div
+                                    class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
+                                <h5 class="mb-0 ps-4 me-4">Số tiền phải đặt cọc</h5>
+                                <p class="mb-0 pe-4">
+                                    <fmt:formatNumber type="number" value="${product.depositPrice}"/> đ
+                                </p>
+                            </div>
                             <button
                                     class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 ms-4">
                                 Xác nhận đặt sân
