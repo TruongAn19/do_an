@@ -70,6 +70,7 @@ public class ItemController {
     RestTemplateAutoConfiguration restTemplateAutoConfiguration;
     PaymentService paymentService;
     BookingDetailRepository bookingDetailRepository;
+    private final BookingService bookingService;
 
 
     @GetMapping("/main-products")
@@ -196,10 +197,7 @@ public class ItemController {
 
         List<SubCourt> courts = this.productService.getAllCourtsByProduct(product);
         model.addAttribute("courts", courts);
-        List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
-        log.info("raket ---- {}", rackets);
-        // Thêm thông tin về vợt vào model để sử dụng trong giao diện
-        model.addAttribute("rackets", rackets);
+
         model.addAttribute("product", product);
         model.addAttribute("totalPrice", totalPrice);
         model.addAttribute("availableTime", allTimes);
@@ -230,15 +228,15 @@ public class ItemController {
 
     @PostMapping("/place-booking")
     public String handlePlaceBooking(Model model,
-            HttpServletRequest request,
-            @RequestParam("receiverName") String receiverName,
-            @RequestParam("receiverAddress") String receiverAddress,
-            @RequestParam("receiverPhone") String receiverPhone,
-            @RequestParam("productId") long productId,
-            @RequestParam("availableTimeId") long timeId,
-            @RequestParam("courtId") long subCourtId,
-            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
-            RedirectAttributes redirectAttributes) {
+                                     HttpServletRequest request,
+                                     @RequestParam("receiverName") String receiverName,
+                                     @RequestParam("receiverAddress") String receiverAddress,
+                                     @RequestParam("receiverPhone") String receiverPhone,
+                                     @RequestParam("productId") long productId,
+                                     @RequestParam("availableTimeId") long timeId,
+                                     @RequestParam("courtId") long subCourtId,
+                                     @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+                                     RedirectAttributes redirectAttributes) {
 
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("id") == null) {
@@ -257,7 +255,7 @@ public class ItemController {
         List<AvailableTime> allTimes = timeRepository.findAll();
 
         try {
-            productService.handlePlaceBooking(currentUser, session,
+            bookingService.handlePlaceBooking(currentUser, session,
                     receiverName, receiverAddress, receiverPhone,
                     productId, timeId, subCourtId, bookingDate);
 
@@ -270,10 +268,6 @@ public class ItemController {
             double discount = product.getSale() / 100.0;
             double totalPrice = price  - (price * discount);
 
-            List<Racket> rackets = this.racketService.getAvailableRacketsByCourt(productId);
-            log.info("raket ---- {}", rackets);
-            // Thiết lập lại các thông tin cần hiển thị
-            model.addAttribute("rackets", rackets);
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("product", product);
             model.addAttribute("courts", subCourts);

@@ -23,8 +23,8 @@ public class RentalTool {
     private double rentalPrice;
     @Enumerated(EnumType.STRING)
     private RentalToolStatus status;  // PENDING,
-    private int quantity;
-    private int quantityDay;
+    private Integer quantity;
+    private Integer quantityDay;
     private LocalDate rentalDate;
     private LocalDate returnDate;
     private LocalDateTime createAt;
