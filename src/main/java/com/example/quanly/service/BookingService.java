@@ -80,7 +80,7 @@ public class BookingService {
         return  bookingRepository.findByBookingCodeContainingIgnoreCase(bookingCode);
     }
 
-    public String handlePlaceBooking(User user, HttpSession session,
+    public Booking handlePlaceBooking(User user, HttpSession session,
                                    String receiverName, String receiverAddress, String receiverPhone,
                                    long productId, long timeId, long subCourtId, LocalDate bookingDate) {
 
@@ -144,6 +144,6 @@ public class BookingService {
         bookingDetail.setSale(product.getSale());
         bookingDetail.setAvailableTime(time);
         bookingDetailRepository.save(bookingDetail);
-        return saveBooking.getBookingCode();
+        return saveBooking;
     }
 }

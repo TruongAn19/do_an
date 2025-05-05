@@ -50,7 +50,6 @@ public class PaymentService {
         // Tạo Map các tham số cho VNPay
         Map<String, String> vnpParamsMap = vnpayConfig.getVNPayConfig();
         vnpParamsMap.put("vnp_Amount", String.valueOf(amount *100));
-//        vnpParamsMap.put("vnp_typePayment", paymentRequest.getType());
         vnpParamsMap.put("vnp_OrderInfo", paymentRequest.getId() + "-" + paymentRequest.getType());
         vnpParamsMap.put("vnp_TxnRef", transactionId); // Mã giao dịch
         vnpParamsMap.put("vnp_IpAddr", VnpayUtil.getIpAddress(request));

@@ -1,11 +1,14 @@
 package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.PaymentRequest;
+import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.BookingDetailRepository;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.SubCourtRepository;
 import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.BookingService;
+import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +38,7 @@ public class BookingClientController {
     TimeRepository timeRepository;
     BookingDetailRepository bookingDetailRepository;
     BookingService bookingService;
+    PaymentService paymentService;
     ProductRepository productRepository;
 
 
@@ -120,12 +124,12 @@ public class BookingClientController {
         List<AvailableTime> allTimes = timeRepository.findAll();
 
         try {
-            String bookingCode = bookingService.handlePlaceBooking(currentUser, session,
+            Booking booking = bookingService.handlePlaceBooking(currentUser, session,
                     receiverName, receiverAddress, receiverPhone,
                     productId, timeId, subCourtId, bookingDate);
 
             redirectAttributes.addFlashAttribute("successMessage", "Đặt sân thành công!");
-            return "redirect:/thanks/" + bookingCode + "/" + productId + "/court";
+            return "redirect:/submit-booking/"+ booking.getId();
 
         } catch (IllegalArgumentException e) {
             // Tính toán lại tổng tiền
@@ -162,5 +166,39 @@ public class BookingClientController {
         model.addAttribute("racketList", racketList);
         model.addAttribute("bookingCode", bookingCode);
         return "client/booking/thanks";
+    }
+
+    @GetMapping("/submit-booking/{bookingId}")
+    public String paymentBooking(@ModelAttribute RentalTool rentalTool,
+                                       @PathVariable Long bookingId,
+                                       HttpServletRequest request
+                                       ) {
+            Booking booking = bookingService.fetchBookingById(bookingId).orElse(null);
+            PaymentRequest paymentRequest = new PaymentRequest();
+            paymentRequest.setId(bookingId);
+            paymentRequest.setAmount(booking.getDepositPrice());
+            paymentRequest.setType("BOOKING");
+            paymentRequest.setRedirectUrl("");
+            VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
+            return "redirect:" + vnpayResponse.getPaymentUrl();
+    }
+
+    @GetMapping("/payment/success/{bookingId}/booking")
+    public String paymentSuccess(Model model, @PathVariable Long bookingId) {
+        // Giả sử sau khi thanh toán thành công, hệ thống nhận kết quả và gửi thông báo thành công.
+        String message = "Thanh toán thành công! Cảm ơn bạn đã sử dụng dịch vụ.";
+        // Thêm thông báo vào model
+        model.addAttribute("message", message);
+        model.addAttribute("bookingId", bookingId);
+        // Trả về trang JSP hiển thị thông báo thành công
+        return "client/payment/booking-payment-success";
+    }
+
+    @GetMapping("/rental/start/{bookingId}/booking")
+    public String redirectRentalRacket(@PathVariable Long bookingId)
+    {
+        Booking booking = bookingService.fetchBookingById(bookingId).orElse(null);
+        Long courtId = booking.getBookingDetails().get(0).getProduct().getId();
+        return "redirect:/thanks/" + booking.getBookingCode() + "/" + courtId + "/court";
     }
 }

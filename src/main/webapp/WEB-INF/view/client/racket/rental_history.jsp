@@ -47,7 +47,7 @@
             <th>Ngày Thuê</th>
             <th>Tiền Thuê</th>
             <th>Trạng Thái</th>
-            <th>Hành Động</th>
+
         </tr>
         </thead>
         <tbody class="text-center">
@@ -87,37 +87,6 @@
                     </c:choose>
                 </td>
 
-                <td>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-cogs"></i> Hành động
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewDetailsModal" onclick="viewDetails(${rental.id})"><i class="fas fa-eye"></i> Xem</a></li>
-
-                            <c:if test="${rental.status == 'PENDING'}">
-                                <li>
-                                    <form action="/rental/${rental.id}/cancel" method="post" onsubmit="return confirm('Bạn có chắc muốn hủy đơn này?')">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="fas fa-times"></i> Hủy
-                                        </button>
-                                    </form>
-                                </li>
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#updateRentalModal" onclick="loadRentalForUpdate(${rental.id})"><i class="fas fa-edit"></i> Sửa</a></li>
-                            </c:if>
-
-                            <c:if test="${rental.status == 'COMPLETED'}">
-                                <li>
-                                    <form action="/rental/${rental.id}/return" method="post">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="fas fa-undo"></i> Trả vợt
-                                        </button>
-                                    </form>
-                                </li>
-                            </c:if>
-                        </ul>
-                    </div>
-                </td>
 
             </tr>
         </c:forEach>

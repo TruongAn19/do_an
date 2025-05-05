@@ -119,22 +119,41 @@ public class RentalController {
         return "client/payment/payment-error";
     }
 
+
+
+
     @GetMapping("/payment/vnpay-callback")
     public String handleVnpayCallback(HttpServletRequest request) {
         // Lấy các tham số từ VNPay gửi lại
         String status = request.getParameter("vnp_ResponseCode");
-        String rentalToolId = request.getParameter("vnp_OrderInfo").split("-")[0];
-        if (status == null || rentalToolId == null) {
-            throw new RuntimeException("Invalid callback parameters");
+        String type = request.getParameter("vnp_OrderInfo").split("-")[1];
+        if(type.equals("RENTAL_TOOL")){
+            String rentalToolId = request.getParameter("vnp_OrderInfo").split("-")[0];
+            if (status == null || rentalToolId == null) {
+                throw new RuntimeException("Invalid callback parameters");
+            }
+            if ("00".equals(status)) {
+                RentalTool rentalTool = rentalToolRepository.findById(Long.parseLong(rentalToolId)).orElseThrow(() -> new RuntimeException("RentalTool not found"));
+                rentalTool.setStatus(RentalToolStatus.PAID);
+                rentalToolRepository.save(rentalTool);
+                return "redirect:/payment/success"; // Trang thành công
+            } else {
+                return "redirect:/payment/error"; // Trang thất bại
+            }
+        }else
+        { String bookingId = request.getParameter("vnp_OrderInfo").split("-")[0];
+            Booking booking = bookingRepository.findById(Long.parseLong(bookingId)).orElseThrow(() -> new RuntimeException("RentalTool not found"));
+
+            if ("00".equals(status)) {
+                booking.setStatus("Đã đặt");
+                bookingRepository.save(booking);
+                return "redirect:/payment/success/"+ bookingId + "/booking"; // Trang thành công
+            } else {
+                bookingRepository.delete(booking);
+                return "redirect:/payment/error"; // Trang thất bại
+            }
         }
-        if ("00".equals(status)) {
-            RentalTool rentalTool = rentalToolRepository.findById(Long.parseLong(rentalToolId)).orElseThrow(() -> new RuntimeException("RentalTool not found"));
-            rentalTool.setStatus(RentalToolStatus.PAID);
-            rentalToolRepository.save(rentalTool);
-            return "redirect:/payment/success"; // Trang thành công
-        } else {
-            return "redirect:/payment/error"; // Trang thất bại
-        }
+
 
     }
 }
