@@ -21,6 +21,7 @@ public class Booking {
     private String receiverPhone;
     private String status;
     private LocalDate bookingDate;
+    private double depositPrice;
     // user id
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -37,6 +38,4 @@ public class Booking {
         this.bookingCode = "BK" + System.currentTimeMillis();
     }
 
-
-    
 }

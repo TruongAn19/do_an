@@ -48,7 +48,6 @@
                                                                 <th scope="col">Sản phẩm</th>
                                                                 <th scope="col">Tên</th>
                                                                 <th scope="col">Giá cả</th>
-                                                                <th scope="col">Số lượng</th>
                                                                 <th scope="col">Thành tiền</th>
                                                             </tr>
                                                         </thead>
@@ -82,23 +81,13 @@
                                                                     <td>
                                                                         <p class="mb-0 mt-4">
                                                                             <fmt:formatNumber type="number"
-                                                                                value="${bookingDetail.price}" /> đ
+                                                                                value="${bookingDetail.product.price}" /> đ
                                                                         </p>
                                                                     </td>
                                                                     <td>
-                                                                        <div class="input-group quantity mt-4"
-                                                                            style="width: 100px;">
-                                                                            <input type="text"
-                                                                                class="form-control form-control-sm text-center bbooking-0"
-                                                                                value="${bookingDetail.quantity}">
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        <p class="mb-0 mt-4"
-                                                                            data-cart-detail-id="${bookingDetail.id}">
+                                                                        <p class="mb-0 mt-4">
                                                                             <fmt:formatNumber type="number"
-                                                                                value="${bookingDetail.price * bookingDetail.quantity}" />
-                                                                            đ
+                                                                                              value="${bookingDetail.price}" /> đ
                                                                         </p>
                                                                     </td>
                                                                 </tr>

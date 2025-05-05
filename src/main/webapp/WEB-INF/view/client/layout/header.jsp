@@ -19,12 +19,12 @@
                 </div>
                 <div class="d-flex m-3 me-0">
                     <c:if test="${not empty pageContext.request.userPrincipal}">
-                        <a href="/cart" class="position-relative me-4 my-auto">
-                            <i class="fa fa-shopping-bag fa-2x"></i>
-                            <span
-                                    class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1"
-                                    style="top: -5px; left: 15px; height: 20px; min-width: 20px;">${sessionScope.sum}</span>
-                        </a>
+<%--                        <a href="/cart" class="position-relative me-4 my-auto">--%>
+<%--                            <i class="fa fa-shopping-bag fa-2x"></i>--%>
+<%--                            <span--%>
+<%--                                    class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1"--%>
+<%--                                    style="top: -5px; left: 15px; height: 20px; min-width: 20px;">${sessionScope.sum}</span>--%>
+<%--                        </a>--%>
                         <div class="dropdown my-auto">
                             <a href="#" class="dropdown" role="button" id="dropdownMenuLink"
                                data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="dropdown"
@@ -42,8 +42,6 @@
                                 </li>
 
                                 <li><a class="dropdown-item" href="/profile">Quản lý tài khoản</a></li>
-
-                                <li><a class="dropdown-item" href="/order-history">Lịch sử giao dịch</a></li>
                                 <li><a class="dropdown-item" href="/booking-history">Lịch sử đặt sân</a></li>
                                 <li><a class="dropdown-item" href="/rental-history">Lịch sử thuê dụng cụ</a></li>
 

@@ -1,13 +1,19 @@
 package com.example.quanly.controller.admin;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 
+import com.example.quanly.service.BookingStatsService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +35,7 @@ public class ProductController {
     
     ProductService productService;
     UploadService uploadService;
+    BookingStatsService bookingStatsService;
 
     @GetMapping("/admin/mainProduct")
     public String getMainProductPage(Model model,
@@ -129,6 +136,32 @@ public class ProductController {
         this.productService.deleteAllProduct(product.getId());
 
         return "redirect:/admin/mainProduct";
+    }
+
+    @GetMapping("/admin/statistics/revenue")
+    public String revenueForm() {
+        return "admin/chart/revenue_chart";
+    }
+
+    @PostMapping("/admin/statistics/revenue")
+    public String revenueChart(
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            Model model) {
+
+        // Chuyển LocalDate thành java.util.Date
+        Date startDateConverted = java.util.Date.from(startDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date endDateConverted = java.util.Date.from(endDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+
+        // Lấy dữ liệu doanh thu
+        Map<String, Double> revenueData = bookingStatsService.getRevenueBetweenDates(startDate, endDate);
+
+        // Đưa vào model
+        model.addAttribute("revenueData", revenueData);
+        model.addAttribute("startDate", startDateConverted);
+        model.addAttribute("endDate", endDateConverted);
+
+        return "admin/chart/revenue_chart";
     }
 
 }

@@ -61,6 +61,10 @@ public class ProductService {
         return productRepository.findById(id).orElse(null);
     }
 
+    public long getCourtProduct() {
+        return productRepository.count();
+    }
+
     public Page<Product> getAllProductWithSpec(Pageable pageable, ProductCriteriaDTO productCriteriaDTO) {
         if (productCriteriaDTO.getAddress() == null
                 && productCriteriaDTO.getPrice() == null) {

@@ -76,6 +76,10 @@ public class BookingService {
         return bookingRepository.findByBookingDetailsDate(date);
     }
 
+    public List<Booking> fetchBookingCode(String bookingCode) {
+        return  bookingRepository.findByBookingCodeContainingIgnoreCase(bookingCode);
+    }
+
     public String handlePlaceBooking(User user, HttpSession session,
                                    String receiverName, String receiverAddress, String receiverPhone,
                                    long productId, long timeId, long subCourtId, LocalDate bookingDate) {
@@ -122,6 +126,7 @@ public class BookingService {
         booking.setReceiverPhone(receiverPhone);
         booking.setAvailableTime(time);
         booking.setBookingDate(bookingDate);
+        booking.setDepositPrice(product.getDepositPrice());
         booking.setStatus("Đã đặt");
 
         // 7. Tính toán giá
