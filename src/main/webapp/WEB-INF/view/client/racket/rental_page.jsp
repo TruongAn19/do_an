@@ -52,17 +52,19 @@
 <jsp:include page="../layout/header.jsp"/>
 
 <!-- Single Product Start -->
+<!-- Single Product Start -->
 <div class="container mt-5">
     <h2 class="text-center">Thông Tin Thuê Vợt</h2>
     <form action="/submit-rental" method="post" class="rental-form">
         <!-- CSRF token -->
         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
 
+        <input type="hidden" id="type" name="type" value="${typeOrder}" />
+
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="fullName" class="form-label">Họ và tên</label>
-                <input type="text" class="form-control" id="fullName" name="fullName" required
-                       placeholder="Nhập họ tên">
+                <input type="text" class="form-control" id="fullName" name="fullName" required placeholder="Nhập họ tên">
             </div>
             <div class="col-md-6">
                 <label for="email" class="form-label">Email</label>
@@ -73,37 +75,36 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="phone" class="form-label">Số điện thoại</label>
-                <input type="text" class="form-control" id="phone" name="phone" required
-                       placeholder="Nhập số điện thoại">
+                <input type="text" class="form-control" id="phone" name="phone" required placeholder="Nhập số điện thoại">
             </div>
             <div class="col-md-6">
                 <label for="racketName" class="form-label">Tên vợt</label>
                 <input type="text" class="form-control" id="racketName" name="racketName" value="${racket.name}" readonly>
                 <input type="hidden" name="racketId" value="${racket.id}">
-
             </div>
         </div>
 
+        <!-- Hiển thị loại thuê -->
         <div class="row mb-3">
             <div class="col-md-6">
-                <label for="type" class="form-label">Loại Thuê</label>
-                <select class="form-select" id="type" name="type" required onchange="calculateRentalPrice()">
-                    <option value="ON_SITE">Thuê tại sân</option>
-                    <option value="DAILY">Thuê theo ngày</option>
-                </select>
+                <label for="typeDisplay" class="form-label">Loại Thuê</label>
+                <input type="text" class="form-control" id="typeDisplay"
+                       value="${typeOrder == 'DAILY' ? 'Thuê theo ngày' : 'Thuê tại sân'}" readonly>
             </div>
+
             <div class="col-md-6">
                 <label for="quantity" class="form-label">Số lượng</label>
                 <input type="number" class="form-control" id="quantity" name="quantity" onchange="calculateRentalPrice()" required>
             </div>
         </div>
-        <!-- Thông tin Mã Booking (hiển thị khi chọn "Thuê tại sân") -->
-        <div class="mb-3" id="bookingIdDiv" style="display: block;">
+
+        <!-- Trường hiển thị khi thuê tại sân -->
+        <div class="mb-3" id="bookingIdDiv" style="display: none;">
             <label for="bookingId" class="form-label">Mã Booking</label>
-            <input type="text" class="form-control" id="bookingId" name="bookingId" placeholder="Nhập mã booking">
+            <input type="text" class="form-control" id="bookingId" name="bookingId" value=${bookingCode}>
         </div>
 
-        <!-- Thông tin Số ngày thuê (hiển thị khi chọn "Thuê theo ngày") -->
+        <!-- Trường hiển thị khi thuê theo ngày -->
         <div class="mb-3" id="rentalDaysDiv" style="display: none;">
             <label for="numberDate" class="form-label">Số ngày thuê</label>
             <input type="number" class="form-control" id="numberDate" name="quantityDay" min="1"
@@ -114,7 +115,6 @@
             <label for="rentalDate" class="form-label">Ngày Thuê</label>
             <input type="date" class="form-control" id="rentalDate" name="rentalDate" >
         </div>
-
 
         <div class="row mb-3">
             <div class="col-md-6">
@@ -131,35 +131,28 @@
     </form>
 </div>
 <script>
-    document.getElementById('type').addEventListener('change', function () {
-        var type = this.value;
-        var bookingIdDiv = document.getElementById('bookingIdDiv');
-        var rentalDaysDiv = document.getElementById('rentalDaysDiv');
-        var rentalDateDiv = document.getElementById('rentalDateDiv');
-        var quantityDayInput = document.getElementById('numberDate');
+    function toggleRentalFields() {
+        const type = document.getElementById('type').value;
+        const bookingIdDiv = document.getElementById('bookingIdDiv');
+        const rentalDaysDiv = document.getElementById('rentalDaysDiv');
+        const rentalDateDiv = document.getElementById('rentalDateDiv');
+        const quantityDayInput = document.getElementById('numberDate');
 
         if (type === 'ON_SITE') {
             bookingIdDiv.style.display = 'block';
             rentalDaysDiv.style.display = 'none';
             rentalDateDiv.style.display = 'none';
-
-            // Disable trường số ngày thuê để không bị validate
             quantityDayInput.disabled = true;
             quantityDayInput.removeAttribute('name');
         } else if (type === 'DAILY') {
             bookingIdDiv.style.display = 'none';
             rentalDaysDiv.style.display = 'block';
             rentalDateDiv.style.display = 'block';
-
-            // Enable trường số ngày thuê lại
             quantityDayInput.disabled = false;
             quantityDayInput.setAttribute('name', 'quantityDay');
         }
+    }
 
-        calculateRentalPrice(); // Gọi lại hàm tính tiền khi thay đổi loại thuê
-    });
-
-    // Hàm tính tiền thuê
     function calculateRentalPrice() {
         const type = document.getElementById('type').value;
         const rentalPricePerDay = ${racket.rentalPricePerDay};
@@ -179,9 +172,11 @@
 
     // Gọi khi trang load
     window.onload = function () {
-        document.getElementById('type').dispatchEvent(new Event('change'));
+        toggleRentalFields();
+        calculateRentalPrice();
     };
 </script>
+
 
 <style>
     .rental-form .row {

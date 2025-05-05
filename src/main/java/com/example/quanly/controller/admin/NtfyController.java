@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import reactor.core.publisher.Flux;
+import reactor.util.retry.Retry;
+
+import java.time.Duration;
 
 @RestController
 public class NtfyController {
@@ -26,6 +29,7 @@ public class NtfyController {
                 .uri("https://ntfy.sh/{topic}/sse", topic)
                 .retrieve()
                 .bodyToFlux(String.class)
+                .retryWhen(Retry.backoff(5, Duration.ofSeconds(5)))
                 .doOnSubscribe(s -> System.out.println("SSE subscription bắt đầu cho topic: " + topic))
                 .doOnNext(data -> System.out.println("SSE data nhận được: " + data))
                 .doOnError(e -> System.err.println("Lỗi khi nhận SSE từ NTFY: " + e.getMessage()));

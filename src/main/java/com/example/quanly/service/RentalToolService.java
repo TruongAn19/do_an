@@ -59,7 +59,10 @@ public class RentalToolService {
         } else {
             throw new RuntimeException("Loại thuê không hợp lệ");
         }
-
+        Booking booking = bookingRepository.findById(Long.valueOf(rentalTool.getBookingId())).orElse(null);
+        if (booking != null) {
+            model.addAttribute("bookingCode", booking.getBookingCode());
+        }
         model.addAttribute("rentalTool", rentalTool);
         model.addAttribute("racket", racket);
     }

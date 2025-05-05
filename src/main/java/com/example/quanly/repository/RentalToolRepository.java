@@ -45,4 +45,5 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
                                                   @Param("endDate") LocalDate endDate,
                                                   @Param("status") RentalToolStatus status);
 
+
 }

@@ -45,19 +45,32 @@ public class RentalController {
     }
 
     @GetMapping("/user/rental-page/{racketId}")
-    public String goToRentalPage(@PathVariable("racketId") Long racketId, Model model) {
-        // Thêm thông tin về vợt vào model để sử dụng trong giao diện
+    public String goToRentalPage(@PathVariable("racketId") Long racketId,
+                                 @RequestParam(value = "type") String type,
+                                 @RequestParam(value = "bookingCode", required = false) String bookingCode,
+                                 Model model) {
 
         model.addAttribute("racket", racketService.getRacketById(racketId).orElse(null));
+        model.addAttribute("typeOrder", type);
+        if(bookingCode!=null)
+            model.addAttribute("bookingCode", bookingCode);
 
-        // Chuyển hướng sang trang thuê vợt
-        return "client/racket/rental_page"; // Tên của JSP/Thymeleaf view
+        return "client/racket/rental_page";
     }
 
 
+
     @PostMapping("/submit-rental")
-    public String submitRental(@ModelAttribute RentalTool rentalTool, Model model) {
+    public String submitRental(@ModelAttribute RentalTool rentalTool, Model model,
+                               @RequestParam(value = "bookingId", required = false) String bookingId) {
+        // Kiểm tra nếu loại thuê là 'ON_SITE', thêm bookingCode vào model
+        if ("ON_SITE".equals(rentalTool.getType())) {
+            Booking booking = (bookingRepository.findByBookingCode(bookingId));
+            rentalTool.setBookingId(booking.getBookingCode());
+        }
+
         rentalToolService.handleSubmitRental(rentalTool, model);
+        // Chuyển hướng theo type
         return rentalTool.getType().equals("DAILY")
                 ? "client/racket/rental_checkout"
                 : "client/racket/rental_success";

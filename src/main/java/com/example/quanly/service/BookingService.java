@@ -76,7 +76,7 @@ public class BookingService {
         return bookingRepository.findByBookingDetailsDate(date);
     }
 
-    public void handlePlaceBooking(User user, HttpSession session,
+    public String handlePlaceBooking(User user, HttpSession session,
                                    String receiverName, String receiverAddress, String receiverPhone,
                                    long productId, long timeId, long subCourtId, LocalDate bookingDate) {
 
@@ -127,7 +127,7 @@ public class BookingService {
         // 7. Tính toán giá
         double pricePerItem = product.getPrice() - (product.getPrice() * product.getSale() / 100);
         booking.setTotalPrice(pricePerItem);
-        booking = bookingRepository.save(booking); // Lưu để có ID
+       Booking saveBooking =  booking = bookingRepository.save(booking); // Lưu để có ID
 
         // 8. Tạo booking detail
         BookingDetail bookingDetail = new BookingDetail();
@@ -139,5 +139,6 @@ public class BookingService {
         bookingDetail.setSale(product.getSale());
         bookingDetail.setAvailableTime(time);
         bookingDetailRepository.save(bookingDetail);
+        return saveBooking.getBookingCode();
     }
 }

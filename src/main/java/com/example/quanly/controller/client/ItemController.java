@@ -62,15 +62,9 @@ public class ItemController {
     TimeRepository timeRepository;
     ProductService productService;
     RacketService racketService;
-    UserService userService;
-    BookingRepository bookingRepository;
-    RentalToolService rentalToolService;
-    RentalToolRepository rentalToolRepository;
-    RacketRepository racketRepository;
-    RestTemplateAutoConfiguration restTemplateAutoConfiguration;
-    PaymentService paymentService;
     BookingDetailRepository bookingDetailRepository;
     private final BookingService bookingService;
+    private final RacketRepository racketRepository;
 
 
     @GetMapping("/main-products")
@@ -244,6 +238,9 @@ public class ItemController {
             return "redirect:/login";
         }
 
+        log.info("check: {}", receiverAddress + " " + receiverName + " " + receiverPhone);
+        log.info("check: {}", productId + " " + timeId + " " + subCourtId);
+
         long userId = (long) session.getAttribute("id");
         User currentUser = new User();
         currentUser.setId(userId);
@@ -255,12 +252,12 @@ public class ItemController {
         List<AvailableTime> allTimes = timeRepository.findAll();
 
         try {
-            bookingService.handlePlaceBooking(currentUser, session,
+           String bookingCode = bookingService.handlePlaceBooking(currentUser, session,
                     receiverName, receiverAddress, receiverPhone,
                     productId, timeId, subCourtId, bookingDate);
 
             redirectAttributes.addFlashAttribute("successMessage", "Đặt sân thành công!");
-            return "redirect:/thanks";
+            return "redirect:/thanks/" + bookingCode + "/" + productId + "/court";
 
         } catch (IllegalArgumentException e) {
             // Tính toán lại tổng tiền
@@ -290,8 +287,12 @@ public class ItemController {
         }
     }
 
-    @GetMapping("/thanks")
-    public String bookingSuccess() {
+    @GetMapping("/thanks/{bookingCode}/{courtId}/court")
+    public String bookingSuccess(Model model, @PathVariable String bookingCode, @PathVariable long courtId) {
+        // Lấy thông tin booking từ mã bookingCode
+        List<Racket> racketList = racketService.getAvailableRacketsByCourt(courtId);
+        model.addAttribute("racketList", racketList);
+        model.addAttribute("bookingCode", bookingCode);
         return "client/booking/thanks";
     }
 }
