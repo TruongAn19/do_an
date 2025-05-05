@@ -177,42 +177,6 @@
                            min="<%= LocalDate.now() %>" required/>
                 </div>
 
-                <!-- Chọn vợt đi cùng -->
-                <div class="col-md-6 mt-4">
-                    <label class="form-label fw-bold">Chọn vợt đi cùng (nếu cần)</label>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button"
-                                id="racketDropdown"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                            -- Chọn vợt --
-                        </button>
-                        <ul class="dropdown-menu w-100" aria-labelledby="racketDropdown"
-                            style="max-height: 300px; overflow-y: auto;">
-                            <c:forEach var="racket" items="${rackets}">
-                                <li>
-                                    <div class="dropdown-item d-flex align-items-center justify-content-between racket-option"
-                                         data-id="${racket.id}"
-                                         data-name="${racket.name}"
-                                         data-price="${racket.price}">
-                                        <img src="/images/racket/${racket.image}" alt="${racket.name}" class="me-2"
-                                             style="width: 50px; height: 50px; object-fit: cover;">
-                                        <div class="flex-grow-1">
-                                            <div>${racket.name}</div>
-                                            <div class="text-muted"><fmt:formatNumber value="${racket.price}"
-                                                                                      type="number"/> đ
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <input type="number" class="form-control form-control-sm racket-quantity"
-                                                   min="0" max="10" value="0" style="width: 60px;">
-                                        </div>
-                                    </div>
-                                </li>
-                            </c:forEach>
-                        </ul>
-                    </div>
-                </div>
-
                 <!-- Hidden input để submit dữ liệu vợt đã chọn -->
                 <input type="hidden" name="selectedRackets" id="selectedRackets"/>
                 <!-- Thời gian được chọn -->

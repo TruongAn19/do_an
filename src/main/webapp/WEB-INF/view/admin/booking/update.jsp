@@ -52,9 +52,9 @@
                                                     <div class="mb-3">
                                                         <label>booking id = ${newBooking.id} </label>
                                                         &nbsp; &nbsp; &nbsp; &nbsp;
-                                                        <label class="form-label">Price:
+                                                        <label class="form-label">Còn phải trả:
                                                             <fmt:formatNumber type="number"
-                                                                value="${newBooking.totalPrice}" /> đ
+                                                                value="${newBooking.totalPrice - newBooking.depositPrice}" /> đ
                                                         </label>
                                                     </div>
 

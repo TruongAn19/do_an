@@ -24,4 +24,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
 
     @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
     List<Booking> findBookingsByStatusAndDate(String status, LocalDate date);
+
+    List<Booking> findByBookingCodeContainingIgnoreCase(String bookingCode);
 }

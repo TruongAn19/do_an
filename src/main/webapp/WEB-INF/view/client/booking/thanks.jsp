@@ -51,6 +51,18 @@
                             <div class="alert alert-success" role="alert">
                                 Cảm ơn bạn đã đặt hàng, đơn hàng đã được xác nhận thành công.
                             </div>
+                            <div>
+                                <p>Bạn có muốn thuê vợt không:</p>
+                                <a href="">
+                                    <btn>Có. Tôi muốn thuê Vợt</btn>
+                                </a>
+                                <br>
+                                <br>
+                                <a href="/HomePage">
+                                    <btn>Không. Quay về trang chủ</btn>
+                                </a>
+                            </div>
+
                         </div>
                     </div>
                 </div>

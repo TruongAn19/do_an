@@ -4,6 +4,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.quanly.domain.Product;
+import com.example.quanly.service.ProductService;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,21 +22,23 @@ import com.example.quanly.domain.Booking;
 import com.example.quanly.service.BookingService;
 
 @Controller
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingController {
-    private final BookingService bookingService;
-
-    public BookingController(BookingService bookingService) {
-        this.bookingService = bookingService;
-    }
+    BookingService bookingService;
 
     @GetMapping("/admin/booking")
     public String getBooking(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
-            Model model) {
+            Model model,
+            @RequestParam(value = "search", required = false) String searchTerm) {
 
         List<Booking> bookings;
         if (date != null) {
             bookings = this.bookingService.fetchBookingsByDate(date);
+        }else if(searchTerm != null && !searchTerm.isEmpty()){
+            bookings = this.bookingService.fetchBookingCode(searchTerm);
+            model.addAttribute("searchTerm", searchTerm);
         } else {
             bookings = this.bookingService.fetchAllBookings();
         }

@@ -180,7 +180,7 @@
                                                         <!-- Product Content -->
                                                         <div class="p-4 border-top-0 rounded-bottom d-flex flex-column flex-grow-1">
                                                             <h4 class="text-center text-primary" style="font-size: 15px;">
-                                                                <a href="/byProduct/${racket.id}">${racket.name}</a>
+                                                                <a href="/racket/${racket.id}">${racket.name}</a>
                                                             </h4>
 
                                                             <!-- Product Price -->
