@@ -49,7 +49,7 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     List<RentalTool> findByRentalToolCodeContainingIgnoreCase(String rentalToolCode);
 
-    List<RentalTool> findRentalByUser(User user);
+    List<RentalTool> findRentalByUserId(Long id);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
 }

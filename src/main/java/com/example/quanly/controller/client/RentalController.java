@@ -74,7 +74,7 @@ public class RentalController {
         long id = (long) session.getAttribute("id");
         currentUser.setId(id);
 
-        rentalToolService.handleSubmitRental(rentalTool, model, currentUser);
+        rentalToolService.handleSubmitRental(rentalTool, model, currentUser, request);
         // Chuyển hướng theo type
         return rentalTool.getType().equals("DAILY")
                 ? "client/racket/rental_checkout"
@@ -83,22 +83,26 @@ public class RentalController {
 
 
     @PostMapping("/submit-checkout-rental")
-    public String submitRentalCheckout(@ModelAttribute RentalTool rentalTool,
+    public String submitRentalCheckout(
                                        @RequestParam("paymentMethod") String paymentMethod,
                                        @RequestParam("racketName") String racketName,
-                                       @RequestParam("rentalToolId") Long rentalToolId,
                                        HttpServletRequest request,
                                        Model model) {
-
+        HttpSession session = request.getSession();
+        RentalTool rentalTool = (RentalTool) session.getAttribute("pendingRentalTool");
+        if (rentalTool == null) {
+            throw new RuntimeException("Không tìm thấy đơn thuê trong session");
+        }
         if (paymentMethod.equals("VNPAY")) {
             PaymentRequest paymentRequest = new PaymentRequest();
-            paymentRequest.setId(rentalToolId);
+            paymentRequest.setId(0L);
             paymentRequest.setAmount(rentalTool.getPrice());
             paymentRequest.setType("RENTAL_TOOL");
             paymentRequest.setRedirectUrl("");
             VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
             return "redirect:" + vnpayResponse.getPaymentUrl();
         } else {
+            rentalToolService.handleDailyRental(rentalTool);
             model.addAttribute("rentalTool", rentalTool);
             model.addAttribute("racketName", racketName);
             return "client/racket/rental_success";
@@ -134,12 +138,16 @@ public class RentalController {
         String status = request.getParameter("vnp_ResponseCode");
         String type = request.getParameter("vnp_OrderInfo").split("-")[1];
         if(type.equals("RENTAL_TOOL")){
-            String rentalToolId = request.getParameter("vnp_OrderInfo").split("-")[0];
-            if (status == null || rentalToolId == null) {
+            if (status == null) {
                 throw new RuntimeException("Invalid callback parameters");
             }
             if ("00".equals(status)) {
-                RentalTool rentalTool = rentalToolRepository.findById(Long.parseLong(rentalToolId)).orElseThrow(() -> new RuntimeException("RentalTool not found"));
+                HttpSession session = request.getSession();
+                RentalTool rentalTool = (RentalTool) session.getAttribute("pendingRentalTool");
+                if (rentalTool == null) {
+                    throw new RuntimeException("Không tìm thấy đơn thuê trong session");
+                }
+                rentalToolService.handleDailyRental(rentalTool);
                 rentalTool.setStatus(RentalToolStatus.PAID);
                 rentalToolRepository.save(rentalTool);
                 return "redirect:/payment/success"; // Trang thành công

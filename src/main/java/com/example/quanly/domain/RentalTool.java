@@ -3,12 +3,13 @@ package com.example.quanly.domain;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-public class RentalTool {
+public class RentalTool implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -31,10 +32,11 @@ public class RentalTool {
     private LocalDateTime updateAt;
     private String rentalToolCode;
 
+    private Long userId;
     // user id
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+//    @ManyToOne
+//    @JoinColumn(name = "user_id")
+//    private User user;
 
     @PrePersist
     public void generateRentalToolCode() {

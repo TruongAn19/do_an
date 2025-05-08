@@ -2,6 +2,8 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.repository.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -52,7 +54,7 @@ public class RentalToolService {
     }
 
 
-    public void handleSubmitRental(RentalTool rentalTool, Model model, User user) {
+    public void handleSubmitRental(RentalTool rentalTool, Model model, User user,  HttpServletRequest request) {
         Racket racket = racketRepository.findById(Long.valueOf(rentalTool.getRacketId()))
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vợt"));
         rentalTool.setProductId(racket.getProduct().getId());
@@ -65,11 +67,18 @@ public class RentalToolService {
             model.addAttribute("rentalTool", rentalTool);
 
         } else if (rentalTool.getType().equals("DAILY")) {
-            handleDailyRental(rentalTool, user);
+            validateDailyRentalAvailable(rentalTool); // chỉ kiểm tra tồn kho
+            rentalTool.setUserId(user.getId());
+            rentalTool.setStatus(RentalToolStatus.PENDING);
+            rentalTool.setCreateAt(LocalDateTime.now());
+            rentalTool.setUpdateAt(LocalDateTime.now());
+
+            HttpSession session = request.getSession();
+            session.setAttribute("pendingRentalTool", rentalTool); // lưu tạm
+            model.addAttribute("rentalTool", rentalTool);
         } else {
             throw new RuntimeException("Loại thuê không hợp lệ");
         }
-
         model.addAttribute("racket", racket);
     }
 
@@ -84,7 +93,7 @@ public class RentalToolService {
             throw new RuntimeException("Không tìm thấy booking");
         }
 
-        rentalTool.setUser(user);
+        rentalTool.setUserId(user.getId());
         rentalTool.setRentalDate(booking.getBookingDate());
         rentalTool.setBookingId(String.valueOf(booking.getId()));
         rentalTool.setStatus(RentalToolStatus.PENDING);
@@ -130,7 +139,7 @@ public class RentalToolService {
     }
 
     public List<RentalTool> fetchRentalByUser(User user) {
-        return rentalToolRepository.findRentalByUser(user);
+        return rentalToolRepository.findRentalByUserId(user.getId());
     }
 
     @Transactional
@@ -162,7 +171,8 @@ public class RentalToolService {
         }
     }
 
-    private void handleDailyRental(RentalTool rentalTool, User user) {
+
+    private void validateDailyRentalAvailable(RentalTool rentalTool){
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
@@ -177,6 +187,13 @@ public class RentalToolService {
                 throw new RuntimeException("Không đủ vợt vào ngày " + date);
             }
         }
+    }
+
+    public void handleDailyRental(RentalTool rentalTool) {
+        int quantity = rentalTool.getQuantity();
+        LocalDate rentalDate = rentalTool.getRentalDate();
+        int quantityDay = rentalTool.getQuantityDay();
+        Long racketId = rentalTool.getRacketId();
 
         // 2. Trừ tồn kho và tăng reservedStock
         for (int i = 0; i < quantityDay; i++) {
@@ -186,13 +203,6 @@ public class RentalToolService {
             stock.setReservedStock(stock.getReservedStock() + quantity);
             racketStockByDateRepository.save(stock);
         }
-
-        // 3. Lưu đơn thuê
-        rentalTool.setUser(user);
-        rentalTool.setStatus(RentalToolStatus.PENDING);
-        rentalTool.setCreateAt(LocalDateTime.now());
-        rentalTool.setUpdateAt(LocalDateTime.now());
-        rentalToolRepository.save(rentalTool);
 
         // 4. Nếu ngày thuê bắt đầu là hôm nay, cập nhật reserved → rental luôn
         LocalDate today = LocalDate.now();
@@ -211,5 +221,6 @@ public class RentalToolService {
                 }
             }
         }
+        rentalToolRepository.save(rentalTool);
     }
 }

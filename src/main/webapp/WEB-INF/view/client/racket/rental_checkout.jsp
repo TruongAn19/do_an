@@ -55,7 +55,7 @@
     <form action="/submit-checkout-rental" method="post" class="checkout-form">
         <!-- CSRF token -->
         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-        <input type="" class="form-control" name="rentalToolId" value="${rentalTool.id}" readonly>
+<%--        <input type="hidden" class="form-control" name="rentalToolId" value="${rentalTool.id}" readonly>--%>
 
         <div class="card p-4 shadow-sm">
             <h4 class="mb-3">Thông Tin Thuê</h4>
