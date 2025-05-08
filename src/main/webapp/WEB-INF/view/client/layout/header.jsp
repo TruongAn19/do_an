@@ -98,7 +98,7 @@
                         text: data.message || '',
                         showConfirmButton: true, // Có thể tắt nếu muốn tự động đóng
                         showCloseButton: true,
-                        timer: 5000, // Tự động đóng sau 5 giây (nếu cần)
+                        timer: undefined, // Tự động đóng sau 5 giây (nếu cần)
                         background: '#f0f8ff', // Màu nền tùy chỉnh
                         position: 'center' // Đây là mặc định rồi, nhưng có thể chỉ rõ
                     });

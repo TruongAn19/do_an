@@ -221,30 +221,16 @@
                                                 <th scope="col">Racket Name</th>
                                                 <th scope="col">Brand</th>
                                                 <th scope="col">Rental Count</th>
-                                                <th scope="col">Percentage</th>
                                             </tr>
                                             </thead>
                                             <tbody>
                                             <c:forEach items="${topRackets}" var="racket" varStatus="status">
                                                 <tr>
                                                     <th scope="row">${status.index + 1}</th>
-                                                    <td>${racket.racketName}</td>
-                                                    <td>${racket.racketBrand}</td>
-                                                    <td>${racket.rentalCount}</td>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
-                                                                <div class="progress-bar" role="progressbar"
-                                                                     style="width: ${racket.rentalCount / monthlyRentals * 100}%;"
-                                                                     aria-valuenow="${racket.rentalCount}" aria-valuemin="0"
-                                                                     aria-valuemax="${monthlyRentals}"></div>
-                                                            </div>
-                                                            <span class="text-sm">
-                                                        <fmt:formatNumber value="${racket.rentalCount / monthlyRentals * 100}"
-                                                                          maxFractionDigits="1" />%
-                                                    </span>
-                                                        </div>
-                                                    </td>
+                                                    <td>${racket.name}</td>
+                                                    <td>${racket.factory}</td>
+                                                    <td>${racket.rentalStock}</td>
+
                                                 </tr>
                                             </c:forEach>
                                             <c:if test="${empty topRackets}">

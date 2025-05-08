@@ -51,11 +51,11 @@ public class RacketStatisticsController {
         YearMonth currentMonth = YearMonth.now();
         YearMonth sixMonthsAgo = currentMonth.minusMonths(5);
 
-        Map<YearMonth, Integer> rentalsByMonth = statisticsService.getRentalCountByMonthRange(sixMonthsAgo, currentMonth);
-        Map<YearMonth, Double> revenueByMonth = statisticsService.getRevenueByMonthRange(sixMonthsAgo, currentMonth);
+        Map<YearMonth, Integer> rentalsByMonth = statisticsService.getRentalCountByMonthRange(courtId, sixMonthsAgo, currentMonth);
+        Map<YearMonth, Double> revenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth);
 
 
-        List<Product>  listProduct =  productRepository.findAll();
+        List<Product> listProduct = productRepository.findAll();
         model.addAttribute("listProduct", listProduct);
         model.addAttribute("courtId", courtId);
         model.addAttribute("totalRackets", totalRackets);

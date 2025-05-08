@@ -29,4 +29,15 @@ public class RentalTool {
     private LocalDate returnDate;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
+    private String rentalToolCode;
+
+    // user id
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @PrePersist
+    public void generateRentalToolCode() {
+        this.rentalToolCode = "RT" + System.currentTimeMillis();
+    }
 }

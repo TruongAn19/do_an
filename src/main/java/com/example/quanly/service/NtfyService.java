@@ -61,21 +61,29 @@ public class NtfyService {
     public void checkAndSendNotifications() {
         List<Booking> bookings = bookingRepository.findBookingsByStatusAndDate("Đã đặt", LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
-
+        System.out.print("===================================");
         for (Booking booking : bookings) {
             LocalTime startTime = booking.getAvailableTime().getTime();
-            // Nếu còn dưới 1 giờ nữa là đến thời gian bắt đầu
-            if (startTime != null && Duration.between(now, startTime).toMinutes() <= 60 && Duration.between(now, startTime).toMinutes() > 0) {
-                String message = "You have a badminton match coming up.";
-                String topic = "user-" + booking.getUser().getId(); // Mỗi user 1 topic riêng
-                String title = "Appointment Notification";
-                boolean sent = sendNotification(topic, message, title);
-                if (sent) {
-                    System.out.println("Đã gửi thông báo đến topic: " + topic);
-                } else {
-                    System.err.println("Không thể gửi thông báo đến: " + topic);
+            if (startTime != null) {
+                // Gắn LocalTime với ngày hôm nay
+                LocalDateTime bookingStartDateTime = LocalDateTime.of(LocalDate.now(), startTime);
+
+                long minutesUntilStart = Duration.between(now, bookingStartDateTime).toMinutes();
+
+                if (minutesUntilStart <= 60 && minutesUntilStart > 0) {
+                    String message = "You have a badminton match coming up.";
+                    String topic = "user-" + booking.getUser().getId();
+                    String title = "Appointment Notification";
+
+                    boolean sent = sendNotification(topic, message, title);
+                    if (sent) {
+                        System.out.println("Đã gửi thông báo đến topic: " + topic);
+                    } else {
+                        System.err.println("Không thể gửi thông báo đến: " + topic);
+                    }
                 }
             }
         }
+
     }
 }

@@ -22,8 +22,11 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
 
     @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
             "FROM BookingDetail bd " +
+            "JOIN bd.booking b " +
             "WHERE bd.date BETWEEN :start AND :end " +
+            "AND b.status = 'Đã thanh toán' " +
             "GROUP BY bd.product.name")
     List<Object[]> getRevenuePerProductBetweenDates(@Param("start") LocalDate start, @Param("end") LocalDate end);
+
 
 }

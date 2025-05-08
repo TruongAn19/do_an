@@ -55,7 +55,7 @@
                                                 <label for="status" class="form-label">Trạng Thái</label>
                                                 <select class="form-select" id="status" name="status" required>
                                                     <option value="PENDING" ${rentalTool.status == 'PENDING' ? 'selected' : ''}>Chờ</option>
-                                                    <option value="PENDING" ${rentalTool.status == 'PAID' ? 'selected' : ''}>Đã thanh toán</option>
+                                                    <option value="PAID" ${rentalTool.status == 'PAID' ? 'selected' : ''}>Đã thanh toán</option>
                                                     <option value="COMPLETED" ${rentalTool.status == 'COMPLETED' ? 'selected' : ''}>Hoàn Thành</option>
                                                     <option value="CANCELLED" ${rentalTool.status == 'CANCELLED' ? 'selected' : ''}>Hủy</option>
                                                 </select>

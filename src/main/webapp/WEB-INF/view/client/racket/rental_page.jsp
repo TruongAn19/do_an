@@ -60,7 +60,6 @@
         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
 
         <input type="hidden" id="type" name="type" value="${typeOrder}" />
-
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="fullName" class="form-label">Họ và tên</label>

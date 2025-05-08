@@ -96,7 +96,7 @@
         <div class="col-12 mt-3 text-center">
             <h5>Bạn có muốn thuê vợt không?</h5>
             <button class="btn btn-success m-2" data-bs-toggle="modal" data-bs-target="#racketModal">Có</button>
-            <button class="btn btn-secondary m-2">Không</button>
+            <a href="/HomePage"><button class="btn btn-secondary m-2">Không</button></a>
         </div>
     </div>
 </div>

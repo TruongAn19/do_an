@@ -28,7 +28,6 @@ public class BookingService {
     SubCourtRepository subCourtRepository;
 
 
-
     public List<Booking> fetchAllBookings() {
         return this.bookingRepository.findAll();
     }
@@ -77,12 +76,12 @@ public class BookingService {
     }
 
     public List<Booking> fetchBookingCode(String bookingCode) {
-        return  bookingRepository.findByBookingCodeContainingIgnoreCase(bookingCode);
+        return bookingRepository.findByBookingCodeContainingIgnoreCase(bookingCode);
     }
 
     public Booking handlePlaceBooking(User user, HttpSession session,
-                                   String receiverName, String receiverAddress, String receiverPhone,
-                                   long productId, long timeId, long subCourtId, LocalDate bookingDate) {
+                                      String receiverName, String receiverAddress, String receiverPhone,
+                                      long productId, long timeId, long subCourtId, LocalDate bookingDate) {
 
         // 1. Kiểm tra người dùng
         user = userRepository.findById(user.getId());
@@ -132,7 +131,7 @@ public class BookingService {
         // 7. Tính toán giá
         double pricePerItem = product.getPrice() - (product.getPrice() * product.getSale() / 100);
         booking.setTotalPrice(pricePerItem);
-       Booking saveBooking =  booking = bookingRepository.save(booking); // Lưu để có ID
+        Booking saveBooking = booking = bookingRepository.save(booking); // Lưu để có ID
 
         // 8. Tạo booking detail
         BookingDetail bookingDetail = new BookingDetail();

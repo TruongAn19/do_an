@@ -1,6 +1,7 @@
 <%@page contentType="text/html" pageEncoding="UTF-8" %>
-    <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-        <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 
             <!DOCTYPE html>
             <html lang="en">
@@ -84,6 +85,9 @@
                                             </div>
                                         </div>
                                         <div class="mt-4 d-flex justify-content-between" style="padding-bottom: 10px;">
+                                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                            Đổi mật khẩu
+                                            </button>
                                             <a href="/HomePage"><button class="btn btn-secondary">Back</button></a>
                                         </div>
                                     </div>
@@ -94,6 +98,37 @@
                     </div>
                 </div>
 
+                <!-- Modal đổi mật khẩu -->
+                <div class="modal fade" id="changePasswordModal" tabindex="-1" role="dialog" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <form id="changePasswordForm" class="modal-content">
+                            <input type="hidden" name="_csrf" value="${_csrf.token}"/>
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="changePasswordModalLabel">Đổi mật khẩu</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="errorMessage" class="alert alert-danger" style="display:none;"></div>
+                                <div class="form-group">
+                                    <label for="oldPassword">Mật khẩu cũ</label>
+                                    <input type="password" class="form-control" name="oldPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Mật khẩu mới</label>
+                                    <input type="password" class="form-control" name="newPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="confirmPassword">Xác nhận mật khẩu mới</label>
+                                    <input type="password" class="form-control" name="confirmPassword" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Xác nhận</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
                 <jsp:include page="../layout/footer.jsp" />
 
@@ -113,6 +148,36 @@
 
                 <!-- Template Javascript -->
                 <script src="/client/js/main.js"></script>
+                <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+                <script>
+                    $(document).ready(function () {
+                        $('#changePasswordForm').submit(function (e) {
+                            e.preventDefault();  // Ngăn chặn gửi form truyền thống
+                            var formData = $(this).serialize();  // Lấy dữ liệu từ form
+
+                            $.ajax({
+                                url: '/change-password',
+                                type: 'POST',
+                                data: formData,
+                                success: function(response) {
+                                    if (response.success) {
+                                        $('#changePasswordModal').modal('hide');
+                                        alert(response.success);  // Hoặc dùng Toast nếu bạn thích đẹp hơn
+
+                                        setTimeout(function () {
+                                            window.location.href = "/login";
+                                        }, 1000); // Chờ 1 giây trước khi chuyển trang
+                                    }
+                                },
+                                error: function(response) {
+                                    if (response.responseJSON.error) {
+                                        $('#errorMessage').text(response.responseJSON.error).show();  // Hiển thị lỗi
+                                    }
+                                }
+                            });
+                        });
+                    });
+                </script>
             </body>
 
             </html>

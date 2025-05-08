@@ -33,12 +33,34 @@
                         <div class="col-12 mx-auto">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h3>Bảng Vợt Thuê</h3>
+                                <div class="mb-3">
+                                    <form action="/admin/rental" method="get" class="row g-3">
+                                        <div>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" name="search"
+                                                       placeholder="Tìm kiếm sân theo mã đặt..."
+                                                       value="${not empty searchTerm ? searchTerm : ''}">
+                                                <button class="btn btn-outline-secondary" type="submit">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                                <c:if test="${not empty searchTerm}">
+                                                    <a href="/admin/rental"
+                                                       class="btn btn-outline-danger">
+                                                        <i class="fas fa-times"></i>
+                                                    </a>
+                                                </c:if>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="page" value="1">
+                                    </form>
+                                </div>
                                 <a href="/admin/rental/create" class="btn btn-primary">Thêm Vợt Thuê</a>
                             </div>
 
                             <table class="table table-bordered table-hover">
                                 <thead class="table-light">
                                 <tr>
+                                    <th>Code</th>
                                     <th>Họ và Tên</th>
                                     <th>Email</th>
                                     <th>Số Điện Thoại</th>
@@ -51,6 +73,7 @@
                                 <tbody>
                                 <c:forEach var="rental" items="${rentals}">
                                     <tr>
+                                        <td>${rental.rentalToolCode}</td>
                                         <td>${rental.fullName}</td>
                                         <td>${rental.email}</td>
                                         <td>${rental.phone}</td>

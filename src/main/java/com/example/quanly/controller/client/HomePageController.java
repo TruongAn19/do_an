@@ -1,11 +1,12 @@
 package com.example.quanly.controller.client;
 
-import java.util.List;
-import java.util.Optional;
+import java.security.Principal;
+import java.util.*;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.*;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -13,13 +14,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.quanly.domain.dto.RegisterDTO;
 
@@ -27,9 +28,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
+
 
 @Slf4j
 @Controller
@@ -43,6 +46,7 @@ public class HomePageController {
     UploadService uploadService;
     BookingService bookingService;
     RentalToolRepository rentalToolRepository;
+    RentalToolService rentalToolService;
     RacketService racketService;
 
 
@@ -102,7 +106,6 @@ public class HomePageController {
         return "client/auth/access_deny";
     }
 
-
     @GetMapping("/booking-history")
     public String getBookingHistoryPage(Model model, HttpServletRequest request) {
         User currentUser = new User();// null
@@ -111,16 +114,24 @@ public class HomePageController {
         currentUser.setId(id);
 
         List<Booking> bookings = this.bookingService.fetchBookingByUser(currentUser);
+        bookings.sort(Comparator.comparing(
+                Booking::getBookingDate,
+                Comparator.nullsLast(Comparator.naturalOrder())
+        ).reversed());
         model.addAttribute("bookings", bookings);
         return "client/booking/history_booking";
     }
 
     @GetMapping("/rental-history")
-    public String getRentalHistoryPage(Model model) {
-        List<RentalTool> rentalTools = rentalToolRepository.findAll();
-        log.info("check: {}", rentalTools);
+    public String getRentalHistoryPage(Model model, HttpServletRequest request) {
+        User currentUser = new User();// null
+        HttpSession session = request.getSession(false);
+        long id = (long) session.getAttribute("id");
+        currentUser.setId(id);
+
+        List<RentalTool> rentalTools = this.rentalToolService.fetchRentalByUser(currentUser);
         model.addAttribute("rentalHistories", rentalTools);
-        return "client/racket/rental_history"; // Tên file HTML/JSP bạn đặt (ví dụ: rental-history.jsp hoặc rental-history.html)
+        return "client/racket/rental_history";
     }
 
     @GetMapping("/profile")
@@ -164,4 +175,44 @@ public class HomePageController {
         this.userService.handleSaveUser(updateUser);
         return "redirect:/profile";
     }
+
+    @PostMapping("/change-password")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> changePassword(
+            @RequestParam("oldPassword") String oldPassword,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmPassword") String confirmPassword,
+            Principal principal,
+            HttpServletRequest request,
+            HttpServletResponse response  // thêm đúng response để không bị xung đột
+    ) {
+        Map<String, String> result = new HashMap<>();
+        User currentUser = userService.findByEmail(principal.getName());
+
+        if (!passwordEncoder.matches(oldPassword, currentUser.getPassword())) {
+            result.put("error", "Mật khẩu cũ không đúng");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            result.put("error", "Xác nhận mật khẩu không khớp");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(newPassword));
+        userService.handleSaveUser(currentUser);
+        result.put("success", "Mật khẩu đã được thay đổi thành công");
+
+        // Đăng xuất người dùng
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            new SecurityContextLogoutHandler().logout(request, response, auth);
+        }
+
+        result.put("success", "Đổi mật khẩu thành công. Đang đăng xuất...");
+        return ResponseEntity.ok(result);
+    }
+
+
+
 }

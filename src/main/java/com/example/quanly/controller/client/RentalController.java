@@ -2,10 +2,7 @@ package com.example.quanly.controller.client;
 
 import com.example.quanly.config.VnpayConfig;
 import com.example.quanly.config.VnpayUtil;
-import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.Racket;
-import com.example.quanly.domain.RentalTool;
-import com.example.quanly.domain.RentalToolStatus;
+import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.BookingRepository;
@@ -15,6 +12,7 @@ import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RentalToolService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -62,14 +60,21 @@ public class RentalController {
 
     @PostMapping("/submit-rental")
     public String submitRental(@ModelAttribute RentalTool rentalTool, Model model,
-                               @RequestParam(value = "bookingId", required = false) String bookingId) {
+                               @RequestParam(value = "bookingId", required = false) String bookingId,
+                               HttpServletRequest request) {
+
+
         // Kiểm tra nếu loại thuê là 'ON_SITE', thêm bookingCode vào model
         if ("ON_SITE".equals(rentalTool.getType())) {
             Booking booking = (bookingRepository.findByBookingCode(bookingId));
             rentalTool.setBookingId(booking.getBookingCode());
         }
+        User currentUser = new User();// null
+        HttpSession session = request.getSession(false);
+        long id = (long) session.getAttribute("id");
+        currentUser.setId(id);
 
-        rentalToolService.handleSubmitRental(rentalTool, model);
+        rentalToolService.handleSubmitRental(rentalTool, model, currentUser);
         // Chuyển hướng theo type
         return rentalTool.getType().equals("DAILY")
                 ? "client/racket/rental_checkout"
@@ -84,6 +89,7 @@ public class RentalController {
                                        @RequestParam("rentalToolId") Long rentalToolId,
                                        HttpServletRequest request,
                                        Model model) {
+
         if (paymentMethod.equals("VNPAY")) {
             PaymentRequest paymentRequest = new PaymentRequest();
             paymentRequest.setId(rentalToolId);

@@ -9,6 +9,8 @@ import com.example.quanly.repository.RacketStockByDateRepository;
 import com.example.quanly.repository.RentalToolRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j;
+import org.slf4j.Logger;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -78,6 +80,7 @@ public class RacketStatisticsService {
 
             TopRacketDto dto = new TopRacketDto();
             dto.setId(racket.getId());
+            dto.setFactory(racket.getFactory());
             dto.setName(racket.getName());
             dto.setRentalStock(rentalCount.intValue());
 
@@ -86,7 +89,7 @@ public class RacketStatisticsService {
         return topRackets;
     }
 
-    public Map<YearMonth, Integer> getRentalCountByMonthRange(YearMonth startMonth, YearMonth endMonth) {
+    public Map<YearMonth, Integer> getRentalCountByMonthRange(Long courtId, YearMonth startMonth, YearMonth endMonth) {
         Map<YearMonth, Integer> rentalCountMap = new LinkedHashMap<>();
 
         YearMonth current = startMonth;
@@ -94,7 +97,7 @@ public class RacketStatisticsService {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
 
-            int rentalCount = rentalToolRepository.countByRentalDateBetweenAndStatus(monthStart, monthEnd, (RentalToolStatus.COMPLETED));
+            int rentalCount = rentalToolRepository.countByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd, (RentalToolStatus.COMPLETED));
 
             rentalCountMap.put(current, rentalCount);
 
@@ -105,13 +108,13 @@ public class RacketStatisticsService {
     }
 
     // Lấy doanh thu theo từng tháng trong khoảng thời gian
-    public Map<YearMonth, Double> getRevenueByMonthRange(YearMonth startMonth, YearMonth endMonth) {
+    public Map<YearMonth, Double> getRevenueByMonthRange(Long courtId, YearMonth startMonth, YearMonth endMonth) {
         Map<YearMonth, Double> revenueMap = new LinkedHashMap<>();
         YearMonth current = startMonth;
         while (!current.isAfter(endMonth)) {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
-            Double revenue = rentalToolRepository.sumRevenueByRentalDateBetweenAndStatus(monthStart, monthEnd, (RentalToolStatus.COMPLETED));
+            Double revenue = rentalToolRepository.sumRevenueByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd, (RentalToolStatus.COMPLETED));
             if (revenue == null) {
                 revenue = 0.0;
             }

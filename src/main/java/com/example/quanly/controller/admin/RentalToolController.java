@@ -9,10 +9,7 @@ import com.example.quanly.service.RentalToolService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -28,8 +25,16 @@ public class RentalToolController {
 
     // Danh sách vợt thuê loại DAILY
     @GetMapping("/admin/rental")
-    public String getListRental(Model model) {
-        List<RentalTool> rentals = this.rentalToolService.getRentalByTypeDAILY();
+    public String getListRental(
+            Model model,
+            @RequestParam(value = "search", required = false) String searchTerm) {
+        List<RentalTool> rentals;
+        if(searchTerm != null && !searchTerm.isEmpty()){
+            rentals = this.rentalToolService.fetchRentalToolCode(searchTerm);
+            model.addAttribute("searchTerm", searchTerm);}
+        else {
+            rentals = this.rentalToolService.getRentalByTypeDAILY();
+        }
         model.addAttribute("rentals", rentals);
         return "admin/rental_manager/show";  // Chuyển đến trang show.jsp
     }
