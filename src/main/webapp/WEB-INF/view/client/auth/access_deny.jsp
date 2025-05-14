@@ -1,6 +1,7 @@
 <%@page contentType="text/html" pageEncoding="UTF-8" %>
     <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
         <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+
             <!DOCTYPE html>
             <html lang="vi">
 
@@ -36,7 +37,7 @@
                         </div>
                         <div class="card-body">
                             <p class="fs-5">Bạn không có quyền truy cập vào trang này.</p>
-                            <a href="/HomePage" class="btn btn-primary">Quay lại trang chủ</a>
+                            <a href="/goHome" class="btn btn-primary">Quay lại trang chủ</a>
                         </div>
                     </div>
                 </div>

@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpSession;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 
@@ -28,8 +30,16 @@ public class BookingService {
     SubCourtRepository subCourtRepository;
 
 
-    public List<Booking> fetchAllBookings() {
-        return this.bookingRepository.findAll();
+    public Page<Booking> fetchAllBookings(Pageable pageable) {
+        return bookingRepository.findAll(pageable);
+    }
+
+    public Page<Booking> fetchBookingCode(String code, Pageable pageable) {
+        return bookingRepository.findByBookingCodeContainingIgnoreCase(code, pageable);
+    }
+
+    public Page<Booking> fetchBookingsByDate(LocalDate date, Pageable pageable) {
+        return bookingRepository.findByBookingDetailsDate(date, pageable);
     }
 
     public Optional<Booking> fetchBookingById(long id) {
@@ -69,10 +79,6 @@ public class BookingService {
 
     public List<Booking> fetchBookingByUser(User user) {
         return this.bookingRepository.findByUser(user);
-    }
-
-    public List<Booking> fetchBookingsByDate(LocalDate date) {
-        return bookingRepository.findByBookingDetailsDate(date);
     }
 
     public List<Booking> fetchBookingCode(String bookingCode) {

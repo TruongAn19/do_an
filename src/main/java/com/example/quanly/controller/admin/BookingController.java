@@ -5,10 +5,16 @@ import java.util.List;
 import java.util.Optional;
 
 import com.example.quanly.domain.Product;
+import com.example.quanly.domain.RentalTool;
+import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.ProductService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,34 +32,46 @@ import com.example.quanly.service.BookingService;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingController {
     BookingService bookingService;
+    RentalToolRepository rentalToolRepository;
 
     @GetMapping("/admin/booking")
     public String getBooking(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
-            Model model,
-            @RequestParam(value = "search", required = false) String searchTerm) {
+            @RequestParam(value = "search", required = false) String searchTerm,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            Model model) {
 
-        List<Booking> bookings;
+        Page<Booking> bookingPage;
+
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
+
         if (date != null) {
-            bookings = this.bookingService.fetchBookingsByDate(date);
-        }else if(searchTerm != null && !searchTerm.isEmpty()){
-            bookings = this.bookingService.fetchBookingCode(searchTerm);
+            bookingPage = bookingService.fetchBookingsByDate(date, pageable);
+            model.addAttribute("selectedDate", date);
+        } else if (searchTerm != null && !searchTerm.isEmpty()) {
+            bookingPage = bookingService.fetchBookingCode(searchTerm, pageable);
             model.addAttribute("searchTerm", searchTerm);
         } else {
-            bookings = this.bookingService.fetchAllBookings();
+            bookingPage = bookingService.fetchAllBookings(pageable);
         }
 
-        model.addAttribute("bookings", bookings);
-        model.addAttribute("selectedDate", date);
+        model.addAttribute("bookings", bookingPage.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", bookingPage.getTotalPages());
+
         return "admin/booking/show";
     }
+
 
     @GetMapping("/admin/booking/{id}")
     public String getBookingDetailPage(Model model, @PathVariable long id) {
         Booking booking = this.bookingService.fetchBookingById(id).get();
+        List<RentalTool> rentalTool = this.rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId()));
         model.addAttribute("booking", booking);
         model.addAttribute("id", id);
         model.addAttribute("bookingDetails", booking.getBookingDetails());
+        model.addAttribute("rentalTool", rentalTool);
         return "admin/booking/detail";
     }
 

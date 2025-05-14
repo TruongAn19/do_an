@@ -48,8 +48,11 @@ public class UserService {
             adminRole.setName("ADMIN");
             Role userRole = new Role();
             userRole.setName("USER");
+            Role staffRole = new Role();
+            userRole.setName("STAFF");
             roleRepository.save(adminRole);
             roleRepository.save(userRole);
+            roleRepository.save(staffRole);
             admin.setRole(adminRole);
             userRepository.save(admin);
         }

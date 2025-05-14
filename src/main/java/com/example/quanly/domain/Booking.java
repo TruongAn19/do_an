@@ -38,4 +38,7 @@ public class Booking {
         this.bookingCode = "BK" + System.currentTimeMillis();
     }
 
+    @Column(name = "rental_tool_code")
+    private String rentalToolCode = "KHONG_THUE";
+
 }

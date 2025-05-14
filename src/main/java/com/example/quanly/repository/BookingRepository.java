@@ -3,6 +3,8 @@ package com.example.quanly.repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,8 +18,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
 
     List<Booking> findByUser(User user);
     // Tìm các Booking có ít nhất một BookingDetail với ngày cụ thể
-    @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date")
-    List<Booking> findByBookingDetailsDate(@Param("date") LocalDate date);
+    @Query(
+            value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date",
+            countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date"
+    )
+    Page<Booking> findByBookingDetailsDate(@Param("date") LocalDate date, Pageable pageable);
 
     Booking findByBookingCode(String bookingCode);
 
@@ -26,4 +31,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
     List<Booking> findBookingsByStatusAndDate(String status, LocalDate date);
 
     List<Booking> findByBookingCodeContainingIgnoreCase(String bookingCode);
+
+    Page<Booking> findAll(Pageable pageable);
+
+    Page<Booking> findByBookingCodeContainingIgnoreCase(String code, Pageable pageable);
 }

@@ -108,6 +108,7 @@
                                 <th>Booking Dates</th>
                                 <th>Total Price</th>
                                 <th>Status</th>
+                                <th>RentalToolCode</th>
                                 <th class="action-cell">Actions</th>
                             </tr>
                             </thead>
@@ -149,6 +150,9 @@
                                                                         ${booking.status}
                                                                 </span>
                                     </td>
+                                    <td>
+                                        <p>${booking.rentalToolCode}</p>
+                                    </td>
                                     <td class="action-cell">
                                         <a href="/admin/booking/${booking.id}"
                                            class="btn btn-sm btn-success" title="View">
@@ -183,6 +187,48 @@
                             </c:if>
                             </tbody>
                         </table>
+
+                        <!-- Pagination Controls -->
+                        <div class="d-flex justify-content-center mt-4">
+                            <nav>
+                                <ul class="pagination">
+                                    <c:if test="${currentPage > 1}">
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?page=${currentPage - 1}
+                       <c:if test='${selectedDate != null}'> &date=${selectedDate} </c:if>
+                       <c:if test='${searchTerm != null}'> &search=${searchTerm} </c:if>">
+                                                Previous
+                                            </a>
+                                        </li>
+                                    </c:if>
+
+                                    <c:forEach begin="1" end="${totalPages}" var="i">
+                                        <li class="page-item ${i == currentPage ? 'active' : ''}">
+                                            <a class="page-link"
+                                               href="?page=${i}
+                       <c:if test='${selectedDate != null}'> &date=${selectedDate} </c:if>
+                       <c:if test='${searchTerm != null}'> &search=${searchTerm} </c:if>">
+                                                    ${i}
+                                            </a>
+                                        </li>
+                                    </c:forEach>
+
+                                    <c:if test="${currentPage < totalPages}">
+                                        <li class="page-item">
+                                            <a class="page-link"
+                                               href="?page=${currentPage + 1}
+                       <c:if test='${selectedDate != null}'> &date=${selectedDate} </c:if>
+                       <c:if test='${searchTerm != null}'> &search=${searchTerm} </c:if>">
+                                                Next
+                                            </a>
+                                        </li>
+                                    </c:if>
+                                </ul>
+                            </nav>
+                        </div>
+
+
                     </div>
                 </div>
             </div>

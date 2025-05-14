@@ -33,6 +33,9 @@ public class RentalToolService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private BookingDetailRepository bookingDetailRepository;
+
     public List<RentalTool> getRentalByTypeDAILY() {
         return rentalToolRepository.findByType("DAILY");
     }
@@ -100,6 +103,22 @@ public class RentalToolService {
         rentalTool.setCreateAt(LocalDateTime.now());
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
+
+        // Lấy các booking detail để tính tổng giá sân
+
+        List<BookingDetail> bookingDetails = bookingDetailRepository.findByBookingId(booking.getId());
+
+        double totalBookingDetailPrice = bookingDetails.stream()
+                .mapToDouble(BookingDetail::getPrice)
+                .sum();
+
+        double newTotalPrice = totalBookingDetailPrice + rentalTool.getRentalPrice();
+
+        // Cập nhật lại tổng giá vào booking (giả sử có field price hoặc totalPrice trong Booking)
+        booking.setTotalPrice(newTotalPrice); // hoặc setTotalPrice(newTotalPrice);
+        booking.setRentalToolCode(rentalTool.getRentalToolCode());
+
+        bookingRepository.save(booking);
     }
 
     @Transactional

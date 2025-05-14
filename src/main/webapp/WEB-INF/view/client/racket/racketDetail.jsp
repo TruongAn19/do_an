@@ -79,6 +79,7 @@
                         <!-- Add to Cart Button -->
                         <form action="/user/rental-page/${racket.id}" method="get" class="mt-auto">
                             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                            <input type="hidden" name="type" value="DAILY" />
                             <button class="btn border border-secondary rounded-pill px-3 text-primary d-flex align-items-center mx-auto">
                                 <i class="fa fa-shopping-bag me-2 text-primary"></i> Rental racket
                             </button>

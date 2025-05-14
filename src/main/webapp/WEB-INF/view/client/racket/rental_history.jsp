@@ -41,7 +41,7 @@
             <th>#</th>
             <th>Họ và Tên</th>
             <th>Số điện thoại</th>
-            <th>Tên Vợt</th>
+            <th>Mã thuê vợt</th>
             <th>Loại Thuê</th>
             <th>Số lượng</th>
             <th>Ngày Thuê</th>
@@ -56,7 +56,7 @@
                 <td>${status.index + 1}</td>
                 <td>${rental.fullName}</td>
                 <td>${rental.phone}</td>
-                <td>${rental.racketId}</td>
+                <td>${rental.rentalToolCode}</td>
                 <td>
                     <c:choose>
                         <c:when test="${rental.type == 'ON_SITE'}">Thuê tại sân</c:when>
@@ -66,7 +66,7 @@
                 </td>
                 <td>${rental.quantity}</td>
                 <td>${rental.rentalDate} </td>
-                <td><fmt:formatNumber value="${rental.rentalPrice}" type="currency" currencySymbol="₫"/></td>
+                <td><fmt:formatNumber value="${rental.rentalPrice}" type="number"/> đ</td>
                 <td>
                     <c:choose>
                         <c:when test="${rental.status == 'PENDING'}">

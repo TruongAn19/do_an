@@ -29,4 +29,5 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
     List<Object[]> getRevenuePerProductBetweenDates(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
 
+    List<BookingDetail> findByBookingId(long id);
 }

@@ -1,66 +1,69 @@
 <%@page contentType="text/html" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
 <!-- Navbar start -->
-<div class="container-fluid fixed-top">
+<div class="container-fluid fixed-top shadow-sm">
     <div class="container px-0">
-        <nav class="navbar navbar-light bg-white navbar-expand-xl">
-            <a href="/HomePage" class="navbar-brand">
-                <h1 class="text-primary display-6">Badminton Court</h1>
+        <nav class="navbar navbar-expand-xl navbar-light bg-white py-3">
+            <a href="/HomePage" class="navbar-brand d-flex align-items-center">
+                <i class="fas fa-shuttlecock text-primary me-2" style="font-size: 28px;"></i>
+                <h1 class="m-0 text-primary">Badminton Court</h1>
             </a>
-            <button class="navbar-toggler py-2 px-3" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarCollapse">
-                <span class="fa fa-bars text-primary"></span>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse bg-white justify-content-between mx-5" id="navbarCollapse">
-                <div class="navbar-nav">
-                    <a href="/HomePage" class="nav-item nav-link active">Trang chủ</a>
-                    <a href="/main-products" class="nav-item nav-link">Sân cầu lông</a>
-                    <a href="/by-products" class="nav-item nav-link">Phụ kiện</a>
+
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                <div class="navbar-nav mx-auto py-0">
+                    <a href="/HomePage" class="nav-item nav-link ${pageContext.request.requestURI eq '/HomePage' ? 'active' : ''}">
+                        <i class="fas fa-home me-2"></i>Trang chủ
+                    </a>
+                    <a href="/main-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/main-products' ? 'active' : ''}">
+                        <i class="fas fa-table-tennis me-2"></i>Sân cầu lông
+                    </a>
+                    <a href="/by-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/by-products' ? 'active' : ''}">
+                        <i class="fas fa-shopping-basket me-2"></i>Phụ kiện
+                    </a>
                 </div>
-                <div class="d-flex m-3 me-0">
+
+                <div class="d-flex align-items-center">
                     <c:if test="${not empty pageContext.request.userPrincipal}">
-<%--                        <a href="/cart" class="position-relative me-4 my-auto">--%>
-<%--                            <i class="fa fa-shopping-bag fa-2x"></i>--%>
-<%--                            <span--%>
-<%--                                    class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1"--%>
-<%--                                    style="top: -5px; left: 15px; height: 20px; min-width: 20px;">${sessionScope.sum}</span>--%>
-<%--                        </a>--%>
-                        <div class="dropdown my-auto">
-                            <a href="#" class="dropdown" role="button" id="dropdownMenuLink"
-                               data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="dropdown"
-                               aria-expanded="false">
-                                <i class="fas fa-user fa-2x"></i>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle d-flex align-items-center" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="rounded-circle overflow-hidden me-2" style="width: 40px; height: 40px;">
+                                    <img src="/images/avatar/${sessionScope.avatar}" class="img-fluid" alt="User Avatar">
+                                </div>
+                                <span class="d-none d-lg-inline-block text-dark">${sessionScope.fullName}</span>
                             </a>
 
-                            <ul class="dropdown-menu dropdown-menu-end p-4" aria-labelledby="dropdownMenuLink">
-                                <li class="d-flex align-items-center flex-column" style="min-width: 300px;">
-                                    <img style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden;"
-                                         src="/images/avatar/${sessionScope.avatar}"/>
-                                    <div class="text-center my-3">
-                                        <c:out value="${sessionScope.fullName}"/>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userDropdown">
+                                <li class="d-flex align-items-center flex-column p-3 border-bottom">
+                                    <div class="rounded-circle overflow-hidden mb-3" style="width: 80px; height: 80px;">
+                                        <img src="/images/avatar/${sessionScope.avatar}" class="img-fluid" alt="User Avatar">
                                     </div>
+                                    <h6 class="fw-bold mb-0">${sessionScope.fullName}</h6>
                                 </li>
 
-                                <li><a class="dropdown-item" href="/profile">Quản lý tài khoản</a></li>
-                                <li><a class="dropdown-item" href="/booking-history">Lịch sử đặt sân</a></li>
-                                <li><a class="dropdown-item" href="/rental-history">Lịch sử thuê dụng cụ</a></li>
+                                <li><a class="dropdown-item py-2" href="/profile"><i class="fas fa-user-cog me-2 text-primary"></i>Quản lý tài khoản</a></li>
+                                <li><a class="dropdown-item py-2" href="/booking-history"><i class="fas fa-history me-2 text-primary"></i>Lịch sử đặt sân</a></li>
+                                <li><a class="dropdown-item py-2" href="/rental-history"><i class="fas fa-clipboard-list me-2 text-primary"></i>Lịch sử thuê dụng cụ</a></li>
+
+                                <li><hr class="dropdown-divider"></li>
 
                                 <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <form method="post" action="/logout">
-                                        <input type="hidden" name="${_csrf.parameterName}"
-                                               value="${_csrf.token}"/>
-                                        <button class="dropdown-item">Đăng xuất</button>
+                                    <form method="post" action="/logout" class="px-2">
+                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                        <button class="dropdown-item py-2 text-danger"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</button>
                                     </form>
                                 </li>
                             </ul>
                         </div>
                     </c:if>
+
                     <c:if test="${empty pageContext.request.userPrincipal}">
-                        <a href="/login" class="position-relative me-4 my-auto">
-                            Đăng nhập
+                        <a href="/login" class="btn btn-outline-primary rounded-pill px-4">
+                            <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
                         </a>
                     </c:if>
                 </div>
@@ -69,10 +72,11 @@
     </div>
 </div>
 <!-- Navbar End -->
+
+<!-- SweetAlert2 Library -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-
-<%-- Noti --%>
+<!-- Notification Script -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const userId = "${sessionScope.id}"; // Lấy userId từ session
@@ -128,4 +132,3 @@
         });
     });
 </script>
-

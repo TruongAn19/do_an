@@ -52,4 +52,5 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     List<RentalTool> findRentalByUserId(Long id);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
+
 }

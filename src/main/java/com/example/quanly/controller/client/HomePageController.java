@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -101,9 +102,19 @@ public class HomePageController {
         return "client/auth/login";
     }
 
-    @GetMapping("access-denied")
-    public String getDenyPage(Model model) {
-        return "client/auth/access_deny";
+    @GetMapping("/access-denied")
+    public String goHomePage(Authentication authentication) {
+        if (authentication != null) {
+            for (GrantedAuthority authority : authentication.getAuthorities()) {
+                String role = authority.getAuthority();
+                if (role.equals("ROLE_STAFF")) {
+                    return "redirect:/admin/booking";
+                } else if (role.equals("ROLE_USER")) {
+                    return "redirect:/HomePage";
+                }
+            }
+        }
+        return "redirect:/accessDenied";
     }
 
     @GetMapping("/booking-history")

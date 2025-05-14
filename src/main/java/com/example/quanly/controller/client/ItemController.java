@@ -4,6 +4,7 @@ package com.example.quanly.controller.client;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -115,34 +116,29 @@ public class ItemController {
     }
 
     @GetMapping("/by-products")
-    public String getByProductPage(Model model,
-                                   ProductCriteriaDTO productCriteriaDTO,
-                                   HttpServletRequest request) {
-        // Lấy thông tin phân trang từ request
-        int page = 0;
+    public String getByProductPage(
+            @RequestParam(value = "factory", required = false) String[] factories,
+            @RequestParam(value = "price", required = false) String[] prices,
+            @RequestParam(value = "sort", required = false, defaultValue = "gia-nothing") String sort,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            Model model) {
+
         int size = 10;
-        try {
-            page = Integer.parseInt(request.getParameter("page"));
-            if (page < 0) page = 0;
-        } catch (Exception e) {
-            page = 0;
-        }
         Pageable pageable = PageRequest.of(page, size);
 
-        // Gọi service để lấy danh sách Racket có phân trang
-        Page<Racket> byProduct = racketService.getAllRacket(pageable);
+        // Chuyển mảng thành List để xử lý
+        List<String> factoryList = factories != null ? Arrays.asList(factories) : null;
+        List<String> priceList = prices != null ? Arrays.asList(prices) : null;
 
-        // Đưa dữ liệu ra model
-        model.addAttribute("listByProduct", byProduct.getContent());
+        Page<Racket> byProduct = racketService.getRackets(factoryList, priceList, sort, pageable);
+
+        model.addAttribute("listRacket", byProduct.getContent());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", byProduct.getTotalPages());
 
-        // QueryString để giữ nguyên filter/search nếu có
-        String qs = request.getQueryString();
-        model.addAttribute("queryString", qs != null ? qs : "");
-
         return "client/racket/by_product";
     }
+
 
 
     @GetMapping("/mainProduct/{productId}")

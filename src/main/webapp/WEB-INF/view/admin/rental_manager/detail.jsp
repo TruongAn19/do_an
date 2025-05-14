@@ -1,5 +1,7 @@
 <%@page contentType="text/html" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -47,7 +49,8 @@
                                         <div class="col-md-6">
                                             <p><strong>Số Lượng:</strong> ${rentalTool.quantity}</p>
                                             <p><strong>Trạng Thái:</strong> ${rentalTool.status}</p>
-                                            <p><strong>Giá Thuê:</strong> ${rentalTool.rentalPrice}</p>
+
+                                            <p><strong>Giá Thuê: </strong><fmt:formatNumber type="number" value=" ${rentalTool.rentalPrice}" /> đ</p>
                                         </div>
                                     </div>
 
