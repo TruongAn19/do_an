@@ -1,7 +1,9 @@
 package com.example.quanly.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
+import com.example.quanly.domain.RacketStockByDate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,7 +25,6 @@ public interface RacketRepository extends JpaRepository<Racket, Long>, JpaSpecif
 
     @Query("SELECT sum(r.quantity) FROM Racket r")
     Integer countRackeQuantity();
-
 
 
 }

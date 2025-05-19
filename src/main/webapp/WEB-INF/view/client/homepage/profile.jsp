@@ -221,7 +221,7 @@
 
 <div class="container-fluid profile-container py-5">
     <div class="container py-5">
-        <div class="row justify-content-center">
+        <div class="row justify-content-center" style="margin-top: 100px">
             <div class="col-lg-10">
                 <div class="profile-card">
                     <div class="row g-0">

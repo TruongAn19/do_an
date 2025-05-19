@@ -9,7 +9,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title> Giỏ hàng - Sân cầu lông</title>
+    <title> Booking - Sân cầu lông</title>
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <meta content="" name="keywords">
     <meta content="" name="description">
@@ -283,21 +283,21 @@
                 });
 
                 // Hàm hiển thị thông báo lỗi
-                function showError(message) {
-                    const alertHtml = `
-                    <div class="alert alert-danger alert-dismissible fade show alert-notification">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-                    $('.alert-notification').remove();
-                    $('body').append(alertHtml);
+                <%--function showError(message) {--%>
+                <%--    const alertHtml = `--%>
+                <%--    <div class="alert alert-danger alert-dismissible fade show alert-notification">--%>
+                <%--        <i class="fas fa-exclamation-circle me-2"></i>--%>
+                <%--        ${message}--%>
+                <%--        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>--%>
+                <%--    </div>--%>
+                <%--`;--%>
+                <%--    $('.alert-notification').remove();--%>
+                <%--    $('body').append(alertHtml);--%>
 
-                    setTimeout(function () {
-                        $('.alert-notification').alert('close');
-                    }, 5000);
-                }
+                <%--    setTimeout(function () {--%>
+                <%--        $('.alert-notification').alert('close');--%>
+                <%--    }, 5000);--%>
+                <%--}--%>
             });
         </script>
 

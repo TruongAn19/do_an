@@ -23,8 +23,9 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "products")
-@Data
+
 @AllArgsConstructor
+@Data
 @NoArgsConstructor
 public class Product {
     @Id
@@ -41,7 +42,7 @@ public class Product {
     private long sale;
     private String address;
     private double depositPrice;
-    
+
 
     @ManyToOne
     @JoinColumn(name = "user_id")

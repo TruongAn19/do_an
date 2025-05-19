@@ -18,9 +18,8 @@ public interface RacketStockByDateRepository extends JpaRepository<RacketStockBy
             "WHERE rsbd.date = :today\n" +
             " AND r.product.id = :courtId")
     Integer sumRentalStockByCourtAndDate(Long courtId, LocalDate today);
-    // Custom query methods can be defined here if needed
 
-
-
+    @Query("Select rs from RacketStockByDate  rs where rs.racketId =:racketId and rs.date=:date")
+    RacketStockByDate findByRacketAndDate(Long racketId, LocalDate date);
 
 }

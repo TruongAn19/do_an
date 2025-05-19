@@ -6,6 +6,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -36,8 +40,9 @@ public class RentalToolService {
     @Autowired
     private BookingDetailRepository bookingDetailRepository;
 
-    public List<RentalTool> getRentalByTypeDAILY() {
-        return rentalToolRepository.findByType("DAILY");
+    public Page<RentalTool> getRentalByTypeDAILY(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("rentalDate").descending());
+        return rentalToolRepository.findByType("DAILY", pageable);
     }
 
     public RentalTool getRentalToolById(Long id) {
@@ -153,8 +158,9 @@ public class RentalToolService {
     }
 
 
-    public List<RentalTool> fetchRentalToolCode(String rentalToolCode) {
-        return rentalToolRepository.findByRentalToolCodeContainingIgnoreCase(rentalToolCode);
+    public Page<RentalTool> fetchRentalToolCode(String searchTerm, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable);
     }
 
     public List<RentalTool> fetchRentalByUser(User user) {

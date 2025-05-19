@@ -35,4 +35,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
     Page<Booking> findAll(Pageable pageable);
 
     Page<Booking> findByBookingCodeContainingIgnoreCase(String code, Pageable pageable);
+
+    Page<Booking> findByUserId(Long userId, Pageable pageable);
 }

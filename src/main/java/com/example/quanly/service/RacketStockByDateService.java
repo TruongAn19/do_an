@@ -2,6 +2,7 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.Racket;
 import com.example.quanly.domain.RacketStockByDate;
+import com.example.quanly.domain.dto.CheckStockRequest;
 import com.example.quanly.repository.RacketRepository;
 import com.example.quanly.repository.RacketStockByDateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +26,11 @@ public class RacketStockByDateService {
     @Autowired
     private RacketStockByDateRepository racketStockByDateRepository;
 
-    @Scheduled(cron = "0 8 0 * * ?") // Mỗi ngày vào lúc 00:00
+    @Scheduled(cron = "0 0,30 * * * *") // Mỗi ngày vào lúc 00:00
     @Transactional
     public void generateStockByDate() {
         LocalDate today = LocalDate.now();
-        LocalDate targetDate = today.plusDays(10);
+        LocalDate targetDate = today.plusDays(7);
         List<Racket> allRackets = racketRepository.findAll();
         for (Racket racket : allRackets) {
             for (LocalDate date = today; !date.isAfter(targetDate); date = date.plusDays(1)) {
@@ -71,5 +72,11 @@ public class RacketStockByDateService {
 
         racketStockByDateRepository.saveAll(stocks); // Batch insert 10 dòng 1 lần
     }
+
+    public RacketStockByDate getStock (CheckStockRequest request){
+        return racketStockByDateRepository.findByRacketAndDate(request.getRacketId(), request.getDate());
+    }
+
+
 
 }

@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -118,20 +119,25 @@ public class HomePageController {
     }
 
     @GetMapping("/booking-history")
-    public String getBookingHistoryPage(Model model, HttpServletRequest request) {
-        User currentUser = new User();// null
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
+    public String getBookingHistoryPage(
+            Model model,
+            HttpServletRequest request,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "5") int size) {
 
-        List<Booking> bookings = this.bookingService.fetchBookingByUser(currentUser);
-        bookings.sort(Comparator.comparing(
-                Booking::getBookingDate,
-                Comparator.nullsLast(Comparator.naturalOrder())
-        ).reversed());
-        model.addAttribute("bookings", bookings);
+        HttpSession session = request.getSession(false);
+        long userId = (long) session.getAttribute("id");
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("bookingDate").descending());
+        Page<Booking> bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
+
+        model.addAttribute("bookings", bookingsPage.getContent());
+        model.addAttribute("currentPage", bookingsPage.getNumber());
+        model.addAttribute("totalPages", bookingsPage.getTotalPages());
+
         return "client/booking/history_booking";
     }
+
 
     @GetMapping("/rental-history")
     public String getRentalHistoryPage(Model model, HttpServletRequest request) {
@@ -177,12 +183,16 @@ public class HomePageController {
         currentUser.setId(id);
 
         User updateUser = this.userService.updateToUser(id);
-        String avatar = this.uploadService.handleSaveUploadFile(file, "avatar");
+
+        if (file != null && !file.isEmpty()) {
+            String avatar = this.uploadService.handleSaveUploadFile(file, "avatar");
+            updateUser.setAvatar(avatar);
+        }
         updateUser.setFullName(user.getFullName());
         updateUser.setEmail(user.getEmail());
         updateUser.setAddress(user.getAddress());
         updateUser.setPhone(user.getPhone());
-        updateUser.setAvatar(avatar);
+
         this.userService.handleSaveUser(updateUser);
         return "redirect:/profile";
     }

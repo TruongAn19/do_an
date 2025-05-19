@@ -61,12 +61,12 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-//                .csrf().disable()
+                .csrf().disable()
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.FORWARD,
                                 DispatcherType.INCLUDE)
                         .permitAll()
-                        .requestMatchers("/HomePage", "/login", "/client/**", "/css/**", "/js/**", "/images/**",
+                        .requestMatchers("/HomePage", "/login", "/client/**","/racket-stock", "/css/**", "/js/**", "/images/**",
                                 "/register", "/main-products", "/by-products", "/mainProduct/**", "/racket/**")
                         .permitAll()
                         .requestMatchers("/admin/booking/**", "/admin/rental/**").hasAnyRole("STAFF", "ADMIN")

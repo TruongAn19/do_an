@@ -11,58 +11,47 @@
     </div>
 
     <div class="container py-5">
-        <div class="row g-5 align-items-center">
-            <div class="col-lg-7 col-md-12 pe-lg-5">
-                <div class="hero-content">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-md-12">
+                <div class="hero-content text-center">
                     <span class="text-secondary fw-semi-bold mb-3 d-inline-block">
                         <i class="fas fa-table-tennis me-2"></i>Sân cầu lông
                     </span>
                     <h1 class="display-4 mb-4 text-primary fw-bold">Sạch sẽ, thoáng mát, chất lượng</h1>
-                    <p class="mb-4 text-secondary">Trải nghiệm sân cầu lông chất lượng cao với không gian rộng rãi, ánh sáng tốt và dịch vụ chuyên nghiệp. Đặt sân ngay hôm nay!</p>
+                    <p class="mb-4 text-secondary mx-auto" style="max-width: 700px;">Trải nghiệm sân cầu lông chất lượng cao với không gian rộng rãi, ánh sáng tốt và dịch vụ chuyên nghiệp. Đặt sân ngay hôm nay!</p>
+
+                    <div class="hero-features mb-4">
+                        <div class="row g-3 justify-content-center">
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <div class="feature-item bg-light rounded p-3 text-center">
+                                    <i class="fas fa-lightbulb text-primary mb-2"></i>
+                                    <p class="mb-0">Ánh sáng tốt</p>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <div class="feature-item bg-light rounded p-3 text-center">
+                                    <i class="fas fa-wind text-primary mb-2"></i>
+                                    <p class="mb-0">Thông thoáng</p>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <div class="feature-item bg-light rounded p-3 text-center">
+                                    <i class="fas fa-broom text-primary mb-2"></i>
+                                    <p class="mb-0">Sạch sẽ</p>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-6">
+                                <div class="feature-item bg-light rounded p-3 text-center">
+                                    <i class="fas fa-headset text-primary mb-2"></i>
+                                    <p class="mb-0">Hỗ trợ 24/7</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <a href="/main-products" class="btn btn-primary rounded-pill py-3 px-5">
                         <i class="fas fa-calendar-check me-2"></i>Đặt sân ngay
                     </a>
-                </div>
-            </div>
-
-            <div class="col-lg-5 col-md-12">
-                <div class="hero-carousel-container position-relative">
-                    <div class="hero-carousel-shape position-absolute" style="top: -15px; right: -15px; width: 100%; height: 100%; background-color: #3CB815; opacity: 0.1; border-radius: 10px; z-index: 0;"></div>
-
-                    <div id="carouselId" class="carousel slide position-relative shadow-lg rounded-3 overflow-hidden" data-bs-ride="carousel">
-                        <div class="carousel-inner" role="listbox">
-                            <div class="carousel-item active">
-                                <img src="/client/img/1.png" class="img-fluid w-100" style="height: 400px; object-fit: cover;" alt="Sân cầu lông 1">
-                                <div class="carousel-caption d-none d-md-block">
-                                    <div class="carousel-caption-content bg-primary bg-opacity-75 py-2 px-3 rounded">
-                                        <h5 class="text-white mb-0">Sân 1</h5>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="carousel-item">
-                                <img src="/client/img/2.jpg" class="img-fluid w-100" style="height: 400px; object-fit: cover;" alt="Sân cầu lông 2">
-                                <div class="carousel-caption d-none d-md-block">
-                                    <div class="carousel-caption-content bg-primary bg-opacity-75 py-2 px-3 rounded">
-                                        <h5 class="text-white mb-0">Sân 2</h5>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselId" data-bs-slide="prev">
-                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                            <span class="visually-hidden">Previous</span>
-                        </button>
-                        <button class="carousel-control-next" type="button" data-bs-target="#carouselId" data-bs-slide="next">
-                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                            <span class="visually-hidden">Next</span>
-                        </button>
-
-                        <div class="carousel-indicators">
-                            <button type="button" data-bs-target="#carouselId" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
-                            <button type="button" data-bs-target="#carouselId" data-bs-slide-to="1" aria-label="Slide 2"></button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -75,6 +64,7 @@
         background-color: #f8f9fa;
         position: relative;
         overflow: hidden;
+        padding: 80px 0;
     }
 
     .hero-shape {
@@ -89,32 +79,42 @@
         z-index: 2;
     }
 
-    .hero-carousel-container {
-        position: relative;
-        z-index: 2;
+    .hero-content h1 {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
     }
 
-    .carousel-caption {
-        right: auto;
-        bottom: 20px;
-        left: 20px;
-        text-align: left;
+    .hero-content p {
+        font-size: 1.1rem;
+        line-height: 1.8;
     }
 
-    .carousel-indicators {
+    .feature-item {
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        height: 100%;
+    }
+
+    .feature-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-item i {
+        font-size: 2rem;
+        display: block;
         margin-bottom: 0.5rem;
     }
 
-    .carousel-indicators button {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background-color: rgba(255, 255, 255, 0.5);
-        border: none;
+    .btn-primary {
+        transition: all 0.3s ease;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
 
-    .carousel-indicators button.active {
-        background-color: #fff;
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
 
     @media (max-width: 768px) {
@@ -122,8 +122,22 @@
             padding-top: 6rem !important;
         }
 
-        .hero-carousel-container {
-            margin-top: 2rem;
+        .hero-content h1 {
+            font-size: 2.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .hero-content h1 {
+            font-size: 2rem;
+        }
+
+        .feature-item {
+            padding: 0.75rem;
+        }
+
+        .feature-item i {
+            font-size: 1.5rem;
         }
     }
 </style>

@@ -16,7 +16,8 @@
     <!-- Google Web Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Raleway:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Raleway:wght@600;800&display=swap"
+          rel="stylesheet">
 
     <!-- Icon Font Stylesheet -->
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
@@ -237,6 +238,64 @@
             color: #6c757d;
         }
 
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            padding-left: 0;
+            list-style: none;
+            border-radius: 0.25rem;
+        }
+
+        .page-item:first-child .page-link {
+            border-top-left-radius: 50px;
+            border-bottom-left-radius: 50px;
+        }
+
+        .page-item:last-child .page-link {
+            border-top-right-radius: 50px;
+            border-bottom-right-radius: 50px;
+        }
+
+        .page-item.active .page-link {
+            background-color: #3CB815;
+            border-color: #3CB815;
+        }
+
+        .page-item.disabled .page-link {
+            color: #6c757d;
+            pointer-events: none;
+            cursor: auto;
+            background-color: #fff;
+            border-color: #dee2e6;
+        }
+
+        .page-link {
+            position: relative;
+            display: block;
+            padding: 0.5rem 0.75rem;
+            margin-left: -1px;
+            line-height: 1.25;
+            color: #3CB815;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .page-link:hover {
+            z-index: 2;
+            color: #2d8a10;
+            text-decoration: none;
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+        }
+
         @media (max-width: 767.98px) {
             .booking-table {
                 min-width: 800px;
@@ -252,7 +311,8 @@
 
 <body>
 <!-- Spinner Start -->
-<div id="spinner" class="show w-100 vh-100 bg-white position-fixed translate-middle top-50 start-50 d-flex align-items-center justify-content-center">
+<div id="spinner"
+     class="show w-100 vh-100 bg-white position-fixed translate-middle top-50 start-50 d-flex align-items-center justify-content-center">
     <div class="spinner-grow text-success" role="status"></div>
 </div>
 <!-- Spinner End -->
@@ -266,7 +326,8 @@
             <div class="col-12">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="/HomePage"><i class="fas fa-home me-2"></i>Trang chủ</a></li>
+                        <li class="breadcrumb-item"><a href="/HomePage"><i class="fas fa-home me-2"></i>Trang chủ</a>
+                        </li>
                         <li class="breadcrumb-item active" aria-current="page">Lịch sử đặt sân</li>
                     </ol>
                 </nav>
@@ -305,26 +366,31 @@
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    <c:forEach var="bookingDetail" items="${booking.bookingDetails}" varStatus="detailStatus">
+                                    <c:forEach var="bookingDetail" items="${booking.bookingDetails}"
+                                               varStatus="detailStatus">
                                         <tr>
                                             <td>
-                                                <img src="/images/product/${bookingDetail.product.image}" class="product-img" alt="${bookingDetail.product.name}">
+                                                <img src="/images/product/${bookingDetail.product.image}"
+                                                     class="product-img" alt="${bookingDetail.product.name}">
                                             </td>
                                             <td>
-                                                <a href="/mainProduct/${bookingDetail.product.id}" class="product-name" target="_blank">
+                                                <a href="/mainProduct/${bookingDetail.product.id}" class="product-name"
+                                                   target="_blank">
                                                         ${bookingDetail.product.name}
                                                 </a>
                                             </td>
                                             <td>
                                                         <span class="price">
-                                                            <fmt:formatNumber type="number" value="${bookingDetail.product.price}"/>đ
+                                                            <fmt:formatNumber type="number"
+                                                                              value="${bookingDetail.product.price}"/>đ
                                                         </span>
                                             </td>
                                             <td>
                                                 <c:if test="${bookingDetail.sale > 0}">
                                                             <span class="discount">
                                                                 <i class="fas fa-tag me-1"></i>
-                                                                <fmt:formatNumber type="number" value="${bookingDetail.sale}"/>%
+                                                                <fmt:formatNumber type="number"
+                                                                                  value="${bookingDetail.sale}"/>%
                                                             </span>
                                                 </c:if>
                                                 <c:if test="${bookingDetail.sale == 0}">
@@ -348,7 +414,8 @@
                                             </td>
                                             <td>
                                                         <span class="total-price">
-                                                            <fmt:formatNumber type="number" value="${booking.totalPrice}"/>đ
+                                                            <fmt:formatNumber type="number"
+                                                                              value="${booking.totalPrice}"/>đ
                                                         </span>
                                             </td>
                                             <td>
@@ -377,6 +444,29 @@
                             </div>
                         </div>
                     </c:forEach>
+
+                    <!-- Pagination - Moved outside the booking cards loop -->
+                    <div class="pagination-container">
+                        <ul class="pagination">
+                            <li class="page-item ${currentPage == 0 ? 'disabled' : ''}">
+                                <a class="page-link" href="?page=${currentPage - 1 < 0 ? 0 : currentPage - 1}&size=5" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+
+                            <c:forEach begin="0" end="${totalPages - 1}" var="i">
+                                <li class="page-item ${i == currentPage ? 'active' : ''}">
+                                    <a class="page-link" href="?page=${i}&size=5">${i + 1}</a>
+                                </li>
+                            </c:forEach>
+
+                            <li class="page-item ${currentPage + 1 >= totalPages ? 'disabled' : ''}">
+                                <a class="page-link" href="?page=${currentPage + 1 >= totalPages ? currentPage : currentPage + 1}&size=5" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </c:if>
             </div>
         </div>

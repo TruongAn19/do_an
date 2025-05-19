@@ -92,7 +92,7 @@
                                     <div class="col-md-6 mb-3">
                                         <label for="racketImg" class="form-label">Image:</label>
                                         <input class="form-control" type="file" id="racketImg"
-                                               accept=".png, .jpg, .jpeg" name="racketImg" />
+                                               accept=".png, .jpg, .jpeg. webp" name="racketImg" />
                                     </div>
 
 

@@ -19,11 +19,11 @@
                     <a href="/HomePage" class="nav-item nav-link ${pageContext.request.requestURI eq '/HomePage' ? 'active' : ''}">
                         <i class="fas fa-home me-2"></i>Trang chủ
                     </a>
-                    <a href="/main-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/main-products' ? 'active' : ''}">
+                    <a href="/main-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/courts' ? 'active' : ''}">
                         <i class="fas fa-table-tennis me-2"></i>Sân cầu lông
                     </a>
-                    <a href="/by-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/by-products' ? 'active' : ''}">
-                        <i class="fas fa-shopping-basket me-2"></i>Phụ kiện
+                    <a href="/by-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/racket' ? 'active' : ''}">
+                        <i class="fas fa-shopping-basket me-2"></i>Vợt cầu lông
                     </a>
                 </div>
 

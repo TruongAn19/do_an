@@ -3,6 +3,7 @@ package com.example.quanly.repository;
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.RentalToolStatus;
 import com.example.quanly.domain.User;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -52,5 +53,8 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     List<RentalTool> findRentalByUserId(Long id);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
+
+    Page<RentalTool> findByType(String type, Pageable pageable);
+    Page<RentalTool> findByRentalToolCodeContaining(String code, Pageable pageable);
 
 }

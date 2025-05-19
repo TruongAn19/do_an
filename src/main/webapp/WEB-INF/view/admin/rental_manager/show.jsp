@@ -271,27 +271,37 @@
                         </div>
                     </div>
                     <div class="card-footer">
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-center mb-0">
-                                <li class="page-item ${currentPage == 1 ? 'disabled' : ''}">
-                                    <a class="page-link" href="/admin/rental?page=${currentPage - 1}${not empty searchTerm ? '&search='.concat(searchTerm) : ''}" aria-label="Previous">
-                                        <span aria-hidden="true">&laquo;</span>
-                                    </a>
-                                </li>
+                        <c:set var="pageGroupSize" value="2" />
+                        <c:set var="startPage" value="${(currentPage / pageGroupSize) * pageGroupSize}" />
 
-                                <c:forEach begin="1" end="${totalPages}" var="pageNum">
-                                    <li class="page-item ${pageNum == currentPage ? 'active' : ''}">
-                                        <a class="page-link" href="/admin/rental?page=${pageNum}${not empty searchTerm ? '&search='.concat(searchTerm) : ''}">${pageNum}</a>
-                                    </li>
-                                </c:forEach>
+                        <div class="d-flex justify-content-center mt-4">
+                            <div class="d-flex justify-content-center mt-4">
+                                <nav>
+                                    <ul class="pagination">
 
-                                <li class="page-item ${currentPage == totalPages ? 'disabled' : ''}">
-                                    <a class="page-link" href="/admin/rental?page=${currentPage + 1}${not empty searchTerm ? '&search='.concat(searchTerm) : ''}" aria-label="Next">
-                                        <span aria-hidden="true">&raquo;</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
+                                        <!-- Nút Previous -->
+                                        <li class="page-item ${currentPage == 0 ? 'disabled' : ''}">
+                                            <a class="page-link"
+                                               href="?page=${currentPage == 0 ? 0 : currentPage - 1}&size=5${searchTerm != null ? '&search=' + searchTerm : ''}">&lt;</a>
+                                        </li>
+
+                                        <!-- Trang hiện tại, chỉ hiện 1 số thôi -->
+                                        <li class="page-item active">
+                                            <a class="page-link" href="#">
+                                                ${currentPage + 1}
+                                            </a>
+                                        </li>
+
+                                        <!-- Nút Next -->
+                                        <li class="page-item ${currentPage == totalPages - 1 ? 'disabled' : ''}">
+                                            <a class="page-link"
+                                               href="?page=${currentPage == totalPages - 1 ? currentPage : currentPage + 1}&size=5${searchTerm != null ? '&search=' + searchTerm : ''}">&gt;</a>
+                                        </li>
+
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

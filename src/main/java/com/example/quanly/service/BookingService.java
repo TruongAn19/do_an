@@ -151,4 +151,9 @@ public class BookingService {
         bookingDetailRepository.save(bookingDetail);
         return saveBooking;
     }
+
+    public Page<Booking> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
+        return bookingRepository.findByUserId(userId, pageable);
+    }
+
 }
