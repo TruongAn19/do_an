@@ -280,6 +280,13 @@
                 </div>
             </c:if>
 
+            <c:if test="${param.expired != null}">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Tài khoản của bạn đã bị đăng nhập ở một thiết bị khác.
+                </div>
+            </c:if>
+
             <div class="form-group">
                 <i class="fas fa-envelope"></i>
                 <input type="text" id="username" name="username" required>

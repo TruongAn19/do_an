@@ -277,40 +277,41 @@
     </div>
 
     <div class="row g-4">
-        <!-- Filter Sidebar -->
         <div class="col-12 col-lg-3 filter-section">
-            <form method="get" action="/by-products">
-                <input type="hidden" name="page" value="0">
-                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+            <!-- Phần form filter -->
+            <form method="get" action="/by-products" id="filterForm">
+                <input type="hidden" name="page" value="0" id="pageInput">
 
+                <!-- Hãng sản xuất -->
                 <div class="filter-card mb-4">
                     <h4 class="filter-title">Hãng sản xuất</h4>
                     <div class="d-flex flex-column gap-2">
                         <c:forEach var="brand" items="${['Yonex','Li-Ning','Victor','Babolat','Carlton','Apacs']}">
                             <div class="form-check">
-                                <input class="form-check-input"
+                                <input class="form-check-input factory-checkbox"
                                        type="checkbox"
                                        name="factory"
-                                       id="brand-${brand}"
                                        value="${brand}"
-                                       <c:if test="${not empty paramValues.factory && fn:contains(paramValues.factory, brand)}">checked</c:if>>
+                                       id="brand-${brand}"
+                                       <c:if test="${selectedFactories != null && selectedFactories.contains(brand)}">checked</c:if> />
                                 <label class="form-check-label" for="brand-${brand}">${brand}</label>
                             </div>
                         </c:forEach>
                     </div>
                 </div>
 
+                <!-- Mức giá -->
                 <div class="filter-card mb-4">
                     <h4 class="filter-title">Mức giá thuê theo ngày</h4>
                     <div class="d-flex flex-column gap-2">
                         <c:forEach var="priceOption" items="${['duoi-500-nghin', '500-nghin-1-trieu', '1-5-trieu', 'tren-5-trieu']}">
                             <div class="form-check">
-                                <input class="form-check-input"
+                                <input class="form-check-input price-checkbox"
                                        type="checkbox"
                                        name="price"
-                                       id="${priceOption}"
                                        value="${priceOption}"
-                                       <c:if test="${not empty paramValues.price && fn:contains(paramValues.price, priceOption)}">checked</c:if>>
+                                       id="${priceOption}"
+                                       <c:if test="${selectedPrices != null && selectedPrices.contains(priceOption)}">checked</c:if> />
                                 <label class="form-check-label" for="${priceOption}">
                                     <c:choose>
                                         <c:when test="${priceOption eq 'duoi-500-nghin'}">Dưới 500 nghìn</c:when>
@@ -324,34 +325,23 @@
                     </div>
                 </div>
 
+                <!-- Sắp xếp -->
                 <div class="filter-card mb-4">
                     <h4 class="filter-title">Sắp xếp</h4>
                     <div class="d-flex flex-column gap-2">
                         <div class="form-check">
-                            <input class="form-check-input"
-                                   type="radio"
-                                   id="sort-asc"
-                                   name="sort"
-                                   value="gia-tang-dan"
-                                   <c:if test="${param.sort == 'gia-tang-dan'}">checked</c:if>>
+                            <input class="form-check-input sort-radio" type="radio" name="sort" id="sort-asc" value="gia-tang-dan"
+                                   <c:if test="${selectedSort == 'gia-tang-dan'}">checked</c:if> />
                             <label class="form-check-label" for="sort-asc">Giá thuê tăng dần</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input"
-                                   type="radio"
-                                   id="sort-desc"
-                                   name="sort"
-                                   value="gia-giam-dan"
-                                   <c:if test="${param.sort == 'gia-giam-dan'}">checked</c:if>>
+                            <input class="form-check-input sort-radio" type="radio" name="sort" id="sort-desc" value="gia-giam-dan"
+                                   <c:if test="${selectedSort == 'gia-giam-dan'}">checked</c:if> />
                             <label class="form-check-label" for="sort-desc">Giá thuê giảm dần</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input"
-                                   type="radio"
-                                   id="sort-none"
-                                   name="sort"
-                                   value="gia-nothing"
-                                   <c:if test="${empty param.sort || param.sort == 'gia-nothing'}">checked</c:if>>
+                            <input class="form-check-input sort-radio" type="radio" name="sort" id="sort-none" value="gia-nothing"
+                                   <c:if test="${selectedSort == 'gia-nothing' || empty selectedSort}">checked</c:if> />
                             <label class="form-check-label" for="sort-none">Không sắp xếp</label>
                         </div>
                     </div>
@@ -361,7 +351,9 @@
                     <i class="fas fa-filter me-2"></i>Lọc Sản Phẩm
                 </button>
             </form>
+            
         </div>
+
 
         <!-- Product Grid -->
         <div class="col-12 col-lg-9">
@@ -383,9 +375,11 @@
                                 <h5 class="product-title">
                                     <a href="/racket/${racket.id}">${racket.name}</a>
                                 </h5>
+                                <p>Số lượng cho thuê: ${racket.quantity}</p>
+                                <p>${racket.product.name}</p>
                                 <div class="mt-auto">
-                                    <p class="product-price mb-3">
-                                        <fmt:formatNumber type="number" value="${racket.price}" /> đ
+                                    <p class="product-price mb-3">Giá vợt:
+                                        <fmt:formatNumber type="number" value="${racket.price}" /> VNĐ
                                     </p>
                                     <form action="/user/rental-page/${racket.id}" method="get">
                                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
@@ -405,22 +399,28 @@
             <c:if test="${totalPages > 0}">
                 <div class="d-flex justify-content-center mt-5">
                     <ul class="pagination">
-                        <li class="page-item ${currentPage == 0 ? 'disabled' : ''}">
-                            <a class="page-link"
-                               href="/by-products?page=${currentPage - 1}<c:if test="${not empty paramValues.factory}">&factory=${paramValues.factory}</c:if><c:if test="${not empty paramValues.price}">&price=${paramValues.price}</c:if><c:if test="${not empty param.sort}">&sort=${param.sort}</c:if>"
+                        <li class="page-item">
+                            <a class="${1 eq currentPage ? 'disabled page-link' : 'page-link'}"
+                               href="/by-products?page=${currentPage - 1}${not empty param.search ? '&search=' += param.search : ''}${queryString}"
                                aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
-                        <c:forEach begin="0" end="${totalPages - 1}" var="i">
-                            <li class="page-item ${i == currentPage ? 'active' : ''}">
-                                <a class="page-link"
-                                   href="/by-products?page=${i}<c:if test="${not empty paramValues.factory}">&factory=${paramValues.factory}</c:if><c:if test="${not empty paramValues.price}">&price=${paramValues.price}</c:if><c:if test="${not empty param.sort}">&sort=${param.sort}</c:if>">${i + 1}</a>
-                            </li>
+
+                        <c:forEach begin="0" end="${totalPages - 1}" varStatus="loop">
+                            <c:if test="${loop.index < totalPages}">
+                                <li class="page-item">
+                                    <a class="${(loop.index + 1) eq currentPage ? 'active page-link' : 'page-link'}"
+                                       href="/by-products?page=${loop.index + 1}${not empty param.search ? '&search=' += param.search : ''}${queryString}">
+                                            ${loop.index + 1}
+                                    </a>
+                                </li>
+                            </c:if>
                         </c:forEach>
-                        <li class="page-item ${currentPage == totalPages - 1 ? 'disabled' : ''}">
-                            <a class="page-link"
-                               href="/by-products?page=${currentPage + 1}<c:if test="${not empty paramValues.factory}">&factory=${paramValues.factory}</c:if><c:if test="${not empty paramValues.price}">&price=${paramValues.price}</c:if><c:if test="${not empty param.sort}">&sort=${param.sort}</c:if>"
+
+                        <li class="page-item">
+                            <a class="${totalPages eq currentPage ? 'disabled page-link' : 'page-link'}"
+                               href="/by-products?page=${currentPage + 1}${not empty param.search ? '&search=' += param.search : ''}${queryString}"
                                aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
@@ -428,6 +428,7 @@
                     </ul>
                 </div>
             </c:if>
+
         </div>
     </div>
 </div>
@@ -437,6 +438,7 @@
 <!-- Back to Top -->
 <a href="#" class="btn rounded-circle back-to-top"><i class="fa fa-arrow-up"></i></a>
 
+
 <!-- JS Libraries -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -444,6 +446,60 @@
 <script src="/client/lib/waypoints/waypoints.min.js"></script>
 <script src="/client/lib/lightbox/js/lightbox.min.js"></script>
 <script src="/client/lib/owlcarousel/owl.carousel.min.js"></script>
+<!-- JavaScript xử lý -->
+<script>
+    $('#btnFilter').click(function (event) {
+        event.preventDefault();
+
+        // Khai báo mảng chứa các lựa chọn
+        let factoryArr = [];
+        let priceArr = [];
+        let sortValue = $('input[name="sort"]:checked').val();
+
+        // Lấy danh sách hãng được chọn
+        $('.factory-checkbox:checked').each(function () {
+            factoryArr.push($(this).val());
+        });
+
+        // Lấy danh sách mức giá được chọn
+        $('.price-checkbox:checked').each(function () {
+            priceArr.push($(this).val());
+        });
+
+        // Tạo URL hiện tại và đối tượng query param
+        const currentUrl = new URL(window.location.href);
+        const searchParams = currentUrl.searchParams;
+
+        // Reset lại các filter cũ
+        searchParams.delete('factory');
+        searchParams.delete('price');
+        searchParams.delete('sort');
+        searchParams.delete('page'); // reset về trang đầu
+
+        // Gán lại các filter mới
+        if (factoryArr.length > 0) {
+            factoryArr.forEach(value => {
+                searchParams.append('factory', value);
+            });
+        }
+
+        if (priceArr.length > 0) {
+            priceArr.forEach(value => {
+                searchParams.append('price', value);
+            });
+        }
+
+        if (sortValue) {
+            searchParams.set('sort', sortValue);
+        }
+
+        searchParams.set('page', '0'); // luôn về trang đầu
+
+        // Tải lại trang với URL mới
+        window.location.href = currentUrl.toString();
+    });
+
+</script>
 <script src="/client/js/main.js"></script>
 
 </body>

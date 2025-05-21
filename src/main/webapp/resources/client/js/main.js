@@ -220,52 +220,7 @@
         return formatted;
     }
 
-    //handle filter products
-    $('#btnFilter').click(function (event) {
-        event.preventDefault();
 
-        let factoryArr = [];
-        let addressArr = [];
-        let priceArr = [];
-
-        //address filter (sửa từ 'target' thành 'address')
-        $("#addressFilter .form-check-input:checked").each(function () {
-            addressArr.push($(this).val());
-        });
-
-        //price filter
-        $("#priceFilter .form-check-input:checked").each(function () {
-            priceArr.push($(this).val());
-        });
-
-        //sort order
-        let sortValue = $('input[name="radio-sort"]:checked').val();
-
-        const currentUrl = new URL(window.location.href);
-        const searchParams = currentUrl.searchParams;
-
-        // Add or update query parameters
-        searchParams.set('page', '1');
-        searchParams.set('sort', sortValue);
-
-        //reset old filters
-
-        searchParams.delete('address'); // sửa từ target
-        searchParams.delete('price');
-
-        if (factoryArr.length > 0) {
-            searchParams.set('factory', factoryArr.join(','));
-        }
-        if (addressArr.length > 0) {
-            searchParams.set('address', addressArr.join(',')); // sửa từ target
-        }
-        if (priceArr.length > 0) {
-            searchParams.set('price', priceArr.join(','));
-        }
-
-        // Update the URL and reload the page
-        window.location.href = currentUrl.toString();
-    });
 
     //handle auto checkbox after page loading
     const params = new URLSearchParams(window.location.search);

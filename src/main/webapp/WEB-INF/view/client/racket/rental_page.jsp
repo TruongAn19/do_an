@@ -170,6 +170,26 @@
                             </div>
                         </div>
 
+                        <!-- Trường hiển thị khi thuê theo ngày -->
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3 mb-md-0" id="rentalDateDiv" style="display: none;">
+                                <label for="rentalDate" class="form-label">Ngày Thuê</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                    <input type="date" class="form-control" id="rentalDate" name="rentalDate">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3 mb-md-0" id="rentalDaysDiv" style="display: none;">
+                                <label for="numberDate" class="form-label">Số ngày thuê</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-calendar-day"></i></span>
+                                    <input type="number" class="form-control" id="numberDate" name="quantityDay" min="1"
+                                           value="1" placeholder="Nhập số ngày thuê" onchange="calculateRentalPrice()">
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3 mb-md-0">
                                 <label for="typeDisplay" class="form-label">Loại Thuê</label>
@@ -201,24 +221,6 @@
                                 <span class="input-group-text"><i class="fas fa-bookmark"></i></span>
                                 <input type="text" class="form-control" id="bookingId" name="bookingId"
                                        value="${bookingCode}">
-                            </div>
-                        </div>
-
-                        <!-- Trường hiển thị khi thuê theo ngày -->
-                        <div class="mb-4" id="rentalDaysDiv" style="display: none;">
-                            <label for="numberDate" class="form-label">Số ngày thuê</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-calendar-day"></i></span>
-                                <input type="number" class="form-control" id="numberDate" name="quantityDay" min="1"
-                                       value="1" placeholder="Nhập số ngày thuê" onchange="calculateRentalPrice()">
-                            </div>
-                        </div>
-
-                        <div class="mb-4" id="rentalDateDiv" style="display: none;">
-                            <label for="rentalDate" class="form-label">Ngày Thuê</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                                <input type="date" class="form-control" id="rentalDate" name="rentalDate">
                             </div>
                         </div>
 
@@ -326,7 +328,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         const rentalDateInput = document.getElementById("rentalDate");
         if (rentalDateInput) {
-            rentalDateInput.addEventListener("blur", function () {
+            rentalDateInput.addEventListener("change", function () {
                 const selectedDate = this.value;
                 console.log(selectedDate);
                 const racketId = document.getElementById("racketId").value;

@@ -123,18 +123,26 @@ public class ItemController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             Model model) {
 
-        int size = 10;
+        int size = 6;
         Pageable pageable = PageRequest.of(page, size);
 
-        // Chuyển mảng thành List để xử lý
-        List<String> factoryList = factories != null ? Arrays.asList(factories) : null;
-        List<String> priceList = prices != null ? Arrays.asList(prices) : null;
+        // Chuyển mảng thành List
+        List<String> factoryList = (factories != null && factories.length > 0) ? Arrays.asList(factories) : null;
+        List<String> priceList = (prices != null && prices.length > 0) ? Arrays.asList(prices) : null;
 
-        Page<Racket> byProduct = racketService.getRackets(factoryList, priceList, sort, pageable);
+        // Gọi service lọc
+        Page<Racket> racketPage = racketService.getRackets(factoryList, priceList, sort, pageable);
 
-        model.addAttribute("listRacket", byProduct.getContent());
+        // Truyền dữ liệu sang view
+        model.addAttribute("listRacket", racketPage.getContent());
         model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", byProduct.getTotalPages());
+        model.addAttribute("totalPages", racketPage.getTotalPages());
+        model.addAttribute("totalElements", racketPage.getTotalElements());
+
+        // Giữ lại lựa chọn người dùng
+        model.addAttribute("selectedFactories", factoryList);
+        model.addAttribute("selectedPrices", priceList);
+        model.addAttribute("selectedSort", sort);
 
         return "client/racket/by_product";
     }

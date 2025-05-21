@@ -424,16 +424,16 @@
                                         <c:choose>
                                             <c:when test="${mainProduct.sale > 0}">
                                                 <p class="product-price mb-1">
-                                                    <del><fmt:formatNumber type="number" value="${mainProduct.price}" /> đ</del>
+                                                    <del><fmt:formatNumber type="number" value="${mainProduct.price}" /> VNĐ</del>
                                                 </p>
                                                 <p class="product-sale-price">
-                                                    <fmt:formatNumber type="number" value="${mainProduct.price - (mainProduct.price * mainProduct.sale /100)}" /> đ
+                                                    <fmt:formatNumber type="number" value="${mainProduct.price - (mainProduct.price * mainProduct.sale /100)}" /> VNĐ
                                                     <span class="badge bg-danger ms-2">-<fmt:formatNumber type="number" value="${mainProduct.sale}" />%</span>
                                                 </p>
                                             </c:when>
                                             <c:otherwise>
                                                 <p class="product-price mb-3">
-                                                    <fmt:formatNumber type="number" value="${mainProduct.price}" /> đ
+                                                    <fmt:formatNumber type="number" value="${mainProduct.price}" /> VNĐ
                                                 </p>
                                             </c:otherwise>
                                         </c:choose>
@@ -500,7 +500,54 @@
 <script src="/client/lib/waypoints/waypoints.min.js"></script>
 <script src="/client/lib/lightbox/js/lightbox.min.js"></script>
 <script src="/client/lib/owlcarousel/owl.carousel.min.js"></script>
+<script>
+    //handle filter products
+    $('#btnFilter').click(function (event) {
+        event.preventDefault();
 
+        let factoryArr = [];
+        let addressArr = [];
+        let priceArr = [];
+
+        //address filter (sửa từ 'target' thành 'address')
+        $("#addressFilter .form-check-input:checked").each(function () {
+            addressArr.push($(this).val());
+        });
+
+        //price filter
+        $("#priceFilter .form-check-input:checked").each(function () {
+            priceArr.push($(this).val());
+        });
+
+        //sort order
+        let sortValue = $('input[name="radio-sort"]:checked').val();
+
+        const currentUrl = new URL(window.location.href);
+        const searchParams = currentUrl.searchParams;
+
+        // Add or update query parameters
+        searchParams.set('page', '1');
+        searchParams.set('sort', sortValue);
+
+        //reset old filters
+
+        searchParams.delete('address'); // sửa từ target
+        searchParams.delete('price');
+
+        if (factoryArr.length > 0) {
+            searchParams.set('factory', factoryArr.join(','));
+        }
+        if (addressArr.length > 0) {
+            searchParams.set('address', addressArr.join(',')); // sửa từ target
+        }
+        if (priceArr.length > 0) {
+            searchParams.set('price', priceArr.join(','));
+        }
+
+        // Update the URL and reload the page
+        window.location.href = currentUrl.toString();
+    });
+</script>
 <!-- Template Javascript -->
 <script src="/client/js/main.js"></script>
 </body>

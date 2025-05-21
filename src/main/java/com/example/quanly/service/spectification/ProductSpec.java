@@ -17,10 +17,6 @@ public class ProductSpec {
                 criteriaBuilder.equal(root.get("address"), ""));
     }
 
-    // public static Specification<Product> factoryLike(String factory) {
-    //     return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.FACTORY), "%" + factory + "%");
-    // }
-
     public static Specification<Product> nameLike(String name) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.NAME), "%" + name + "%");
     }
@@ -35,40 +31,34 @@ public class ProductSpec {
         return (root, query, criteriaBuilder) -> criteriaBuilder.le(root.get(Product_.PRICE), price);
     }
 
-    // case3
-    // public static Specification<Product> matchFactory(String factory) {
-    //     return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(Product_.FACTORY), factory);
-    // }
-
-    // case4
-    // public static Specification<Product> matchListFactory(List<String> factory) {
-    //     return (root, query, criteriaBuilder) -> criteriaBuilder.in(root.get(Product_.FACTORY)).value(factory);
-    // }
-
     public static Specification<Product> matchAddressContainsAny(String rawAddress) {
         return (root, query, criteriaBuilder) -> {
             if (rawAddress == null || rawAddress.trim().isEmpty()) {
-                return criteriaBuilder.conjunction(); // không lọc gì
+                return criteriaBuilder.conjunction(); // không lọc nếu không có input
             }
-    
-            // Không tách theo dấu cách nữa, chỉ tách theo dấu phẩy
+
             String[] parts = rawAddress.toLowerCase().split(",");
-    
+
             List<Predicate> predicates = new ArrayList<>();
-    
+
             for (String part : parts) {
                 part = part.trim();
                 if (!part.isBlank()) {
                     predicates.add(criteriaBuilder.like(
-                            criteriaBuilder.lower(root.get(Product_.ADDRESS)),
+                            criteriaBuilder.lower(root.get("address")),
                             "%" + part + "%"));
                 }
             }
-    
+
+            if (predicates.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+
             return criteriaBuilder.or(predicates.toArray(new Predicate[0]));
         };
     }
-    
+
+
 
     // case5
     public static Specification<Product> matchPrice(double min, double max) {
