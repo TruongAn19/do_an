@@ -77,10 +77,8 @@
                     <th scope="col">Tên</th>
                     <th scope="col">Giá cả</th>
                     <th scope="col">Giảm giá</th>
-
                     <th scope="col">Sân</th>
                     <th scope="col">Thời gian</th>
-                    <!-- <th scope="col">Ngày đặt sân</th> -->
                     <th scope="col">Thành tiền</th>
                 </tr>
                 </thead>
@@ -117,38 +115,26 @@
                             <fmt:formatNumber type="number" value="${product.sale}"/>%
                         </p>
                     </td>
-
-                    <td>
-                        <!-- Chọn sân -->
-                        <div class="input-group mb-0 mt-4" style="width: 150px;">
-                            <select name="courtId" class="form-select court-select"
-                                    data-product-id="${product.id}"
-                                    data-cart-detail-price="${product.price}"
-                                    data-cart-detail-sale="${product.sale}">
-                                <option selected disabled>-- Chọn sân --</option>
-                                <c:forEach var="court" items="${courts}">
-                                    <option value="${court.id}">${court.name}</option>
-                                </c:forEach>
-                            </select>
-                        </div>
-
-                    </td>
-
-
-                    <td>
-                        <!-- Chọn giờ -->
-                        <div class="input-group quantity mb-5 mb-0 mt-4"
-                             style="width: 150px;">
-                            <select name="availableTimeId" id="timeSelect"
-                                    class="form-select">
-                                <c:forEach var="availableTime" items="${availableTime}">
-                                    <option value="${availableTime.id}">
-                                            ${availableTime.time}
-                                    </option>
-                                </c:forEach>
-                            </select>
-                        </div>
-                    </td>
+<%--                    <td>--%>
+<%--                        <div class="input-group mb-0 mt-4" style="width: 150px;">--%>
+<%--                            <select name="courtId" id="courtId" class="form-select court-select"--%>
+<%--                                    data-product-id="${product.id}"--%>
+<%--                                    data-cart-detail-price="${product.price}"--%>
+<%--                                    data-cart-detail-sale="${product.sale}">--%>
+<%--                                <option selected disabled value="">-- Chọn sân --</option>--%>
+<%--                                <c:forEach var="court" items="${courts}">--%>
+<%--                                    <option value="${court.id}">${court.name}</option>--%>
+<%--                                </c:forEach>--%>
+<%--                            </select>--%>
+<%--                        </div>--%>
+<%--                    </td>--%>
+<%--                    <td>--%>
+<%--                        <div class="input-group quantity mb-5 mb-0 mt-4" style="width: 150px;">--%>
+<%--                            <select name="availableTimeId" id="availableTime" class="form-select">--%>
+<%--                                <option selected disabled value="">-- Chọn giờ --</option>--%>
+<%--                            </select>--%>
+<%--                        </div>--%>
+<%--                    </td>--%>
                     <td>
                         <p class="mb-0 mt-4" data-cart-total-price="${totalPrice}">
                             <fmt:formatNumber type="number" value="${totalPrice}"/> đ
@@ -161,7 +147,7 @@
 
         <!-- Form đặt sân -->
         <c:if test="${not empty product}">
-            <form:form action="/place-booking" method="post">
+            <form:form id="bookingForm" action="/place-booking" method="post">
                 <!-- CSRF Token -->
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
 
@@ -169,22 +155,48 @@
                 <input type="hidden" name="productId" value="${product.id}"/>
                 <input type="hidden" name="price" value="${product.price}"/>
                 <input type="hidden" name="sale" value="${product.sale}"/>
+                <input type="hidden" id="hiddenCourtId" name="courtId" value=""/>
+                <input type="hidden" id="hiddenAvailableTimeId" name="availableTimeId" value=""/>
 
                 <div class="col-12 form-group mb-3">
                     <label>Ngày đặt sân</label>
-                    <input class="form-control" type="date" name="bookingDate"
+                    <input class="form-control" type="date" id="bookingDate" name="bookingDate"
                            value="${not empty selectedBookingDate ? selectedBookingDate : ''}"
                            min="<%= LocalDate.now() %>" required/>
                 </div>
 
-                <!-- Thời gian được chọn -->
-                <input type="hidden" name="availableTimeId" id="hiddenAvailableTimeId"/>
-                <!-- Sân được chọn -->
-                <input type="hidden" name="courtId" id="hiddenCourtId"/>
-                <!-- Số lượng -->
-                <input type="hidden" name="quantity" id="hiddenQuantity" value=""/>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label>Sân</label>
+                            <select name="courtId" id="courtId" class="form-select court-select" required>
+                                <option value="">-- Chọn sân --</option>
+                                <c:forEach var="court" items="${courts}">
+                                    <option value="${court.id}">${court.name}</option>
+                                </c:forEach>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label>Giờ</label>
+                            <select name="availableTimeId" id="availableTime" class="form-select" required>
+                                <option value="">-- Chọn giờ --</option>
+                            </select>
+                            <div id="timeStatus" class="mt-2 small text-danger"></div>
+                        </div>
+                    </div>
+                </div>
 
-                <div class="mt-5 row g-4 justify-content-start">
+                <!-- Thêm thông báo giữ chỗ -->
+                <div id="holdNotification" class="alert alert-warning" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Bạn đang giữ chỗ sân này. Thời gian còn lại: <span id="holdTimer">03:00</span></span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="cancelHold">Hủy bỏ</button>
+                    </div>
+                </div>
+
+                <div class="row g-4 justify-content-start">
                     <!-- Thông tin người nhận -->
                     <div class="col-12 col-md-6">
                         <div class="p-4">
@@ -210,29 +222,25 @@
                     <div class="col-12 col-md-6">
                         <div class="bg-light rounded">
                             <div class="p-4">
-                                <h1 class="display-6 mb-4">Thông Tin <span class="fw-normal">Đặt
-                                                            sân</span></h1>
+                                <h1 class="display-6 mb-4">Thông Tin <span class="fw-normal">Đặt sân</span></h1>
                                 <div class="mt-3 d-flex justify-content-between">
                                     <h5 class="mb-0 me-4">Hình thức</h5>
                                     <p class="mb-0">Thanh toán tại sân (COD)</p>
                                 </div>
                             </div>
-                            <div
-                                    class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
+                            <div class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
                                 <h5 class="mb-0 ps-4 me-4">Tổng số tiền</h5>
                                 <p class="mb-0 pe-4">
                                     <fmt:formatNumber type="number" value="${totalPrice}"/> đ
                                 </p>
                             </div>
-                            <div
-                                    class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
+                            <div class="py-4 mb-4 border-top border-bottom d-flex justify-content-between">
                                 <h5 class="mb-0 ps-4 me-4">Số tiền phải đặt cọc</h5>
                                 <p class="mb-0 pe-4">
                                     <fmt:formatNumber type="number" value="${product.depositPrice}"/> đ
                                 </p>
                             </div>
-                            <button
-                                    class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 ms-4">
+                            <button type="submit" class="btn border-secondary rounded-pill px-4 py-3 text-primary text-uppercase mb-4 ms-4">
                                 Xác nhận đặt sân
                             </button>
                         </div>
@@ -240,82 +248,18 @@
                 </div>
             </form:form>
         </c:if>
-
-        <!-- JavaScript -->
-        <script>
-            $(document).ready(function () {
-                // Tự động ẩn thông báo sau 5 giây
-                setTimeout(function () {
-                    $('.alert').alert('close');
-                }, 5000);
-
-                // Validate form trước khi submit
-                $('#bookingForm').on('submit', function (e) {
-                    const bookingDate = $('input[name="bookingDate"]').val();
-                    const courtId = $('select[name="courtId"]').val();
-                    const timeId = $('select[name="availableTimeId"]').val();
-                    const receiverName = $('input[name="receiverName"]').val().trim();
-                    const receiverPhone = $('input[name="receiverPhone"]').val().trim();
-
-                    if (!bookingDate) {
-                        showError('Vui lòng chọn ngày đặt sân');
-                        return false;
-                    }
-
-                    if (!courtId) {
-                        showError('Vui lòng chọn sân');
-                        return false;
-                    }
-
-                    if (!receiverName || !receiverPhone) {
-                        showError('Vui lòng điền đầy đủ thông tin người đặt');
-                        return false;
-                    }
-
-                    // Kiểm tra số điện thoại hợp lệ
-                    const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
-                    if (!phoneRegex.test(receiverPhone)) {
-                        showError('Số điện thoại không hợp lệ');
-                        return false;
-                    }
-
-                    return true;
-                });
-
-                // Hàm hiển thị thông báo lỗi
-                <%--function showError(message) {--%>
-                <%--    const alertHtml = `--%>
-                <%--    <div class="alert alert-danger alert-dismissible fade show alert-notification">--%>
-                <%--        <i class="fas fa-exclamation-circle me-2"></i>--%>
-                <%--        ${message}--%>
-                <%--        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>--%>
-                <%--    </div>--%>
-                <%--`;--%>
-                <%--    $('.alert-notification').remove();--%>
-                <%--    $('body').append(alertHtml);--%>
-
-                <%--    setTimeout(function () {--%>
-                <%--        $('.alert-notification').alert('close');--%>
-                <%--    }, 5000);--%>
-                <%--}--%>
-            });
-        </script>
-
     </div>
 </div>
 <!-- Cart Page End -->
 <jsp:include page="../layout/footer.jsp"/>
 
-
 <!-- Back to Top -->
 <a href="#" class="btn btn-primary border-3 border-primary rounded-circle back-to-top"><i
         class="fa fa-arrow-up"></i></a>
 
-
 <!-- JavaScript Libraries -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-<script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/client/lib/easing/easing.min.js"></script>
 <script src="/client/lib/waypoints/waypoints.min.js"></script>
 <script src="/client/lib/lightbox/js/lightbox.min.js"></script>
@@ -324,70 +268,104 @@
 <!-- Template Javascript -->
 <script src="/client/js/main.js"></script>
 <script>
-    function loadAvailableTimes() {
-        const date = $("#bookingDate").val();
-        const courtId = $("#subCourt").val();
-
-        if (!date || !courtId) return;
-
-        $.get("/api/available-time", {date, courtId}, function (data) {
-            const timeSelect = $("#availableTime");
-            timeSelect.empty();
-
-            if (data.length === 0) {
-                timeSelect.append('<option disabled selected>Không còn giờ nào</option>');
-            } else {
-                data.forEach(t => {
-                    timeSelect.append(`<option value="${t.id}">${t.time}</option>`);
-                });
-            }
-        });
-    }
-
     $(document).ready(function () {
-        $("#bookingDate, #subCourt").on("change", loadAvailableTimes);
-    });
-</script>
+        // Tự động ẩn thông báo sau 5 giây
+        setTimeout(function () {
+            $('.alert').alert('close');
+        }, 5000);
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const courtSelects = document.querySelectorAll('.court-select');
-        const hiddenQuantity = document.getElementById('hiddenQuantity');
+        // Load giờ trống khi chọn sân hoặc ngày
+        $("#bookingDate, #courtId").on("change", function() {
+            const date = $("#bookingDate").val();
+            const courtId = $("#courtId").val();
 
-        courtSelects.forEach(function (select) {
-            select.addEventListener('change', function () {
-                // Khi chọn sân, set quantity = 1
-                hiddenQuantity.value = 1;
+            console.log("Date:", date, "Court ID:", courtId);
 
-                // Đồng thời cũng cập nhật sân được chọn
-                document.getElementById('hiddenCourtId').value = this.value;
+            if (!date || !courtId) {
+                $("#availableTime").html('<option selected disabled value="">-- Chọn ngày và sân trước --</option>');
+                return;
+            }
+
+            $.ajax({
+                url: "/api/available-time",
+                type: "GET",
+                data: {
+                    date: date,
+                    courtId: courtId
+                },
+                success: function(data) {
+                    console.log("Available times data:", data);
+                    const timeSelect = $("#availableTime");
+                    timeSelect.empty();
+
+                    if (!data || data.length === 0) {
+                        timeSelect.append('<option disabled selected>Không còn giờ nào</option>');
+                    } else {
+                        timeSelect.append('<option disabled selected value="">-- Chọn giờ --</option>');
+                        $.each(data, function(index, time) {
+                            timeSelect.append($('<option></option>').attr('value', time.id).text(time.time));
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error fetching available times:", error);
+                    $("#availableTime").html('<option disabled selected>Lỗi khi tải giờ</option>');
+                }
             });
         });
 
-        // Khi chọn thời gian
-        const timeSelect = document.getElementById('timeSelect');
-        timeSelect.addEventListener('change', function () {
-            document.getElementById('hiddenAvailableTimeId').value = this.value;
-        });
-    });
-</script>
-<!-- Script xử lý hiển thị lỗi -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        <%-- Nếu có errorMessage từ server --%>
-        <c:if test="${not empty errorMessage}">
-        var errorAlert = document.getElementById('errorAlert');
-        var errorMessageSpan = document.getElementById('errorMessage');
-        errorMessageSpan.textContent = '${errorMessage}';
-        errorAlert.style.display = 'block';
+        // Gán dữ liệu vào hidden input trước khi submit
+        $('#bookingForm').on('submit', function(e) {
+            const courtId = $("#courtId").val();
+            const timeId = $("#availableTime").val();
+            const bookingDate = $("#bookingDate").val();
 
-        // Auto ẩn sau 5 giây
-        setTimeout(function() {
-            errorAlert.style.display = 'none';
-        }, 5000);
-        </c:if>
+            if (!courtId) {
+                e.preventDefault();
+                showError('Vui lòng chọn sân');
+                return false;
+            }
+
+            if (!timeId) {
+                e.preventDefault();
+                showError('Vui lòng chọn giờ');
+                return false;
+            }
+
+            if (!bookingDate) {
+                e.preventDefault();
+                showError('Vui lòng chọn ngày đặt sân');
+                return false;
+            }
+
+            $("#hiddenCourtId").val(courtId);
+            $("#hiddenAvailableTimeId").val(timeId);
+
+            const receiverName = $('input[name="receiverName"]').val().trim();
+            const receiverPhone = $('input[name="receiverPhone"]').val().trim();
+
+            if (!receiverName || !receiverPhone) {
+                e.preventDefault();
+                showError('Vui lòng điền đầy đủ thông tin người đặt');
+                return false;
+            }
+
+            const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+            if (!phoneRegex.test(receiverPhone)) {
+                e.preventDefault();
+                showError('Số điện thoại không hợp lệ');
+                return false;
+            }
+
+            return true;
+        });
+
+        function showError(message) {
+            $('#errorMessage').text(message);
+            $('#errorAlert').show();
+            setTimeout(() => $('#errorAlert').fadeOut(), 5000);
+        }
     });
 </script>
 </body>
-
 </html>

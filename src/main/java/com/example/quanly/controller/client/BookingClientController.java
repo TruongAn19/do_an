@@ -1,6 +1,7 @@
 package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.BookingDetailRepository;
@@ -16,6 +17,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -29,6 +31,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Controller
+@Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingClientController {
@@ -75,24 +78,48 @@ public class BookingClientController {
 
     @GetMapping("/api/available-time")
     @ResponseBody
-    public List<AvailableTime> getAvailableTimes(
+    public List<AvailableTimeDTO> getAvailableTimes(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam("courtId") Long courtId) {
-        List<AvailableTime> allTimes = timeRepository.findAll();
+
         SubCourt court = subCourtRepository.getById(courtId);
+
+        // Lấy tất cả bookingDetail đã được đặt cho sân và ngày này
         List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
+
+        // Tập ID giờ đã bị đặt
         Set<Long> bookedTimeIds = bookings.stream()
-                .map(o -> o.getAvailableTime().getId())
+                .map(b -> b.getAvailableTime().getId())
                 .collect(Collectors.toSet());
-        return allTimes.stream()
+
+        // Lấy tất cả khung giờ
+        List<AvailableTime> allTimes = timeRepository.findAll();
+
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+
+        log.info("Date: {}, CourtId: {}", date, courtId);
+        log.info("Booked time IDs: {}", bookedTimeIds);
+        log.info("All times: {}", allTimes.stream().map(AvailableTime::getId).collect(Collectors.toList()));
+
+        List<AvailableTime> availableTimes = allTimes.stream()
                 .filter(time -> {
-                    if (date.equals(LocalDate.now()) && time.getTime().isBefore(LocalTime.now())) {
-                        return false;
+                    boolean isAvailable = true;
+                    // Nếu là ngày hiện tại, loại bỏ giờ đã qua
+                    if (date.equals(today) && time.getTime().isBefore(now)) {
+                        isAvailable = false;
                     }
-                    return !bookedTimeIds.contains(time.getId());
+                    // Loại bỏ giờ đã bị đặt
+                    if (bookedTimeIds.contains(time.getId())) {
+                        isAvailable = false;
+                    }
+                    log.info("Time ID: {}, Time: {}, Available? {}", time.getId(), time.getTime(), isAvailable);
+                    return isAvailable;
                 })
                 .collect(Collectors.toList());
-
+        return availableTimes.stream()
+                .map(AvailableTimeDTO::new)
+                .collect(Collectors.toList());
     }
 
     @PostMapping("/place-booking")
