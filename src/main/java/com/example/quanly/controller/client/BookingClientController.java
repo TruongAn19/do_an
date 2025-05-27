@@ -4,29 +4,33 @@ import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.VnpayResponse;
-import com.example.quanly.repository.BookingDetailRepository;
-import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.repository.SubCourtRepository;
-import com.example.quanly.repository.TimeRepository;
+import com.example.quanly.repository.*;
 import com.example.quanly.service.BookingService;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,6 +47,7 @@ public class BookingClientController {
     BookingService bookingService;
     PaymentService paymentService;
     ProductRepository productRepository;
+    TemporaryBookingRepository temporaryBookingRepository;
 
 
 
@@ -121,6 +126,85 @@ public class BookingClientController {
                 .map(AvailableTimeDTO::new)
                 .collect(Collectors.toList());
     }
+
+    @PostMapping("/api/temp-booking")
+    @Transactional
+    public ResponseEntity<?> holdCourt(
+            HttpServletRequest request,
+            @RequestParam("subCourtId") Long subCourtId,
+            @RequestParam("availableTimeId") Long timeId,
+            @RequestParam("bookingDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("id") == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("status", "error", "message", "Bạn cần đăng nhập."));
+        }
+
+        Long userId = (Long) session.getAttribute("id");
+
+        // Xóa giữ chỗ hết hạn (3 phút trước)
+        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
+        temporaryBookingRepository.deleteExpiredHolds(expiryTime);
+        temporaryBookingRepository.flush();
+
+        SubCourt court = subCourtRepository.findById(subCourtId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
+        AvailableTime time = timeRepository.findById(timeId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
+
+        Optional<TemporaryBooking> existingBookingOpt = temporaryBookingRepository
+                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(court, time, date);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (existingBookingOpt.isPresent()) {
+            TemporaryBooking existingBooking = existingBookingOpt.get();
+
+            if (existingBooking.isExpired()) {
+                temporaryBookingRepository.delete(existingBooking);
+                temporaryBookingRepository.flush();
+                // Tiếp tục tạo giữ chỗ mới bên dưới
+            } else {
+                if (!existingBooking.getUserId().equals(userId)) {
+                    long elapsedSeconds = Duration.between(existingBooking.getHoldStartTime(), now).getSeconds();
+                    long remainingTime = Math.max(180 - elapsedSeconds, 0);
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                            "status", "conflict",
+                            "message", "Khung giờ này đang được giữ. Vui lòng thử lại sau.",
+                            "remainingTime", remainingTime
+                    ));
+                } else {
+                    // Người dùng hiện tại giữ chỗ, gia hạn giữ chỗ
+                    existingBooking.setHoldStartTime(now);
+                    temporaryBookingRepository.save(existingBooking);
+                    return ResponseEntity.ok(Map.of(
+                            "status", "success",
+                            "message", "Tiếp tục giữ sân tạm thời",
+                            "remainingTime", 180
+                    ));
+                }
+            }
+        }
+
+        // Tạo giữ chỗ mới
+        TemporaryBooking newHold = new TemporaryBooking();
+        newHold.setSubCourt(court);
+        newHold.setAvailableTime(time);
+        newHold.setBookingDate(date);
+        newHold.setUserId(userId);
+        newHold.setHoldStartTime(now);
+
+        temporaryBookingRepository.save(newHold);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Giữ sân tạm thời thành công",
+                "remainingTime", 180
+        ));
+    }
+
+
 
     @PostMapping("/place-booking")
     public String handlePlaceBooking(Model model,

@@ -1,12 +1,13 @@
 package com.example.quanly.controller.client;
 
-import java.security.Principal;
-import java.util.*;
-
 import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.RegisterDTO;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,24 +17,19 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-
 import org.springframework.web.bind.annotation.*;
-
-import com.example.quanly.domain.dto.RegisterDTO;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import jakarta.validation.Valid;
-
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.Authentication;
+
+import java.security.Principal;
+import java.util.*;
 
 
 @Slf4j
@@ -147,6 +143,7 @@ public class HomePageController {
         currentUser.setId(id);
 
         List<RentalTool> rentalTools = this.rentalToolService.fetchRentalByUser(currentUser);
+        Collections.reverse(rentalTools);
         model.addAttribute("rentalHistories", rentalTools);
         return "client/racket/rental_history";
     }

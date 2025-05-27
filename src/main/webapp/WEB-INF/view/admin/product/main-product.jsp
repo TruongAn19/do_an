@@ -213,7 +213,7 @@
     <div id="layoutSidenav_content">
         <main>
             <div class="container-fluid px-4 py-4">
-                <h1 class="page-title mt-3">Manage Product</h1>
+                <h1 class="page-title mt-3">Manage Court</h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="/admin">Dashboard</a></li>

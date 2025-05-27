@@ -1,20 +1,23 @@
 package com.example.quanly.service;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
-
 import com.example.quanly.domain.*;
 import com.example.quanly.repository.*;
 import jakarta.servlet.http.HttpSession;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Optional;
 
 
 @Service
@@ -28,6 +31,7 @@ public class BookingService {
     ProductRepository productRepository;
     TimeRepository timeRepository;
     SubCourtRepository subCourtRepository;
+    TemporaryBookingRepository temporaryBookingRepository;
 
 
     public Page<Booking> fetchAllBookings(Pageable pageable) {
@@ -85,6 +89,7 @@ public class BookingService {
         return bookingRepository.findByBookingCodeContainingIgnoreCase(bookingCode);
     }
 
+    @Transactional
     public Booking handlePlaceBooking(User user, HttpSession session,
                                       String receiverName, String receiverAddress, String receiverPhone,
                                       long productId, long timeId, long subCourtId, LocalDate bookingDate) {
@@ -123,7 +128,29 @@ public class BookingService {
                     + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
         }
 
-        // 6. Tạo booking
+        //6.Kiểm tra giữ chỗ
+        Optional<TemporaryBooking> tempHold = temporaryBookingRepository
+                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(subCourt, time, bookingDate);
+
+        if (tempHold.isEmpty()) {
+            throw new IllegalArgumentException("Bạn cần giữ chỗ trước khi đặt sân.");
+        }
+
+        TemporaryBooking hold = tempHold.get();
+
+        if (hold.isExpired()) {
+            temporaryBookingRepository.delete(hold);
+            temporaryBookingRepository.flush(); // chắc chắn xóa rồi
+            throw new IllegalArgumentException("Giữ chỗ của bạn đã hết hạn. Vui lòng chọn lại.");
+        }
+
+        if (!hold.getUserId().equals(user.getId())) {
+            long elapsed = Duration.between(hold.getHoldStartTime(), LocalDateTime.now()).getSeconds();
+            long remainingTime = Math.max(180 - elapsed, 0);
+            throw new IllegalArgumentException("Sân đang được giữ bởi người khác. Vui lòng thử lại sau " + remainingTime + " giây.");
+        }
+
+        // 7. Tạo booking
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setReceiverName(receiverName);
@@ -134,12 +161,12 @@ public class BookingService {
         booking.setDepositPrice(product.getDepositPrice());
         booking.setStatus("Đã đặt");
 
-        // 7. Tính toán giá
+        // 8. Tính toán giá
         double pricePerItem = product.getPrice() - (product.getPrice() * product.getSale() / 100);
         booking.setTotalPrice(pricePerItem);
         Booking saveBooking = booking = bookingRepository.save(booking); // Lưu để có ID
 
-        // 8. Tạo booking detail
+        // 9. Tạo booking detail
         BookingDetail bookingDetail = new BookingDetail();
         bookingDetail.setBooking(booking);
         bookingDetail.setProduct(product);
@@ -149,6 +176,8 @@ public class BookingService {
         bookingDetail.setSale(product.getSale());
         bookingDetail.setAvailableTime(time);
         bookingDetailRepository.save(bookingDetail);
+
+        temporaryBookingRepository.deleteBySubCourtAndAvailableTimeAndBookingDate(subCourt, time, bookingDate);
         return saveBooking;
     }
 

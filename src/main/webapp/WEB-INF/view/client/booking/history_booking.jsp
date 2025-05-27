@@ -324,7 +324,7 @@
     <div class="container py-5">
         <div class="row">
             <div class="col-12">
-                <nav aria-label="breadcrumb">
+                <nav aria-label="breadcrumb"  style="margin-top: 125px">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="/HomePage"><i class="fas fa-home me-2"></i>Trang chủ</a>
                         </li>
