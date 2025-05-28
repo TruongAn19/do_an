@@ -278,7 +278,7 @@
         </div>
 
         <div class="row g-4">
-            <c:forEach var="mainProduct" items="${mainProducts}">
+            <c:forEach var="mainProduct" items="${topProducts}">
                 <div class="col-md-6 col-lg-4 col-xl-3">
                     <div class="product-card h-100 d-flex flex-column">
                         <div class="product-img">
@@ -338,7 +338,7 @@
         </div>
 
         <div class="row g-4">
-            <c:forEach var="racket" items="${racketList}">
+            <c:forEach var="racket" items="${topRackets}">
                 <div class="col-md-6 col-lg-4 col-xl-3">
                     <div class="product-card h-100 d-flex flex-column">
                         <div class="product-img">

@@ -124,8 +124,11 @@
                                     <h6 class="racket-name">
                                         <a href="/byProduct/${racket.id}">${racket.name}</a>
                                     </h6>
-                                    <p class="racket-price">
+                                    <p class="racket-price">Giá vợt:
                                         <fmt:formatNumber type="number" value="${racket.price}" /> đ
+                                    </p>
+                                    <p class="racket-price">Giá thuê:
+                                        <fmt:formatNumber type="number" value="${racket.rentalPricePerPlay}" /> đ
                                     </p>
                                     <form action="/user/rental-page/${racket.id}" method="get" class="mt-auto">
                                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />

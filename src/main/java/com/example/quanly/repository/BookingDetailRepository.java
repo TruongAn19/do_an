@@ -1,22 +1,22 @@
 package com.example.quanly.repository;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
+import com.example.quanly.domain.AvailableTime;
+import com.example.quanly.domain.BookingDetail;
+import com.example.quanly.domain.SubCourt;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.BookingDetail;
-import com.example.quanly.domain.SubCourt;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long>{
+public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long> {
     Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
-            LocalDate bookingDate);
+                                                                  LocalDate bookingDate);
 
     List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
 
@@ -30,4 +30,15 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
 
 
     List<BookingDetail> findByBookingId(long id);
+
+    @Query("""
+                SELECT bd.product.id
+                FROM BookingDetail bd
+                WHERE MONTH(bd.booking.bookingDate) = MONTH(CURRENT_DATE)
+                  AND YEAR(bd.booking.bookingDate) = YEAR(CURRENT_DATE)
+                GROUP BY bd.product.id
+                ORDER BY COUNT(bd.id) DESC
+            """)
+    List<Long> findTop4ProductIdsThisMonth(Pageable pageable);
+
 }

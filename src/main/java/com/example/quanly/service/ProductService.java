@@ -1,13 +1,13 @@
 package com.example.quanly.service;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
+import com.example.quanly.domain.AvailableTime;
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubCourtAvailableTime;
+import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.repository.*;
+import com.example.quanly.service.spectification.ProductSpec;
+import jakarta.persistence.criteria.Predicate;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,25 +16,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.BookingDetail;
-import com.example.quanly.domain.Product;
-import com.example.quanly.domain.SubCourt;
-import com.example.quanly.domain.SubCourtAvailableTime;
-import com.example.quanly.domain.User;
-import com.example.quanly.domain.dto.ProductCriteriaDTO;
-import com.example.quanly.repository.BookingDetailRepository;
-import com.example.quanly.repository.BookingRepository;
-import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.repository.SubCourtAvailableTimeRepository;
-import com.example.quanly.repository.SubCourtRepository;
-import com.example.quanly.repository.TimeRepository;
-import com.example.quanly.repository.UserRepository;
-import com.example.quanly.service.spectification.ProductSpec;
-
-import jakarta.servlet.http.HttpSession;
-import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -166,6 +151,10 @@ public class ProductService {
 
     public Product getProductByID(long productId) {
         return this.productRepository.getById(productId);
+    }
+
+    public Optional<Product> fetchProductById(long productId) {
+        return Optional.ofNullable(this.productRepository.getById(productId));
     }
 
     public void deleteAllProduct(long productId) {

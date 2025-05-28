@@ -324,7 +324,7 @@
     <div class="container py-5">
         <div class="row">
             <div class="col-12">
-                <nav aria-label="breadcrumb"  style="margin-top: 125px">
+                <nav aria-label="breadcrumb"  style="margin-top: 50px">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="/HomePage"><i class="fas fa-home me-2"></i>Trang chủ</a>
                         </li>
@@ -437,6 +437,7 @@
                                                     </c:otherwise>
                                                 </c:choose>
                                             </td>
+                                            <td><a href="/booking-history/${booking.id}">Xem chi tiết</a></td>
                                         </tr>
                                     </c:forEach>
                                     </tbody>

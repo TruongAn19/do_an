@@ -2,7 +2,6 @@ package com.example.quanly.repository;
 
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.RentalToolStatus;
-import com.example.quanly.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -55,6 +54,17 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
 
     Page<RentalTool> findByType(String type, Pageable pageable);
+
     Page<RentalTool> findByRentalToolCodeContaining(String code, Pageable pageable);
+
+    @Query("""
+                SELECT r.racketId
+                FROM RentalTool r
+                WHERE MONTH(r.rentalDate) = MONTH(CURRENT_DATE)
+                  AND YEAR(r.rentalDate) = YEAR(CURRENT_DATE)
+                GROUP BY r.racketId
+                ORDER BY COUNT(r.id) DESC
+            """)
+    List<Long> findTop4RacketIdsThisMonth(Pageable pageable);
 
 }

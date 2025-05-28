@@ -2,6 +2,7 @@ package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.RegisterDTO;
+import com.example.quanly.repository.BookingDetailRepository;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,32 +47,44 @@ public class HomePageController {
     RentalToolRepository rentalToolRepository;
     RentalToolService rentalToolService;
     RacketService racketService;
+    BookingDetailRepository bookingDetailRepository;
 
 
 
     @GetMapping("/HomePage")
     public String getHomePage(Model model, @RequestParam("page") Optional<String> pageOptional) {
-        int page = 1;
-        try {
-            if (pageOptional.isPresent()) {
-                // convert from String to int
-                page = Integer.parseInt(pageOptional.get());
-            } else {
-                // page = 1
-            }
-        } catch (Exception e) {
-            // page = 1
-            // TODO: handle exception
-        }
+        int page = pageOptional.map(Integer::parseInt).orElse(1);
         Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Product> mainProducts = this.productService.getAllProduct(pageable);
-        Page<Racket> byProducts = this.racketService.getAllRacket(pageable);
-        List<Product> listMainProducts = mainProducts.getContent();
-        List<Racket> racketList = byProducts.getContent();
-        model.addAttribute("mainProducts", listMainProducts);
-        model.addAttribute("racketList", racketList);
+
+        // Paging sản phẩm thông thường
+        Page<Product> mainProducts = productService.getAllProduct(pageable);
+        Page<Racket> byProducts = racketService.getAllRacket(pageable);
+
+        // Top 4 sân
+        List<Long> topProductIds = bookingDetailRepository.findTop4ProductIdsThisMonth(PageRequest.of(0, 4));
+        List<Product> topProducts = topProductIds.stream()
+                .map(productService::fetchProductById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+
+        // Top 4 vợt
+        List<Long> topRacketIds = rentalToolRepository.findTop4RacketIdsThisMonth(PageRequest.of(0, 4));
+        List<Racket> topRackets = topRacketIds.stream()
+                .map(racketService::getRacketById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+
+        model.addAttribute("mainProducts", mainProducts.getContent());
+        model.addAttribute("racketList", byProducts.getContent());
+        model.addAttribute("topProducts", topProducts);
+        model.addAttribute("topRackets", topRackets);
+
         return "client/homepage/show";
     }
+
+
 
     @GetMapping("/register")
     public String getMethodName(Model model) {
@@ -133,6 +146,18 @@ public class HomePageController {
 
         return "client/booking/history_booking";
     }
+
+    @GetMapping("/booking-history/{id}")
+    public String getBookingDetail(@PathVariable("id") Long id, Model model) {
+        Booking booking = this.bookingService.fetchBookingById(id).get();
+        List<RentalTool> rentalTool = this.rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId()));
+        model.addAttribute("booking", booking);
+        model.addAttribute("id", id);
+        model.addAttribute("bookingDetails", booking.getBookingDetails());
+        model.addAttribute("rentalTool", rentalTool);
+        return "client/booking/history_booking_detail";
+    }
+
 
 
     @GetMapping("/rental-history")
