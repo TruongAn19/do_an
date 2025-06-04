@@ -31,6 +31,15 @@
     <!-- Template Stylesheet -->
     <link href="/client/css/style.css" rel="stylesheet">
 
+    <!-- Leaflet + Routing -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+    <style>
+        #map { height: 500px; width: 100%; margin-top: 10px; }
+        #search-box { margin: 10px 0; }
+    </style>
+
     <!-- Custom CSS for this page -->
     <style>
         .court-image {
@@ -311,12 +320,25 @@
                             <i class="fas fa-table-tennis me-2"></i> Số lượng sân: ${product.quantity}
                         </div>
 
-                        <div class="text-center text-lg-start">
-                            <a href="/booking/${product.id}" class="booking-btn">
-                                <i class="fa fa-calendar-check me-2"></i> Đặt Sân Ngay
-                                <i class="fas fa-arrow-right ms-2"></i>
-                            </a>
+                        <div class="text-center">
+                            <c:choose>
+                                <c:when test="${product.status == 'MAINTAINING'}">
+                                    <p class="text-danger fw-bold">Sân đang bảo trì</p>
+                                </c:when>
+
+                                <c:otherwise>
+                                    <div class="text-center text-lg-start">
+                                        <a href="/booking/${product.id}" class="booking-btn">
+                                            <i class="fa fa-calendar-check me-2"></i> Đặt Sân Ngay
+                                            <i class="fas fa-arrow-right ms-2"></i>
+                                        </a>
+                                    </div>
+                                </c:otherwise>
+                            </c:choose>
                         </div>
+
+
+
                     </div>
 
                     <div class="col-lg-12 description-container">
@@ -409,6 +431,14 @@
 </div>
 <!-- Single Product End -->
 
+<div id="search-box">
+    <input type="text" id="destination" placeholder="Nhập địa chỉ cần đến..." size="50" />
+    <button onclick="searchAddress()">Chỉ đường</button>
+</div>
+<div id="route-info" style="margin-top:10px; font-weight:bold;"></div>
+
+<div id="map"></div>
+
 <jsp:include page="../layout/footer.jsp" />
 
 <!-- Back to Top -->
@@ -436,6 +466,113 @@
         element.classList.add('active');
     }
 </script>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+<script>
+    let map;
+    let productLat, productLng; // Tọa độ sản phẩm (cố định)
+    let routingControl;
+
+    // Lấy tọa độ từ địa chỉ sản phẩm khi khởi tạo
+    const productAddress = "${product.address}";
+
+    // Hàm khởi tạo bản đồ
+    function initMap(centerLat, centerLng) {
+        map = L.map('map').setView([centerLat, centerLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+    }
+
+    // Hàm lấy tọa độ từ địa chỉ
+    function getCoordsFromAddress(address, callback) {
+        fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(address))
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    callback(lat, lng);
+                } else {
+                    alert("Không tìm thấy địa chỉ.");
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi lấy tọa độ:", err);
+                alert("Có lỗi xảy ra khi tìm địa chỉ.");
+            });
+    }
+
+    // Hàm vẽ tuyến đường từ sản phẩm đến đích
+    function drawRouteTo(targetLat, targetLng) {
+        if (routingControl) {
+            map.removeControl(routingControl);
+        }
+
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(productLat, productLng),   // Điểm bắt đầu: sản phẩm
+                L.latLng(targetLat, targetLng)      // Điểm đến
+            ],
+            routeWhileDragging: false
+        }).addTo(map);
+
+        routingControl.on('routesfound', function (e) {
+            const summary = e.routes[0].summary;
+            const distanceInKm = (summary.totalDistance / 1000).toFixed(2);
+            const timeInMin = Math.round(summary.totalTime / 60);
+
+            document.getElementById('route-info').innerText =
+                "Khoảng cách: " + distanceInKm + " km, Thời gian ước tính: " + timeInMin + " phút";
+        });
+
+        map.setView([targetLat, targetLng], 14);
+    }
+
+    // Hàm xử lý nhập địa chỉ mới
+    function searchAddress() {
+        const address = document.getElementById('destination').value;
+        if (!address) {
+            alert("Vui lòng nhập địa chỉ!");
+            return;
+        }
+
+        getCoordsFromAddress(address, function (targetLat, targetLng) {
+            drawRouteTo(targetLat, targetLng);
+        });
+    }
+
+    // Khi trang load
+    window.onload = function () {
+        getCoordsFromAddress(productAddress, function (lat, lng) {
+            productLat = lat;
+            productLng = lng;
+
+            initMap(productLat, productLng);
+
+            L.marker([productLat, productLng]).addTo(map).bindPopup("Vị trí sản phẩm").openPopup();
+
+            // Lấy vị trí hiện tại của người dùng
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+
+                    L.marker([userLat, userLng]).addTo(map).bindPopup("Vị trí của bạn").openPopup();
+                    drawRouteTo(userLat, userLng);
+                }, function () {
+                    alert("Không thể lấy vị trí hiện tại.");
+                });
+            } else {
+                alert("Trình duyệt không hỗ trợ định vị.");
+            }
+        });
+    };
+</script>
+
+
 </body>
 
 </html>

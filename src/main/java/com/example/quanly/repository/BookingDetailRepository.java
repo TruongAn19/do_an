@@ -3,6 +3,7 @@ package com.example.quanly.repository;
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.BookingDetail;
 import com.example.quanly.domain.SubCourt;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,11 +35,11 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
     @Query("""
                 SELECT bd.product.id
                 FROM BookingDetail bd
-                WHERE MONTH(bd.booking.bookingDate) = MONTH(CURRENT_DATE)
-                  AND YEAR(bd.booking.bookingDate) = YEAR(CURRENT_DATE)
+                WHERE MONTH(bd.booking.bookingDate) = :month
+                  AND YEAR(bd.booking.bookingDate) = :year
                 GROUP BY bd.product.id
                 ORDER BY COUNT(bd.id) DESC
             """)
-    List<Long> findTop4ProductIdsThisMonth(Pageable pageable);
+    List<Long> findTop4ProductIdsByMonth(@Param("year") int year, @Param("month") int month, Pageable pageable);
 
 }

@@ -3,6 +3,7 @@ package com.example.quanly.repository;
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.RentalToolStatus;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -60,11 +61,11 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     @Query("""
                 SELECT r.racketId
                 FROM RentalTool r
-                WHERE MONTH(r.rentalDate) = MONTH(CURRENT_DATE)
-                  AND YEAR(r.rentalDate) = YEAR(CURRENT_DATE)
+                WHERE MONTH(r.rentalDate) = :month
+                  AND YEAR(r.rentalDate) = :year
                 GROUP BY r.racketId
                 ORDER BY COUNT(r.id) DESC
             """)
-    List<Long> findTop4RacketIdsThisMonth(Pageable pageable);
+    List<Long> findTop4RacketIdsByMonth(@Param("year") int year, @Param("month") int month, Pageable pageable);
 
 }

@@ -302,7 +302,7 @@
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
 
             <div class="forgot-password">
-                <a href="#">Quên mật khẩu?</a>
+                <a href="/api/forgot-password">Quên mật khẩu?</a>
             </div>
 
             <button type="submit" class="login-btn">Đăng nhập</button>

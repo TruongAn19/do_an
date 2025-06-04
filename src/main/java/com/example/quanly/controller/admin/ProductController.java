@@ -1,12 +1,9 @@
 package com.example.quanly.controller.admin;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
-import java.util.Map;
-import java.util.Optional;
-
+import com.example.quanly.domain.Product;
 import com.example.quanly.service.BookingStatsService;
+import com.example.quanly.service.ProductService;
+import com.example.quanly.service.UploadService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,17 +13,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-
-import com.example.quanly.domain.Product;
-import com.example.quanly.service.ProductService;
-import com.example.quanly.service.UploadService;
-
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.Map;
+import java.util.Optional;
 
 @Controller
 @RequiredArgsConstructor
@@ -58,7 +52,7 @@ public class ProductController {
             model.addAttribute("searchTerm", searchTerm); // Giữ lại từ khóa tìm kiếm
         } else {
             // Lấy tất cả sản phẩm
-            mainProducts = this.productService.getAllProduct(pageable);
+            mainProducts = this.productService.getAllProductAdmin(pageable);
         }
         model.addAttribute("mainProducts", mainProducts.getContent());
         model.addAttribute("currentPage", page);
@@ -78,6 +72,7 @@ public class ProductController {
         String productImage = this.uploadService.handleSaveUploadFile(file, "product");
         product.setDetailDesc(product.getDetailDesc().replace("\n", "<br>"));
         product.setImage(productImage);
+        product.setStatus("AVAILABLE");
         this.productService.handSaveProduct(product);
 
         return "redirect:/admin/mainProduct";
@@ -110,6 +105,7 @@ public class ProductController {
             existProduct.setAddress(product.getAddress());
             existProduct.setSale(product.getSale());
             existProduct.setPrice(product.getPrice());
+            existProduct.setStatus(product.getStatus());
 
             // Kiểm tra nếu người dùng có tải lên ảnh mới
             if (!file.isEmpty()) {

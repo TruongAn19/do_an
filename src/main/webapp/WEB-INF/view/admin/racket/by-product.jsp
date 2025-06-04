@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <meta name="description" content="Dự án sancaulong" />
     <meta name="author" content="TruongAn" />
-    <title>Product</title>
+    <title>Racket</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" />
     <link href="/css/styles.css" rel="stylesheet" />
     <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
@@ -196,6 +196,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Price</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                                 </thead>
@@ -230,15 +231,26 @@
                                                     <span class="price-badge"><fmt:formatNumber value="${racket.price}" type="number" /> đ</span>
                                                 </td>
                                                 <td>
+                                                    <c:choose>
+                                                        <c:when test="${racket.status == 'AVAILABLE'}">
+                                                            <h6 class="mb-0 text-success">Sẵn sàng</h6>
+                                                        </c:when>
+                                                        <c:when test="${racket.status == 'DELETED'}">
+                                                            <h6 class="mb-0 text-danger">Đã xoá</h6>
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <h6 class="mb-0 text-secondary">${racket.status}</h6> <%-- Phòng trường hợp giá trị khác --%>
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </td>
+
+                                                <td>
                                                     <div class="action-buttons">
                                                         <a href="/admin/racket/${racket.id}" class="btn btn-success btn-sm" title="View">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
                                                         <a href="/admin/racket/update_byProduct/${racket.id}" class="btn btn-warning btn-sm" title="Update">
                                                             <i class="fas fa-edit"></i>
-                                                        </a>
-                                                        <a href="/admin/racket/delete_racket/${racket.id}" class="btn btn-danger btn-sm" title="Delete">
-                                                            <i class="fas fa-trash"></i>
                                                         </a>
                                                     </div>
                                                 </td>

@@ -204,6 +204,67 @@
             font-size: 1rem;
         }
     </style>
+
+    <style>
+        .table {
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            padding: 12px 15px;
+        }
+
+        .table tbody tr {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+
+        .table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .table td {
+            padding: 15px;
+            vertical-align: middle;
+            border-top: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .table td:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+
+        .table td:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .avatar-sm {
+            transition: all 0.3s ease;
+        }
+
+        tr:hover .avatar-sm {
+            transform: scale(1.1);
+            background-color: var(--bs-primary-bg-subtle)!important;
+        }
+
+        .price-badge, .sale-badge {
+            font-size: 0.85rem;
+            min-width: 80px;
+            display: inline-block;
+        }
+    </style>
 </head>
 
 <body class="sb-nav-fixed">
@@ -260,53 +321,93 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="bg-light">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Address</th>
-                                    <th>Price</th>
-                                    <th>Sale</th>
-                                    <th>Action</th>
+                                    <th class="text-center" style="width: 20%">Product</th>
+                                    <th class="text-center" style="width: 20%">Address</th>
+                                    <th class="text-center" style="width: 15%">Price</th>
+                                    <th class="text-center" style="width: 10%">Sale</th>
+                                    <th class="text-center" style="width: 15%">Status</th>
+                                    <th class="text-center" style="width: 20%">Actions</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <c:forEach var="product" items="${mainProducts}">
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="avatar-sm bg-light rounded-circle me-3 d-flex align-items-center justify-content-center"
-                                                     style="width: 40px; height: 40px;">
+                                    <tr class="position-relative">
+                                        <!-- Product Name Column -->
+                                        <td class="text-center">
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <div class="avatar-sm bg-light rounded p-2 me-3 d-flex align-items-center justify-content-center shadow-sm"
+                                                     style="width: 40px; height: 40px; background-color: #f8f9fa!important;">
                                                     <i class="fas fa-box text-primary"></i>
                                                 </div>
                                                 <div>
-                                                    <h6 class="mb-0">${product.name}</h6>
+                                                    <h6 class="mb-0 fw-semibold">${product.name}</h6>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>${product.address}</td>
-                                        <td>
-                                            <span class="price-badge">
-                                                    <fmt:formatNumber value="${product.price}" type="number" maxFractionDigits="0"/>đ
-                                            </span>
+
+                                        <!-- Address Column -->
+                                        <td class="text-center">
+                <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                      data-bs-toggle="tooltip" data-bs-placement="top" title="${product.address}">
+                        ${product.address}
+                </span>
                                         </td>
 
-                                        <td>
-                                            <span class="sale-badge">${product.sale}%</span>
+                                        <!-- Price Column -->
+                                        <td class="text-center">
+                <span class="price-badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fw-medium">
+                    <fmt:formatNumber value="${product.price}" type="number" maxFractionDigits="0"/> VNĐ
+                </span>
                                         </td>
-                                        <td>
-                                            <div class="action-buttons">
+
+                                        <!-- Sale Column -->
+                                        <td class="text-center">
+                <span class="sale-badge bg-success bg-opacity-10 text-success px-3 py-1 rounded-pill fw-medium">
+                    ${product.sale}%
+                </span>
+                                        </td>
+
+                                        <!-- Status Column -->
+                                        <td class="text-center">
+                                            <c:choose>
+                                                <c:when test="${product.status == 'AVAILABLE'}">
+                        <span class="badge bg-success bg-opacity-10 text-success py-2 px-3 rounded-pill">
+                            <i class="fas fa-check-circle me-1"></i> Sẵn sàng
+                        </span>
+                                                </c:when>
+                                                <c:when test="${product.status == 'DELETED'}">
+                        <span class="badge bg-danger bg-opacity-10 text-danger py-2 px-3 rounded-pill">
+                            <i class="fas fa-times-circle me-1"></i> Đã xoá
+                        </span>
+                                                </c:when>
+                                                <c:when test="${product.status == 'MAINTAINING'}">
+                        <span class="badge bg-warning bg-opacity-10 text-warning py-2 px-3 rounded-pill">
+                            <i class="fas fa-tools me-1"></i> Đang bảo trì
+                        </span>
+                                                </c:when>
+                                                <c:otherwise>
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary py-2 px-3 rounded-pill">
+                            <i class="fas fa-question-circle me-1"></i> ${product.status}
+                        </span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </td>
+
+                                        <!-- Actions Column -->
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center gap-2">
                                                 <a href="/admin/mainProduct/${product.id}"
-                                                   class="btn btn-success btn-sm">
-                                                    <i class="fas fa-eye me-1"></i>View
+                                                   class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 d-flex align-items-center"
+                                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View details">
+                                                    <i class="fas fa-eye me-1"></i> View
                                                 </a>
                                                 <a href="/admin/product/update_mainProduct/${product.id}"
-                                                   class="btn btn-warning btn-sm">
-                                                    <i class="fas fa-edit me-1"></i>Update
-                                                </a>
-                                                <a href="/admin/product/delete_product/${product.id}"
-                                                   class="btn btn-danger btn-sm">
-                                                    <i class="fas fa-trash me-1"></i>Delete
+                                                   class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1 d-flex align-items-center"
+                                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit product">
+                                                    <i class="fas fa-edit me-1"></i> Edit
                                                 </a>
                                             </div>
                                         </td>
@@ -355,6 +456,15 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
         crossorigin="anonymous"></script>
 <script src="/js/scripts.js"></script>
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    })
+</script>
 </body>
 
 </html>

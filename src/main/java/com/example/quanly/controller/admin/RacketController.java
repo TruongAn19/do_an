@@ -1,27 +1,22 @@
 package com.example.quanly.controller.admin;
 
-import java.util.List;
-import java.util.Optional;
-
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.Racket;
+import com.example.quanly.repository.ProductRepository;
+import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RacketStockByDateService;
+import com.example.quanly.service.UploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.quanly.domain.Product;
-import com.example.quanly.domain.Racket;
-import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.service.RacketService;
-import com.example.quanly.service.UploadService;
+import java.util.List;
+import java.util.Optional;
 
 @Controller
 public class RacketController {
@@ -78,6 +73,7 @@ public class RacketController {
             @RequestParam("racketImg") MultipartFile file) {
         String racketImage = this.uploadService.handleSaveUploadFile(file, "racket");
         racket.setImage(racketImage);
+        racket.setStatus("AVAILABLE");
         Racket saveRacket = this.racketService.handSaveRacket(racket);
         racketStockByDateService.generateStockForRacket(saveRacket);
         return "redirect:/admin/racket";
@@ -109,6 +105,7 @@ public class RacketController {
             existing.setRentalPricePerPlay(racket.getRentalPricePerPlay());
             existing.setBookingStockQuantity(racket.getBookingStockQuantity());
             existing.setQuantity(racket.getQuantity());
+            existing.setStatus(racket.getStatus());
             existing.setProduct(racket.getProduct());// nhớ lấy product
             if (!file.isEmpty()) {
                 String racketImg = this.uploadService.handleSaveUploadFile(file, "racket");
@@ -121,19 +118,6 @@ public class RacketController {
         return "redirect:/admin/racket";
     }
 
-    @GetMapping("/admin/racket/delete_racket/{racketId}")
-    public String getDeleteProductPage(Model model, @PathVariable long racketId) {
-        Optional<Racket> racket = this.racketService.getRacketById(racketId);
-        model.addAttribute("racket", racket.orElse(new Racket())); // Để binding với form
-        model.addAttribute("racketId", racketId);
-        return "admin/racket/delete_racket";
-    }
-
-    @PostMapping("/admin/racket/delete_racket")
-    public String postDeleteProduct(@ModelAttribute("racket") Racket racket) {
-        this.racketService.deleteRacket(racket.getId());
-        return "redirect:/admin/racket"; // Redirect đúng trang list sản phẩm của bạn
-    }
 
 
 }

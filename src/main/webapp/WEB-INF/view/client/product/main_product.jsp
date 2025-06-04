@@ -438,9 +438,19 @@
                                             </c:otherwise>
                                         </c:choose>
                                         <div class="text-center">
-                                            <a href="/booking/${mainProduct.id}" class="btn book-btn">
-                                                <i class="fa fa-calendar-check me-2"></i> Book a course
-                                            </a>
+                                            <c:choose>
+                                                <c:when test="${mainProduct.status == 'MAINTAINING'}">
+                                                    <p class="text-danger fw-bold">Sân đang bảo trì</p>
+                                                </c:when>
+
+                                                <c:otherwise>
+                                                    <div class="text-center">
+                                                        <a href="/booking/${mainProduct.id}" class="btn book-btn">
+                                                            <i class="fa fa-calendar-check me-2"></i> Book a course
+                                                        </a>
+                                                    </div>
+                                                </c:otherwise>
+                                            </c:choose>
                                         </div>
                                     </div>
                                 </div>

@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
+import java.time.YearMonth;
 import java.util.*;
 
 
@@ -49,33 +50,58 @@ public class HomePageController {
     RacketService racketService;
     BookingDetailRepository bookingDetailRepository;
 
+    @GetMapping("/rules")
+    public String getRulus() {
+        return ("client/homepage/rules");
+    }
 
+    @GetMapping("/introduce")
+    public String getIntroduce() {
+        return ("client/homepage/introduce");
+    }
 
     @GetMapping("/HomePage")
     public String getHomePage(Model model, @RequestParam("page") Optional<String> pageOptional) {
         int page = pageOptional.map(Integer::parseInt).orElse(1);
         Pageable pageable = PageRequest.of(page - 1, 4);
 
-        // Paging sản phẩm thông thường
-        Page<Product> mainProducts = productService.getAllProduct(pageable);
+        // Paging sản phẩm và vợt
+        Page<Product> mainProducts = productService.getAllProductClient(pageable);
         Page<Racket> byProducts = racketService.getAllRacket(pageable);
 
-        // Top 4 sân
-        List<Long> topProductIds = bookingDetailRepository.findTop4ProductIdsThisMonth(PageRequest.of(0, 4));
+        // Lấy tháng hiện tại và tháng trước
+        YearMonth currentMonth = YearMonth.now();
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+
+        // Top 4 sân tháng này, nếu không có thì lấy tháng trước
+        List<Long> topProductIds = bookingDetailRepository.findTop4ProductIdsByMonth(
+                currentMonth.getYear(), currentMonth.getMonthValue(), PageRequest.of(0, 4));
+        if (topProductIds.isEmpty()) {
+            topProductIds = bookingDetailRepository.findTop4ProductIdsByMonth(
+                    previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
+        }
+
         List<Product> topProducts = topProductIds.stream()
                 .map(productService::fetchProductById)
-                .filter(Optional::isPresent)
+                .filter(opt -> opt.isPresent() && !"DELETED".equals(opt.get().getStatus()))
                 .map(Optional::get)
                 .toList();
 
-        // Top 4 vợt
-        List<Long> topRacketIds = rentalToolRepository.findTop4RacketIdsThisMonth(PageRequest.of(0, 4));
+        // Top 4 vợt tháng này, nếu không có thì lấy tháng trước
+        List<Long> topRacketIds = rentalToolRepository.findTop4RacketIdsByMonth(
+                currentMonth.getYear(), currentMonth.getMonthValue(), PageRequest.of(0, 4));
+        if (topRacketIds.isEmpty()) {
+            topRacketIds = rentalToolRepository.findTop4RacketIdsByMonth(
+                    previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
+        }
+
         List<Racket> topRackets = topRacketIds.stream()
                 .map(racketService::getRacketById)
-                .filter(Optional::isPresent)
+                .filter(opt -> opt.isPresent() && !"DELETED".equals(opt.get().getStatus()))
                 .map(Optional::get)
                 .toList();
 
+        // Add to model
         model.addAttribute("mainProducts", mainProducts.getContent());
         model.addAttribute("racketList", byProducts.getContent());
         model.addAttribute("topProducts", topProducts);
@@ -83,6 +109,7 @@ public class HomePageController {
 
         return "client/homepage/show";
     }
+
 
 
 

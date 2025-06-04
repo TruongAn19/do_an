@@ -38,7 +38,11 @@ public class ProductService {
 
 
     // Sân đấu
-    public Page<Product> getAllProduct(Pageable pageable) {
+    public Page<Product> getAllProductClient(Pageable pageable) {
+        return this.productRepository.findByStatusNot("DELETED", pageable);
+    }
+
+    public Page<Product> getAllProductAdmin(Pageable pageable) {
         return this.productRepository.findAll(pageable);
     }
 

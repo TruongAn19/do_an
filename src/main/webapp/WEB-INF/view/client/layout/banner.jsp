@@ -23,28 +23,20 @@
                     <div class="hero-features mb-4">
                         <div class="row g-3 justify-content-center">
                             <div class="col-lg-3 col-md-6 col-sm-6">
-                                <div class="feature-item bg-light rounded p-3 text-center">
-                                    <i class="fas fa-lightbulb text-primary mb-2"></i>
-                                    <p class="mb-0">Ánh sáng tốt</p>
-                                </div>
+                                <a href="/introduce">
+                                    <div class="feature-item bg-light rounded p-3 text-center">
+                                        <i class="fas fa-info-circle text-primary mb-2"></i>
+                                        <p class="mb-0">Giới thiệu</p>
+                                    </div>
+                                </a>
                             </div>
                             <div class="col-lg-3 col-md-6 col-sm-6">
-                                <div class="feature-item bg-light rounded p-3 text-center">
-                                    <i class="fas fa-wind text-primary mb-2"></i>
-                                    <p class="mb-0">Thông thoáng</p>
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-6 col-sm-6">
-                                <div class="feature-item bg-light rounded p-3 text-center">
-                                    <i class="fas fa-broom text-primary mb-2"></i>
-                                    <p class="mb-0">Sạch sẽ</p>
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-md-6 col-sm-6">
-                                <div class="feature-item bg-light rounded p-3 text-center">
-                                    <i class="fas fa-headset text-primary mb-2"></i>
-                                    <p class="mb-0">Hỗ trợ 24/7</p>
-                                </div>
+                                <a href="/rules">
+                                    <div class="feature-item bg-light rounded p-3 text-center">
+                                        <i class="fas fa-clipboard-list text-primary mb-2"></i>
+                                        <p class="mb-0">Nội quy</p>
+                                    </div>
+                                </a>
                             </div>
                         </div>
                     </div>

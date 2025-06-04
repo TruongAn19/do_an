@@ -2,51 +2,31 @@ package com.example.quanly.controller.client;
 
 // import static org.mockito.Mockito.times;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import com.example.quanly.domain.*;
-import com.example.quanly.repository.BookingDetailRepository;
-import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.repository.SubCourtRepository;
-import com.example.quanly.repository.TimeRepository;
-import com.example.quanly.service.*;
+import com.example.quanly.domain.AvailableTime;
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.Product_;
+import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.service.ProductService;
+import com.example.quanly.service.RacketService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration;
-import com.example.quanly.domain.*;
-import com.example.quanly.repository.*;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-
-import com.example.quanly.domain.dto.ProductCriteriaDTO;
-import com.example.quanly.service.ProductService;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Controller
@@ -98,7 +78,7 @@ public class ItemController {
                 && (productCriteriaDTO.getAddress() != null || productCriteriaDTO.getPrice() != null)) {
             mainProduct = this.productService.getAllProductWithSpec(pageable, productCriteriaDTO);
         } else {
-            mainProduct = this.productService.getAllProduct(pageable);
+            mainProduct = this.productService.getAllProductClient(pageable);
         }
 
         int totalPages = Math.max(mainProduct.getTotalPages(), 0);

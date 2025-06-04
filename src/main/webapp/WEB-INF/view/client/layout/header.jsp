@@ -16,15 +16,22 @@
 
             <div class="collapse navbar-collapse" id="navbarCollapse">
                 <div class="navbar-nav mx-auto py-0">
-                    <a href="/HomePage" class="nav-item nav-link ${pageContext.request.requestURI eq '/HomePage' ? 'active' : ''}">
+                    <a href="/HomePage" class="nav-item nav-link ${pageContext.request.requestURI == '/HomePage' ? 'active' : ''}">
                         <i class="fas fa-home me-2"></i>Trang chủ
                     </a>
-                    <a href="/main-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/courts' ? 'active' : ''}">
+
+                    <a href="/main-products" class="nav-item nav-link ${pageContext.request.requestURI.startsWith('/courts') ? 'active' : ''}">
                         <i class="fas fa-table-tennis me-2"></i>Sân cầu lông
                     </a>
-                    <a href="/by-products" class="nav-item nav-link ${pageContext.request.requestURI eq '/racket' ? 'active' : ''}">
+
+                    <a href="/by-products" class="nav-item nav-link ${pageContext.request.requestURI.startsWith('/racket') ? 'active' : ''}">
                         <i class="fas fa-shopping-basket me-2"></i>Vợt cầu lông
                     </a>
+
+                    <a href="/match-posts" class="nav-item nav-link ${pageContext.request.requestURI.startsWith('/match-posts') ? 'active' : ''}">
+                        <i class="fas fa-users me-2"></i>Tìm bạn chơi
+                    </a>
+
                 </div>
 
                 <div class="d-flex align-items-center">

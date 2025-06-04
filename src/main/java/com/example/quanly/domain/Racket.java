@@ -34,6 +34,8 @@ public class Racket {
 
     private int quantity; // số vợt cho thuê
 
+    private String status;
+
     @ManyToOne(fetch = FetchType.EAGER)
     private Product product;
 }

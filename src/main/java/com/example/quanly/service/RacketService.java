@@ -1,23 +1,21 @@
 package com.example.quanly.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.domain.Racket;
+import com.example.quanly.repository.RacketRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-// import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import com.example.quanly.domain.Product;
-import com.example.quanly.domain.Racket;
-import com.example.quanly.repository.RacketRepository;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+// import org.springframework.data.jpa.domain.Specification;
 // import com.example.quanly.service.spectification.ProductSpec;
 
 @Service
@@ -51,6 +49,8 @@ public class RacketService {
 
     public Page<Racket> getRackets(List<String> factories, List<String> prices, String sort, Pageable pageable) {
         Specification<Racket> spec = Specification.where(null);
+
+        spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), "DELETED"));
 
         // Lọc theo hãng sản xuất
         if (factories != null && !factories.isEmpty()) {

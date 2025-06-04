@@ -1,18 +1,16 @@
 package com.example.quanly.service;
 
-import java.util.List;
-
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import com.example.quanly.domain.Role;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.RoleRepository;
 import com.example.quanly.repository.UserRepository;
-
 import jakarta.annotation.PostConstruct;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -110,5 +108,10 @@ public class UserService {
 
     public User findByEmail(String email) {
         return this.userRepository.findByEmail(email);
+    }
+
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 }
