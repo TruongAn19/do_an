@@ -9,7 +9,6 @@ on:
 
 env:
   JAR_FILE_NAME: 'quanly-0.0.1-SNAPSHOT.jar'
-  TARGET_PATH: ''
   EC2_HOST: ${{ secrets.HOST }}
   EC2_USERNAME: ${{ secrets.USER_NAME }}
   EC2_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -29,11 +28,11 @@ jobs:
           distribution: 'adopt'
     
       - name: Build JAR
-        run: cd ${{ env.TARGET_PATH }} && mvn package -DskipTests
+        run: mvn package -DskipTests
       
       - name: Rename JAR
         run: |
-          mv ${{ env.TARGET_PATH }}/target/Module-Backend-0.1.jar ${{ env.TARGET_PATH }}/target/${{ env.JAR_FILE_NAME }}
+          mv /target/quanly-0.0.1-SNAPSHOT.jar target/${{ env.JAR_FILE_NAME }}
       
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@master
@@ -41,8 +40,8 @@ jobs:
           host: ${{ env.HOST }}
           username: ${{ env.USERNAME }}
           key: ${{ env.PRIVATE_KEY }}
-          source: '${{ env.TARGET_PATH }}/target/${{ env.JAR_FILE_NAME }}'
-          target: '${{ env.TARGET_PATH }}'
+          source: 'target/${{ env.JAR_FILE_NAME }}'
+          target: '~app'
           
       - name: Deploying ... 
         uses: appleboy/ssh-action@master
@@ -56,7 +55,7 @@ jobs:
                 tmux kill-session -t deployment
               fi
             }
-            cd ${{ env.TARGET_PATH }}/target
+            cd ~/app
             tmux new-session -d -s deployment 'java -jar ${{ env.JAR_FILE_NAME }}'
 
 
