@@ -5,10 +5,14 @@ import com.example.quanly.domain.MatchPost;
 import com.example.quanly.domain.User;
 import com.example.quanly.repository.MatchParticipantRepository;
 import com.example.quanly.repository.MatchPostRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -19,70 +23,66 @@ public class MatchPostService {
     private final MatchParticipantRepository participantRepository;
     private final NotificationService notificationService;
 
-    public List<MatchPost> searchPosts(String area, LocalDate playDate) {
-        return matchPostRepository.findByAreaAndPlayDateAndStatus(area, playDate, "open");
+    public Page<MatchPost> getAllPosts(Pageable pageable) {
+        return matchPostRepository.findByStatusNot("expired", pageable);
+    }
+
+    public Page<MatchPost> searchPosts(String area, LocalDate playDate, String skillLevel, Pageable pageable) {
+        if (skillLevel == null || skillLevel.isBlank()) {
+            return matchPostRepository.findByAreaAndPlayDateAndStatus(area, playDate, "open", pageable);
+        } else {
+            return matchPostRepository.findByAreaAndPlayDateAndSkillLevelAndStatus(area, playDate, skillLevel, "open", pageable);
+        }
     }
 
     public MatchPost createPost(MatchPost post, User creator) {
-        post.setUser(creator);
-        post.setStatus("open");
-        post.setCurrentParticipants(0); // Khởi tạo số người tham gia ban đầu
-
         if (post.getMaxParticipants() <= 0) {
-            throw new RuntimeException("Số người tham gia tối đa phải lớn hơn 0");
+            throw new IllegalArgumentException("Số người tham gia tối đa phải lớn hơn 0");
         }
 
+        post.setUser(creator);
+        post.setStatus("open");
+        post.setCurrentParticipants(0);
         return matchPostRepository.save(post);
     }
 
     public MatchPost getPostById(Long id) {
         return matchPostRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
     }
 
     public MatchParticipant joinPost(Long postId, User user) {
         MatchPost post = getPostById(postId);
 
-        // Kiểm tra trạng thái bài đăng
-        if ("closed".equals(post.getStatus())) {
-            throw new RuntimeException("Bài đăng đã bị huỷ");
-        }
-
-        if ("full".equals(post.getStatus())) {
-            throw new RuntimeException("Bài đăng đã đủ người tham gia");
-        }
-
-        if (participantRepository.existsByMatchPostIdAndUserId(postId, user.getId())) {
-            throw new RuntimeException("Bạn đã tham gia bài đăng này rồi");
-        }
+        validateJoinConditions(post, user);
 
         MatchParticipant participant = new MatchParticipant();
         participant.setMatchPost(post);
         participant.setUser(user);
 
-        MatchParticipant savedParticipant = participantRepository.save(participant);
+        MatchParticipant saved = participantRepository.save(participant);
+        updateParticipantCount(post);
 
-        // Cập nhật số người tham gia
-        int currentParticipants = participantRepository.countByMatchPostId(postId);
-        post.setCurrentParticipants(currentParticipants);
-
-        // Kiểm tra nếu đã đủ người thì đổi status
-        if (currentParticipants >= post.getMaxParticipants()) {
-            post.setStatus("full");
-        }
-
-        matchPostRepository.save(post);
-
-        // Gửi thông báo cho chủ bài đăng
         notificationService.notifyNewParticipant(post.getUser(), user, post);
 
-        return savedParticipant;
+        return saved;
+    }
+
+    public void leavePost(Long postId, User user) {
+        MatchPost post = getPostById(postId);
+
+        MatchParticipant participant = participantRepository.findByMatchPostIdAndUserId(postId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Bạn chưa tham gia bài đăng này"));
+
+        participantRepository.delete(participant);
+        updateParticipantCount(post);
+
+        notificationService.notifyParticipantLeft(post.getUser(), user, post);
     }
 
     public void cancelPost(Long postId, User requester) {
         MatchPost post = getPostById(postId);
 
-        // Chỉ chủ bài đăng mới được huỷ
         if (!Objects.equals(post.getUser().getId(), requester.getId())) {
             throw new RuntimeException("Bạn không có quyền huỷ bài đăng này");
         }
@@ -90,34 +90,66 @@ public class MatchPostService {
         post.setStatus("closed");
         matchPostRepository.save(post);
 
-        // Gửi thông báo cho tất cả người tham gia
         List<MatchParticipant> participants = participantRepository.findByMatchPostId(postId);
-        for (MatchParticipant participant : participants) {
-            notificationService.notifyPostCancelled(participant.getUser(), post);
+        for (MatchParticipant p : participants) {
+            notificationService.notifyPostCancelled(p.getUser(), post);
         }
     }
 
-    public void leavePost(Long postId, User user) {
+    public void kickParticipant(Long postId, Long userIdToKick, User requester) {
         MatchPost post = getPostById(postId);
 
-        // Kiểm tra người dùng có tham gia bài đăng không
-        MatchParticipant participant = participantRepository.findByMatchPostIdAndUserId(postId, user.getId())
-                .orElseThrow(() -> new RuntimeException("Bạn chưa tham gia bài đăng này"));
+        if (!Objects.equals(post.getUser().getId(), requester.getId())) {
+            throw new IllegalArgumentException("Bạn không có quyền kick người này");
+        }
+
+        MatchParticipant participant = participantRepository.findByMatchPostIdAndUserId(postId, userIdToKick)
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tham gia bài đăng"));
 
         participantRepository.delete(participant);
+        updateParticipantCount(post);
 
-        // Cập nhật lại số người tham gia
-        int currentParticipants = participantRepository.countByMatchPostId(postId);
-        post.setCurrentParticipants(currentParticipants);
+        notificationService.notifyUserKicked(participant.getUser(), post);
+    }
 
-        // Nếu trước đó là full mà bây giờ có người rời thì chuyển lại thành open
-        if ("full".equals(post.getStatus()) && currentParticipants < post.getMaxParticipants()) {
+    private void updateParticipantCount(MatchPost post) {
+        int current = participantRepository.countByMatchPostId(post.getId());
+        post.setCurrentParticipants(current);
+
+        if ("full".equals(post.getStatus()) && current < post.getMaxParticipants()) {
             post.setStatus("open");
+        } else if ("open".equals(post.getStatus()) && current >= post.getMaxParticipants()) {
+            post.setStatus("full");
         }
 
         matchPostRepository.save(post);
+    }
 
-        // Gửi thông báo cho chủ bài đăng
-        notificationService.notifyParticipantLeft(post.getUser(), user, post);
+    private void validateJoinConditions(MatchPost post, User user) {
+        if ("closed".equals(post.getStatus())) {
+            throw new RuntimeException("Bài đăng đã bị huỷ");
+        }
+        if ("full".equals(post.getStatus())) {
+            throw new RuntimeException("Bài đăng đã đủ người tham gia");
+        }
+        if (participantRepository.existsByMatchPostIdAndUserId(post.getId(), user.getId())) {
+            throw new RuntimeException("Bạn đã tham gia bài đăng này rồi");
+        }
+    }
+
+    @Transactional
+    public void updateExpiredPostsDaily() {
+        LocalDate today = LocalDate.now();
+        List<MatchPost> posts = matchPostRepository.findAll();
+
+        for (MatchPost post : posts) {
+            if (("closed".equals(post.getStatus()) || "open".equals(post.getStatus()))
+                    && post.getPlayDate() != null
+                    && post.getPlayDate().isBefore(today)) {
+                post.setStatus("expired");
+                matchPostRepository.save(post);
+            }
+        }
+        System.out.println("Updated expired posts at " + LocalDateTime.now());
     }
 }

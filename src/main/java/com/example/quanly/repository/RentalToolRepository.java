@@ -50,7 +50,7 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     List<RentalTool> findByRentalToolCodeContainingIgnoreCase(String rentalToolCode);
 
-    List<RentalTool> findRentalByUserId(Long id);
+    Page<RentalTool> findRentalByUserId(Long id, Pageable pageable);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
 

@@ -1,7 +1,6 @@
 package com.example.quanly.controller.client;
 
 import com.example.quanly.config.VnpayConfig;
-import com.example.quanly.config.VnpayUtil;
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.VnpayResponse;
@@ -17,9 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class RentalController {
@@ -61,25 +58,42 @@ public class RentalController {
     @PostMapping("/submit-rental")
     public String submitRental(@ModelAttribute RentalTool rentalTool, Model model,
                                @RequestParam(value = "bookingId", required = false) String bookingId,
-                               HttpServletRequest request) {
+                               HttpServletRequest request, RedirectAttributes redirectAttributes) {
 
-
-        // Kiểm tra nếu loại thuê là 'ON_SITE', thêm bookingCode vào model
+        // Xử lý Booking nếu là ON_SITE
         if ("ON_SITE".equals(rentalTool.getType())) {
-            Booking booking = (bookingRepository.findByBookingCode(bookingId));
+            Booking booking = bookingRepository.findByBookingCode(bookingId);
             rentalTool.setBookingId(booking.getBookingCode());
         }
-        User currentUser = new User();// null
+
+        // Lấy user từ session
         HttpSession session = request.getSession(false);
         long id = (long) session.getAttribute("id");
+        User currentUser = new User();
         currentUser.setId(id);
 
-        rentalToolService.handleSubmitRental(rentalTool, model, currentUser, request);
-        // Chuyển hướng theo type
-        return rentalTool.getType().equals("DAILY")
-                ? "client/racket/rental_checkout"
-                : "client/racket/rental_success";
+        try {
+            // Gọi xử lý thuê
+            rentalToolService.handleSubmitRental(rentalTool, model, currentUser, request);
+
+            // Thành công → chuyển hướng tiếp
+            return rentalTool.getType().equals("DAILY")
+                    ? "client/racket/rental_checkout"
+                    : "client/racket/rental_success";
+
+        } catch (RuntimeException e) {
+            // Không đủ hàng → thông báo lỗi
+            model.addAttribute("errorMessage", e.getMessage());
+
+            // Load lại thông tin hiển thị
+            Racket racket = racketRepository.findById(rentalTool.getRacketId()).orElse(null);
+            model.addAttribute("racket", racket);
+            model.addAttribute("rentalTool", rentalTool);
+
+            return "client/racket/rental_page";
+        }
     }
+
 
 
     @PostMapping("/submit-checkout-rental")

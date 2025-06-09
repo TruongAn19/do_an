@@ -86,11 +86,24 @@
                             <c:forEach items="${participants}" var="participant">
                                 <div class="participant-item">
                                     <span class="participant-name">${participant.user.fullName}</span>
-                                    <c:if test="${post.user.id == currentUser.id || participant.user.id == currentUser.id}">
-                                        <form action="/match-posts/${post.id}/leave" method="post">
-                                            <input type="hidden" name="userId" value="${participant.user.id}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                <i class="fas fa-user-minus"></i> Rời
+
+                                    <!-- Nếu là chủ bài đăng -->
+                                    <c:if test="${post.user.id == currentUser.id}">
+                                        <c:if test="${participant.user.id != currentUser.id}">
+                                            <form action="/match-posts/${post.id}/kick/${participant.user.id}" method="post" style="display:inline">
+                                                <input type="hidden" name="userId" value="${participant.user.id}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                    <i class="fas fa-user-times"></i> Kick
+                                                </button>
+                                            </form>
+                                        </c:if>
+                                    </c:if>
+
+                                    <!-- Nếu là chính người đang xem (không phải chủ bài) -->
+                                    <c:if test="${post.user.id != currentUser.id && participant.user.id == currentUser.id}">
+                                        <form action="/match-posts/${post.id}/leave" method="post" style="display:inline">
+                                            <button type="submit" class="btn btn-outline-warning btn-sm">
+                                                <i class="fas fa-sign-out-alt"></i> Rời
                                             </button>
                                         </form>
                                     </c:if>
@@ -106,6 +119,7 @@
                     </c:otherwise>
                 </c:choose>
             </div>
+
         </div>
 
         <div class="post-actions">
@@ -168,12 +182,6 @@
                         </div>
                     </c:forEach>
                 </c:when>
-<%--                <c:otherwise>--%>
-<%--                    <div class="empty-state">--%>
-<%--                        <i class="fas fa-comments"></i>--%>
-<%--                        <p>Chưa có tin nhắn nào</p>--%>
-<%--                    </div>--%>
-<%--                </c:otherwise>--%>
             </c:choose>
         </div>
 

@@ -84,57 +84,117 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <!-- Notification Script -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const userId = "${sessionScope.id}"; // Lấy userId từ session
-        if (!userId) {
-            console.warn("User ID không tồn tại trong session");
+    document.addEventListener("DOMContentLoaded", function () {
+        const userEmail = "${sessionScope.email}";
+        if (!userEmail) {
+            console.log("Không có email người dùng - Bỏ qua kết nối WebSocket");
             return;
         }
 
-        const topic = 'user-' + userId;
-        let eventSource = new EventSource('/ntfy-sse/' + topic);
-
-        eventSource.onmessage = function (event) {
-            try {
-                const data = JSON.parse(event.data); // Chắc chắn rằng dữ liệu nhận được là JSON
-                console.log('SSE data nhận được:', data);
-
-                // Kiểm tra nếu dữ liệu có event là 'message'
-                if (data.event === 'message') {
-                    // Hiển thị thông báo với thông tin nhận được
-                    Swal.fire({
-                        icon: 'info', // hoặc success, warning, error
-                        title: data.title || "",
-                        text: data.message || '',
-                        showConfirmButton: true, // Có thể tắt nếu muốn tự động đóng
-                        showCloseButton: true,
-                        timer: undefined, // Tự động đóng sau 5 giây (nếu cần)
-                        background: '#f0f8ff', // Màu nền tùy chỉnh
-                        position: 'center' // Đây là mặc định rồi, nhưng có thể chỉ rõ
-                    });
-
-                } else {
-                    console.warn("Không có event 'message' trong dữ liệu SSE.");
-                }
-            } catch (e) {
-                console.error('Lỗi khi xử lý thông báo:', e);
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'error',
-                    title: 'Có lỗi xảy ra!',
-                    showConfirmButton: false,
-                    showCloseButton: true,
-                    timer: 3000,
-                    background: '#fff0f0'
+        // === 1. Yêu cầu quyền Notification khi người dùng click (tuân thủ trình duyệt) ===
+        function requestNotificationPermission() {
+            if (Notification.permission === "granted") {
+                return Promise.resolve();
+            } else if (Notification.permission === "denied") {
+                console.warn("Người dùng đã từ chối quyền thông báo!");
+                return Promise.reject("Permission denied");
+            } else {
+                return Notification.requestPermission().then(permission => {
+                    if (permission !== "granted") {
+                        throw new Error("Người dùng không cho phép thông báo");
+                    }
                 });
             }
-        };
+        }
 
+        // Gắn sự kiện click để xin quyền (ví dụ: khi click vào nút "Cho phép thông báo")
+        document.getElementById("enable-notifications-btn")?.addEventListener("click", () => {
+            requestNotificationPermission()
+                .then(() => console.log("Có quyền gửi thông báo"))
+                .catch(err => console.error("Lỗi quyền thông báo:", err));
+        });
+
+        // === 2. Kết nối WebSocket và xử lý thông báo ===
+        const socket = new SockJS("/ws");
+        const stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Tắt log debug của Stomp
+
+        stompClient.connect({}, function (frame) {
+            console.log("✅ Đã kết nối WebSocket");
+
+            stompClient.subscribe("/user/queue/notifications", function (message) {
+                const content = message.body;
+                console.log("📩 Nhận thông báo:", content);
+
+                let notificationData;
+                try {
+                    notificationData = JSON.parse(content);
+                } catch (e) {
+                    console.error("Lỗi parse JSON thông báo:", e);
+                    notificationData = { message: content }; // fallback
+                }
+
+                showNotification(notificationData).catch(err => {
+                    console.error("Không thể hiển thị Notification:", err);
+                    if (typeof Swal !== "undefined") {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Thông báo mới',
+                            text: notificationData.message || content,
+                            timer: 5000
+                        });
+                    } else {
+                        console.log("Nội dung thông báo:", notificationData.message || content);
+                    }
+                });
+            });
+
+
+        }, function (error) {
+            console.error("❌ Lỗi kết nối WebSocket:", error);
+        });
+
+        // === 4. Hàm hiển thị Notification (xử lý đa nền tảng) ===
+        async function showNotification(data) {
+            if (!("Notification" in window)) {
+                throw new Error("Trình duyệt không hỗ trợ Notification API");
+            }
+
+            await requestNotificationPermission();
+
+            const options = {
+                body: data.message || "Bạn có thông báo mới",
+                icon: window.location.origin + "/images/icon.png",
+                requireInteraction: true,
+                vibrate: [200, 100, 200]
+            };
+
+            const notification = new Notification("Thông báo mới", options);
+
+            const audio = new Audio("https://notificationsounds.com/storage/sounds/file-sounds-1154-pristine.mp3");
+            audio.play().catch(e => console.warn("Không thể phát âm thanh:", e));
+
+            notification.onclick = () => {
+                window.focus();
+                if (data.id) {
+                    window.location.href = "/match-posts/" + data.id;
+                } else {
+                    window.location.href = "/match-posts";
+                }
+            };
+        }
+
+
+        // Ngắt kết nối khi đóng trang
         window.addEventListener('beforeunload', function () {
-            if (eventSource) {
-                eventSource.close();
+            if (stompClient?.connected) {
+                stompClient.disconnect();
+                console.log("🛑 Đã ngắt kết nối WebSocket");
             }
         });
     });

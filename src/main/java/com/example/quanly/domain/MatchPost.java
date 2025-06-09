@@ -60,4 +60,10 @@ public class MatchPost {
     public String getPlayDateStr() {
         return playDate != null ? playDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
     }
+
+    @Transient
+    public User getOwner() {
+        return user;
+    }
+
 }

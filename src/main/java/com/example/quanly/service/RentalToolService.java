@@ -163,8 +163,8 @@ public class RentalToolService {
         return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable);
     }
 
-    public List<RentalTool> fetchRentalByUser(User user) {
-        return rentalToolRepository.findRentalByUserId(user.getId());
+    public Page<RentalTool> fetchRentalByUser(User user, Pageable pageable) {
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable);
     }
 
     @Transactional

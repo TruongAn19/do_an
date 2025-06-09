@@ -188,17 +188,31 @@ public class HomePageController {
 
 
     @GetMapping("/rental-history")
-    public String getRentalHistoryPage(Model model, HttpServletRequest request) {
-        User currentUser = new User();// null
+    public String getRentalHistoryPage(Model model, HttpServletRequest request,
+                                       @RequestParam(value = "page", defaultValue = "0") int page,
+                                       @RequestParam(value = "size", defaultValue = "5") int size) {
         HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        currentUser.setId(id);
+        if (session == null || session.getAttribute("id") == null) {
+            return "redirect:/login";
+        }
 
-        List<RentalTool> rentalTools = this.rentalToolService.fetchRentalByUser(currentUser);
-        Collections.reverse(rentalTools);
-        model.addAttribute("rentalHistories", rentalTools);
+        Object sessionId = session.getAttribute("id");
+        long userId = Long.parseLong(sessionId.toString());
+
+        User currentUser = new User();
+        currentUser.setId(userId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<RentalTool> rentalTools = this.rentalToolService.fetchRentalByUser(currentUser, pageable);
+
+        model.addAttribute("rentalHistories", rentalTools.getContent());
+        model.addAttribute("totalPages", rentalTools.getTotalPages());
+        model.addAttribute("currentPage", rentalTools.getNumber());
+
         return "client/racket/rental_history";
     }
+
+
 
     @GetMapping("/profile")
     public String getProfilePage(Model model, HttpServletRequest request) {

@@ -8,6 +8,10 @@ import com.example.quanly.service.ChatService;
 import com.example.quanly.service.MatchPostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
@@ -17,7 +21,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +41,18 @@ public class MatchPostController {
     public String searchPosts(
             @RequestParam(required = false) String area,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate playDate,
+            @RequestParam(required = false) String skillLevel,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size,
             Model model) {
 
-        List<MatchPost> posts;
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<MatchPost> posts;
+
         if (area != null && playDate != null) {
-            posts = matchPostService.searchPosts(area, playDate);
+            posts = matchPostService.searchPosts(area, playDate, skillLevel, pageable);
         } else {
-            posts = Collections.emptyList();
+            posts = matchPostService.getAllPosts(pageable);
         }
 
         // Tạo list Map chứa dữ liệu và chuỗi ngày đã format
@@ -68,7 +76,9 @@ public class MatchPostController {
 
         model.addAttribute("posts", postsView);
         model.addAttribute("searchArea", area);
+        model.addAttribute("searchSkillLevel", skillLevel);
         model.addAttribute("searchDate", playDate != null ? playDate.toString() : "");
+        model.addAttribute("page", posts);
 
         return "client/match-post/list";
     }
@@ -147,5 +157,25 @@ public class MatchPostController {
         redirectAttributes.addFlashAttribute("success", "Bạn đã rời bài đăng thành công");
         return "redirect:/match-posts/" + id;
     }
+
+    @PostMapping("/{postId}/kick/{userId}")
+    public String kickParticipant(@PathVariable Long postId,
+                                  @PathVariable Long userId,
+                                  RedirectAttributes redirectAttributes) {
+        User currentUser = authenticationFacade.getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException("Chưa đăng nhập hoặc session hết hạn");
+        }
+
+        try {
+            matchPostService.kickParticipant(postId, userId, currentUser);
+            redirectAttributes.addFlashAttribute("success", "Đã loại người tham gia khỏi trận đấu");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+
+        return "redirect:/match-posts/" + postId;
+    }
+
 
 }

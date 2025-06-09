@@ -119,9 +119,17 @@
 
 <!-- Single Product Start -->
 <div class="container rental-container mt-5 py-4">
+
+
     <div class="row justify-content-center" style="margin-top: 100px">
         <div class="col-lg-8">
             <div class="card shadow-sm border-0">
+                <c:if test="${not empty errorMessage}">
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            ${errorMessage}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </c:if>
                 <div class="card-header bg-primary text-white text-center py-3">
                     <h3 class="mb-0">Thông Tin Thuê Vợt</h3>
                 </div>

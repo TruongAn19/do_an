@@ -415,7 +415,7 @@
                                 </div>
 
                                 <div class="summary-item">
-                                    <span class="summary-label">Số tiền phải đặt cọc</span>
+                                    <span class="summary-label">Số tiền phải đặt cọc (VNpay)</span>
                                     <span class="summary-value fw-bold">
                                             <fmt:formatNumber type="number" value="${product.depositPrice}"/> đ
                                         </span>

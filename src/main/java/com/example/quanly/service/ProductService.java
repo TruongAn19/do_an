@@ -16,9 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -174,7 +172,16 @@ public class ProductService {
     }
 
     public List<SubCourt> getAllCourtsByProduct(Product product) {
-        return this.subCourtRepository.findByProduct(product);
+        List<SubCourt> allCourts = this.subCourtRepository.findByProduct(product);
+
+        // Giữ lại SubCourt đầu tiên theo tên
+        Map<String, SubCourt> distinctByName = new LinkedHashMap<>();
+        for (SubCourt court : allCourts) {
+            distinctByName.putIfAbsent(court.getName(), court);
+        }
+
+        return new ArrayList<>(distinctByName.values());
     }
+
 
 }

@@ -259,9 +259,6 @@
                                                 <a href="/admin/rental/update/${rental.id}" class="btn btn-warning btn-sm" title="Cập Nhật">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="/admin/rental/delete/${rental.id}" class="btn btn-danger btn-sm" title="Xóa">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
                                             </div>
                                         </td>
                                     </tr>
