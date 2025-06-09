@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - '/**'
+      - '**'
 
 env:
   JAR_FILE_NAME: 'quanly-0.0.1-SNAPSHOT.jar'
