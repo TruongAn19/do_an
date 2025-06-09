@@ -1,0 +1,62 @@
+name: Deloy BE to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '/**'
+
+env:
+  JAR_FILE_NAME: 'quanly-0.0.1-SNAPSHOT.jar'
+  TARGET_PATH: 'do_an'
+  EC2_HOST: ${{ secrets.HOST }}
+  EC2_USERNAME: ${{ secrets.USER_NAME }}
+  EC2_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '21'
+          distribution: 'adopt'
+    
+      - name: Build JAR
+        run: cd ${{ env.TARGET_PATH }} && mvn package -DskipTests
+      
+      - name: Rename JAR
+        run: |
+          mv ${{ env.TARGET_PATH }}/target/Module-Backend-0.1.jar ${{ env.TARGET_PATH }}/target/${{ env.JAR_FILE_NAME }}
+      
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ env.HOST }}
+          username: ${{ env.USERNAME }}
+          key: ${{ env.PRIVATE_KEY }}
+          source: '${{ env.TARGET_PATH }}/target/${{ env.JAR_FILE_NAME }}'
+          target: '${{ env.TARGET_PATH }}'
+          
+      - name: Deploying ... 
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.HOST }}
+          username: ${{ env.USERNAME }}
+          key: ${{ env.PRIVATE_KEY }}
+          script: |
+            {
+              if tmux ls | awk -F: '{print $1}' | grep -wq "deployment"; then
+                tmux kill-session -t deployment
+              fi
+            }
+            cd ${{ env.TARGET_PATH }}/${{ env.TARGET_PATH }}/target
+            tmux new-session -d -s deployment 'java -jar ${{ env.JAR_FILE_NAME }}'
+
+
