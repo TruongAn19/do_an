@@ -43,7 +43,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.HOST }}
-          username: ${{ env.USERNAME }}
+          username: ${{ env.USER_NAME }}
           key: ${{ env.PRIVATE_KEY }}
           script: |
             {
