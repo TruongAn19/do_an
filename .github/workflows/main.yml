@@ -58,3 +58,5 @@ jobs:
             }
             cd ${{ env.TARGET_PATH }}/${{ env.TARGET_PATH }}/target
             tmux new-session -d -s deployment 'java -jar ${{ env.JAR_FILE_NAME }}'
+
+
