@@ -209,7 +209,7 @@
     let stompClient = null;
 
     function connect() {
-        const socket = new SockJS("/ws");
+        const socket = new SockJS("http://localhost:8080/ws");
         stompClient = Stomp.over(socket);
         stompClient.connect({}, function (frame) {
             stompClient.subscribe('/topic/chat/' + postId, function (messageOutput) {

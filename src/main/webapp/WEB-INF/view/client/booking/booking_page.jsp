@@ -365,7 +365,7 @@
                                     <div id="holdNotification" class="hold-notification mt-4" style="display: none;">
                                         <div>
                                             <i class="fas fa-clock me-2"></i>
-                                            <span>Bạn đang giữ chỗ sân này. Thời gian còn lại: <span id="holdTimer" class="hold-timer">03:00</span></span>
+                                            <span>Bạn đang giữ chỗ sân này.</span></span>
                                         </div>
                                         <button type="button" class="btn-cancel-hold" id="cancelHold">
                                             <i class="fas fa-times me-1"></i>Hủy bỏ
