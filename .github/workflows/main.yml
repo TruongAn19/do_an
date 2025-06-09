@@ -9,7 +9,7 @@ on:
 
 env:
   JAR_FILE_NAME: 'quanly-0.0.1-SNAPSHOT.jar'
-  TARGET_PATH: 'do_an'
+  TARGET_PATH: ''
   EC2_HOST: ${{ secrets.HOST }}
   EC2_USERNAME: ${{ secrets.USER_NAME }}
   EC2_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -56,7 +56,7 @@ jobs:
                 tmux kill-session -t deployment
               fi
             }
-            cd ${{ env.TARGET_PATH }}/${{ env.TARGET_PATH }}/target
+            cd ${{ env.TARGET_PATH }}/target
             tmux new-session -d -s deployment 'java -jar ${{ env.JAR_FILE_NAME }}'
 
 
