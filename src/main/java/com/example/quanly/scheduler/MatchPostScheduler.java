@@ -5,17 +5,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-
 @Component
 @RequiredArgsConstructor
 public class MatchPostScheduler {
 
     private final MatchPostService matchPostService;
 
-    @Scheduled(cron = "0 * * * * ?")  // Tạm thời test mỗi phút
+    @Scheduled(cron = "0 0 23 * * ?")  // Tạm thời test mỗi phút
     public void updateExpiredPostsTask() {
-        System.out.println("⏰ Running scheduled task at " + LocalDateTime.now());
         matchPostService.updateExpiredPostsDaily(); // Gọi method từ service
     }
 }

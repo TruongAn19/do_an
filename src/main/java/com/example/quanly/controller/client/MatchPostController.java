@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 // MatchPostController.java
@@ -48,6 +49,7 @@ public class MatchPostController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<MatchPost> posts;
+        User currentUser = authenticationFacade.getCurrentUser();
 
         if (area != null && playDate != null) {
             posts = matchPostService.searchPosts(area, playDate, skillLevel, pageable);
@@ -70,6 +72,12 @@ public class MatchPostController {
             map.put("playDateStr", post.getPlayDate() != null
                     ? post.getPlayDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                     : "");
+            map.put("owner", currentUser != null
+                    && post.getUser() != null
+                    && Objects.equals(
+                    currentUser.getId(),
+                    post.getUser().getId()
+            ));
             return map;
 
         }).collect(Collectors.toList());

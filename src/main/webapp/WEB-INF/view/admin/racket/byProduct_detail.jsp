@@ -68,6 +68,7 @@
                             </div>
 
                             <a href="/admin/racket" class="btn btn-success mt-4">Back</a>
+                            <a href="/admin/racket/update_byProduct/${racket.id}" class="btn btn-warning mt-4">update</a>
                         </div>
                     </div>
                 </div>

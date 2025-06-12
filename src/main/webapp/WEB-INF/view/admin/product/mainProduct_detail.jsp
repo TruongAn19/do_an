@@ -256,7 +256,7 @@
                                 Back to Products
                             </a>
 
-                            <a href="/admin/mainProduct/edit/${product.id}" class="btn btn-edit">
+                            <a href="/admin/product/update_mainProduct/${product.id}" class="btn btn-edit">
                                 <i class="fas fa-edit"></i>
                                 Edit Product
                             </a>
