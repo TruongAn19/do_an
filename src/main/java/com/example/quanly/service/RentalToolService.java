@@ -5,7 +5,9 @@ import com.example.quanly.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,24 +23,16 @@ import java.util.List;
 
 @Service
 @EnableScheduling
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class RentalToolService {
 
-    @Autowired
-    private RentalToolRepository rentalToolRepository;
-    @Autowired
-    private RacketRepository racketRepository;
-
-    @Autowired
-    private BookingRepository bookingRepository;
-
-    @Autowired
-    private RacketStockByDateRepository racketStockByDateRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private BookingDetailRepository bookingDetailRepository;
+    RentalToolRepository rentalToolRepository;
+    RacketRepository racketRepository;
+    BookingRepository bookingRepository;
+    RacketStockByDateRepository racketStockByDateRepository;
+    UserRepository userRepository;
+    BookingDetailRepository bookingDetailRepository;
 
     public Page<RentalTool> getRentalByTypeDAILY(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("rentalDate").descending());
@@ -62,7 +56,7 @@ public class RentalToolService {
     }
 
 
-    public void handleSubmitRental(RentalTool rentalTool, Model model, User user,  HttpServletRequest request) {
+    public void handleSubmitRental(RentalTool rentalTool, Model model, User user, HttpServletRequest request) {
         Racket racket = racketRepository.findById(Long.valueOf(rentalTool.getRacketId()))
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vợt"));
         rentalTool.setProductId(racket.getProduct().getId());
@@ -197,7 +191,7 @@ public class RentalToolService {
     }
 
 
-    private void validateDailyRentalAvailable(RentalTool rentalTool){
+    private void validateDailyRentalAvailable(RentalTool rentalTool) {
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
@@ -219,6 +213,7 @@ public class RentalToolService {
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
         Long racketId = rentalTool.getRacketId();
+
 
         // 2. Trừ tồn kho và tăng reservedStock
         for (int i = 0; i < quantityDay; i++) {

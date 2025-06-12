@@ -24,6 +24,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingService {
+
     BookingRepository bookingRepository;
     BookingDetailRepository bookingDetailRepository;
     RentalToolRepository rentalToolRepository;
@@ -32,6 +33,7 @@ public class BookingService {
     TimeRepository timeRepository;
     SubCourtRepository subCourtRepository;
     TemporaryBookingRepository temporaryBookingRepository;
+    EmailService emailService;
 
 
     public Page<Booking> fetchAllBookings(Pageable pageable) {
@@ -178,6 +180,7 @@ public class BookingService {
         bookingDetailRepository.save(bookingDetail);
 
         temporaryBookingRepository.deleteBySubCourtAndAvailableTimeAndBookingDate(subCourt, time, bookingDate);
+        emailService.sendBookingConfirmationEmail(user.getEmail(), saveBooking.getBookingCode());
         return saveBooking;
     }
 

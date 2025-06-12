@@ -164,7 +164,7 @@ public class HomePageController {
         HttpSession session = request.getSession(false);
         long userId = (long) session.getAttribute("id");
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("bookingDate").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<Booking> bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
 
         model.addAttribute("bookings", bookingsPage.getContent());

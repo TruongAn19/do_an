@@ -107,63 +107,77 @@
 
         <c:choose>
             <c:when test="${not empty posts}">
+                <!-- Post List -->
                 <div class="row">
                     <c:forEach items="${posts}" var="post">
                         <c:if test="${post.status != 'closed'}">
-                        <div class="col-lg-6 mb-4">
-                            <div class="post-card ${post.status == 'full' ? 'post-full' : ''}">
-                                <c:if test="${not empty currentUser and not empty post.user and currentUser.id eq post.user.id}">
-                                    <div class="post-owner-badge bg-info">
+                            <div class="col-lg-6 mb-4">
+                                <div class="post-card ${post.status == 'full' ? 'post-full' : ''}">
+                                    <!-- Badges Section -->
+                                    <div class="d-flex align-items-center gap-2 mb-3">
+                                        <c:if test="${post.owner}">
+                                    <span class="badge bg-info text-white">
                                         <i class="fas fa-user me-1"></i>Bài của bạn
-                                    </div>
-                                </c:if>
+                                    </span>
+                                        </c:if>
 
-                                <c:choose>
-                                    <c:when test="${post.status == 'expired'}">
-                                        <div class="post-status-badge bg-danger">
+                                        <c:choose>
+                                            <c:when test="${post.status == 'expired'}">
+                                        <span class="badge bg-danger text-white">
                                             <i class="fas fa-clock me-1"></i>Đã hết hạn
-                                        </div>
-                                    </c:when>
-                                    <c:when test="${post.status == 'open'}">
-                                        <div class="post-status-badge bg-success">
+                                        </span>
+                                            </c:when>
+                                            <c:when test="${post.status == 'open'}">
+                                        <span class="badge bg-success text-white">
                                             <i class="fas fa-check-circle me-1"></i>Đang mở
-                                        </div>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <div class="post-status-badge bg-secondary">
+                                        </span>
+                                            </c:when>
+                                            <c:otherwise>
+                                        <span class="badge bg-secondary text-white">
                                             <i class="fas fa-users me-1"></i>Đã đủ người
-                                        </div>
-                                    </c:otherwise>
-                                </c:choose>
+                                        </span>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </div>
 
-                                <h3>${post.area}</h3>
-                                <div class="post-meta">
-                                    <div class="post-meta-item">
-                                        <i class="far fa-calendar-alt"></i>
-                                        <span>${post.playDateStr}</span>
+                                    <!-- Post Content -->
+                                    <h3 class="fw-bold mb-3">${post.area}</h3>
+
+                                    <!-- Meta Information -->
+                                    <div class="d-flex flex-wrap gap-3 mb-3 text-muted">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <i class="far fa-calendar-alt"></i>
+                                            <span>${post.playDateStr}</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <i class="far fa-clock"></i>
+                                            <span>${post.timeSlot}</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <i class="fas fa-trophy"></i>
+                                            <span>${post.skillLevel}</span>
+                                        </div>
                                     </div>
-                                    <div class="post-meta-item">
-                                        <i class="far fa-clock"></i>
-                                        <span>${post.timeSlot}</span>
+
+                                    <!-- Participants -->
+                                    <div class="d-flex align-items-center gap-1 mb-3">
+                                        <i class="fas fa-users"></i>
+                                        <span>${post.currentParticipants}/${post.maxParticipants} người tham gia</span>
                                     </div>
-                                    <div class="post-meta-item">
-                                        <i class="fas fa-trophy"></i>
-                                        <span>${post.skillLevel}</span>
-                                    </div>
+
+                                    <!-- Description -->
+                                    <p class="mb-4">${post.description}</p>
+
+                                    <!-- Action Button -->
+                                    <a href="/match-posts/${post.id}" class="btn btn-outline-primary w-100">
+                                        <i class="fas fa-info-circle me-2"></i>Xem chi tiết
+                                    </a>
                                 </div>
-                                <div class="participants-info">
-                                    <i class="fas fa-users"></i>
-                                    <span>${post.currentParticipants}/${post.maxParticipants} người tham gia</span>
-                                </div>
-                                <p class="mb-4">${post.description}</p>
-                                <a href="/match-posts/${post.id}" class="btn btn-outline-primary">
-                                    <i class="fas fa-info-circle me-2"></i>Xem chi tiết
-                                </a>
                             </div>
-                        </div>
                         </c:if>
                     </c:forEach>
                 </div>
+
 
                 <!-- Phần phân trang đã sửa -->
                 <c:if test="${page.totalPages > 1}">
