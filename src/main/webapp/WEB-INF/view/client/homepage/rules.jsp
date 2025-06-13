@@ -283,7 +283,7 @@
                 <li>Đặt sân trước tối thiểu <strong>1 tiếng</strong> so với giờ chơi mong muốn.</li>
                 <li>Thời gian sử dụng tối thiểu mỗi lượt đặt sân là <strong>1 giờ</strong>.</li>
                 <li>Vui lòng đến đúng giờ. Sau <strong>15 phút</strong> không đến sẽ bị <strong>hủy sân không hoàn tiền</strong>.</li>
-                <li>Mỗi người dùng được phép <strong>đặt tối đa 1 khung giờ/ngày</strong>.</li>
+                <li>Người dùng muốn huỷ sân hãy liên hệ cho số điện thoai ở phần giới thiệu trước <strong>2 tiếng.</strong> Nếu huỷ muộn sẽ không được giải quyết.</li>
             </ul>
 
             <h2 class="section-title">

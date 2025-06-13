@@ -63,7 +63,8 @@
                             <label for="playDate" class="form-label">Ngày chơi</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
-                                <input type="date" id="playDate" name="playDate" class="form-control" value="${searchDate}">
+                                <input type="date" id="playDate" name="playDate" class="form-control"
+                                       value="${searchDate}">
                             </div>
                         </div>
                     </div>
@@ -73,11 +74,18 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-trophy"></i></span>
                                 <select id="skillLevel" name="skillLevel" class="form-select">
-                                    <option value="" <c:if test="${empty searchSkillLevel}">selected</c:if>>Tất cả</option>
-                                    <option value="Mới chơi" <c:if test="${searchSkillLevel == 'Mới chơi'}">selected</c:if>>Mới chơi</option>
-                                    <option value="Trung bình" <c:if test="${searchSkillLevel == 'Trung bình'}">selected</c:if>>Trung bình</option>
-                                    <option value="Khá" <c:if test="${searchSkillLevel == 'Khá'}">selected</c:if>>Khá</option>
-                                    <option value="Tốt" <c:if test="${searchSkillLevel == 'Tốt'}">selected</c:if>>Tốt</option>
+                                    <option value="" <c:if test="${empty searchSkillLevel}">selected</c:if>>Tất cả
+                                    </option>
+                                    <option value="Mới chơi"
+                                            <c:if test="${searchSkillLevel == 'Mới chơi'}">selected</c:if>>Mới chơi
+                                    </option>
+                                    <option value="Trung bình"
+                                            <c:if test="${searchSkillLevel == 'Trung bình'}">selected</c:if>>Trung bình
+                                    </option>
+                                    <option value="Khá" <c:if test="${searchSkillLevel == 'Khá'}">selected</c:if>>Khá
+                                    </option>
+                                    <option value="Tốt" <c:if test="${searchSkillLevel == 'Tốt'}">selected</c:if>>Tốt
+                                    </option>
                                 </select>
                             </div>
                         </div>
@@ -116,9 +124,15 @@
                                     <!-- Badges Section -->
                                     <div class="d-flex align-items-center gap-2 mb-3">
                                         <c:if test="${post.owner}">
-                                    <span class="badge bg-info text-white">
-                                        <i class="fas fa-user me-1"></i>Bài của bạn
-                                    </span>
+                                            <span class="badge bg-info text-white">
+                                                <i class="fas fa-user me-1"></i>Bài của bạn
+                                            </span>
+                                        </c:if>
+
+                                        <c:if test="${post.joined && !post.owner}">
+                                            <span class="badge bg-primary text-white">
+                                                <i class="fas fa-user-check me-1"></i>Đã tham gia
+                                            </span>
                                         </c:if>
 
                                         <c:choose>

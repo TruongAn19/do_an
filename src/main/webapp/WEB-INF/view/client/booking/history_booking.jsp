@@ -63,13 +63,10 @@
             overflow: hidden;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
             margin-bottom: 30px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            /* Removed transition and hover transform effect */
         }
 
-        .booking-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
+        /* Removed hover effect */
 
         .booking-table {
             margin-bottom: 0;
@@ -95,23 +92,21 @@
             object-fit: cover;
             border-radius: 10px;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            /* Removed transition */
         }
 
-        .product-img:hover {
-            transform: scale(1.05);
-        }
+        /* Removed hover effect for product-img */
 
         .product-name {
             font-weight: 600;
             color: #3CB815;
             text-decoration: none;
-            transition: color 0.3s ease;
+            /* Removed transition */
         }
 
         .product-name:hover {
-            color: #2d8a10;
-            text-decoration: underline;
+            color: #3CB815; /* Same as non-hover color */
+            text-decoration: none; /* Removed underline on hover */
         }
 
         .price {
@@ -204,13 +199,12 @@
             padding: 10px 25px;
             border-radius: 50px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            /* Removed transition */
         }
 
         .btn-browse:hover {
-            background-color: #2d8a10;
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(60, 184, 21, 0.3);
+            background-color: #3CB815; /* Same as non-hover */
+            /* Removed transform and box-shadow effects */
         }
 
         .breadcrumb {
@@ -222,11 +216,11 @@
         .breadcrumb-item a {
             color: #3CB815;
             text-decoration: none;
-            transition: color 0.3s ease;
+            /* Removed transition */
         }
 
         .breadcrumb-item a:hover {
-            color: #2d8a10;
+            color: #3CB815; /* Same as non-hover */
         }
 
         .breadcrumb-item.active {
@@ -285,15 +279,15 @@
             color: #3CB815;
             background-color: #fff;
             border: 1px solid #dee2e6;
-            transition: all 0.3s ease;
+            /* Removed transition */
         }
 
         .page-link:hover {
             z-index: 2;
-            color: #2d8a10;
+            color: #3CB815; /* Same as non-hover */
             text-decoration: none;
-            background-color: #e9ecef;
-            border-color: #dee2e6;
+            background-color: #fff; /* Same as non-hover */
+            border-color: #dee2e6; /* Same as non-hover */
         }
 
         @media (max-width: 767.98px) {

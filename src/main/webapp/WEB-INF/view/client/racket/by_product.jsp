@@ -301,29 +301,29 @@
                 </div>
 
                 <!-- Mức giá -->
-                <div class="filter-card mb-4">
-                    <h4 class="filter-title">Mức giá thuê theo ngày</h4>
-                    <div class="d-flex flex-column gap-2">
-                        <c:forEach var="priceOption" items="${['duoi-500-nghin', '500-nghin-1-trieu', '1-5-trieu', 'tren-5-trieu']}">
-                            <div class="form-check">
-                                <input class="form-check-input price-checkbox"
-                                       type="checkbox"
-                                       name="price"
-                                       value="${priceOption}"
-                                       id="${priceOption}"
-                                       <c:if test="${selectedPrices != null && selectedPrices.contains(priceOption)}">checked</c:if> />
-                                <label class="form-check-label" for="${priceOption}">
-                                    <c:choose>
-                                        <c:when test="${priceOption eq 'duoi-500-nghin'}">Dưới 500 nghìn</c:when>
-                                        <c:when test="${priceOption eq '500-nghin-1-trieu'}">500 nghìn - 1 triệu</c:when>
-                                        <c:when test="${priceOption eq '1-5-trieu'}">1 - 5 triệu</c:when>
-                                        <c:when test="${priceOption eq 'tren-5-trieu'}">Trên 5 triệu</c:when>
-                                    </c:choose>
-                                </label>
-                            </div>
-                        </c:forEach>
-                    </div>
-                </div>
+<%--                <div class="filter-card mb-4">--%>
+<%--                    <h4 class="filter-title">Mức giá thuê theo ngày</h4>--%>
+<%--                    <div class="d-flex flex-column gap-2">--%>
+<%--                        <c:forEach var="priceOption" items="${['duoi-500-nghin', '500-nghin-1-trieu', '1-5-trieu', 'tren-5-trieu']}">--%>
+<%--                            <div class="form-check">--%>
+<%--                                <input class="form-check-input price-checkbox"--%>
+<%--                                       type="checkbox"--%>
+<%--                                       name="price"--%>
+<%--                                       value="${priceOption}"--%>
+<%--                                       id="${priceOption}"--%>
+<%--                                       <c:if test="${selectedPrices != null && selectedPrices.contains(priceOption)}">checked</c:if> />--%>
+<%--                                <label class="form-check-label" for="${priceOption}">--%>
+<%--                                    <c:choose>--%>
+<%--                                        <c:when test="${priceOption eq 'duoi-500-nghin'}">Dưới 500 nghìn</c:when>--%>
+<%--                                        <c:when test="${priceOption eq '500-nghin-1-trieu'}">500 nghìn - 1 triệu</c:when>--%>
+<%--                                        <c:when test="${priceOption eq '1-5-trieu'}">1 - 5 triệu</c:when>--%>
+<%--                                        <c:when test="${priceOption eq 'tren-5-trieu'}">Trên 5 triệu</c:when>--%>
+<%--                                    </c:choose>--%>
+<%--                                </label>--%>
+<%--                            </div>--%>
+<%--                        </c:forEach>--%>
+<%--                    </div>--%>
+<%--                </div>--%>
 
                 <!-- Sắp xếp -->
                 <div class="filter-card mb-4">

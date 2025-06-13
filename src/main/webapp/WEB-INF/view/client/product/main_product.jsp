@@ -358,27 +358,27 @@
                 </div>
 
                 <!-- Price Filter -->
-                <div class="filter-card" id="priceFilter">
-                    <h4 class="filter-title">Mức giá</h4>
-                    <div class="d-flex flex-column gap-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="price-2" value="duoi-500-nghin">
-                            <label class="form-check-label" for="price-2">Dưới 500 nghìn</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="price-3" value="500-nghin-1-trieu">
-                            <label class="form-check-label" for="price-3">Từ 500 nghìn - 1 triệu</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="price-4" value="1-5-trieu">
-                            <label class="form-check-label" for="price-4">Từ 1 - 5 triệu</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="price-5" value="tren-5-trieu">
-                            <label class="form-check-label" for="price-5">Trên 5 triệu</label>
-                        </div>
-                    </div>
-                </div>
+<%--                <div class="filter-card" id="priceFilter">--%>
+<%--                    <h4 class="filter-title">Mức giá</h4>--%>
+<%--                    <div class="d-flex flex-column gap-2">--%>
+<%--                        <div class="form-check">--%>
+<%--                            <input class="form-check-input" type="checkbox" id="price-2" value="duoi-500-nghin">--%>
+<%--                            <label class="form-check-label" for="price-2">Dưới 500 nghìn</label>--%>
+<%--                        </div>--%>
+<%--                        <div class="form-check">--%>
+<%--                            <input class="form-check-input" type="checkbox" id="price-3" value="500-nghin-1-trieu">--%>
+<%--                            <label class="form-check-label" for="price-3">Từ 500 nghìn - 1 triệu</label>--%>
+<%--                        </div>--%>
+<%--                        <div class="form-check">--%>
+<%--                            <input class="form-check-input" type="checkbox" id="price-4" value="1-5-trieu">--%>
+<%--                            <label class="form-check-label" for="price-4">Từ 1 - 5 triệu</label>--%>
+<%--                        </div>--%>
+<%--                        <div class="form-check">--%>
+<%--                            <input class="form-check-input" type="checkbox" id="price-5" value="tren-5-trieu">--%>
+<%--                            <label class="form-check-label" for="price-5">Trên 5 triệu</label>--%>
+<%--                        </div>--%>
+<%--                    </div>--%>
+<%--                </div>--%>
 
                 <!-- Sort Options -->
                 <div class="filter-card">

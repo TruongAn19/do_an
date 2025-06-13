@@ -27,6 +27,11 @@
     <title>${post.area} - ${post.playDate}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
     <link href="/client/css/chat.css" rel="stylesheet">
 
 
@@ -100,7 +105,7 @@
                                     </c:if>
 
                                     <!-- Nếu là chính người đang xem (không phải chủ bài) -->
-                                    <c:if test="${post.user.id != currentUser.id && participant.user.id == currentUser.id}">
+                                    <c:if test="${alreadyJoined}">
                                         <form action="/match-posts/${post.id}/leave" method="post" style="display:inline">
                                             <button type="submit" class="btn btn-outline-warning btn-sm">
                                                 <i class="fas fa-sign-out-alt"></i> Rời
@@ -133,14 +138,7 @@
                 </c:when>
                 <c:otherwise>
                     <c:choose>
-                        <c:when test="${alreadyJoined}">
-                            <form action="/match-posts/${post.id}/leave" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-warning">
-                                    <i class="fas fa-user-minus"></i> Rời khỏi
-                                </button>
-                            </form>
-                        </c:when>
-                        <c:when test="${post.status == 'open'}">
+                        <c:when test="${post.status == 'open' && !alreadyJoined}">
                             <form action="/match-posts/${post.id}/join" method="post" class="d-inline">
                                 <button type="submit" class="btn btn-success">
                                     <i class="fas fa-user-plus"></i> Tham gia
@@ -149,7 +147,14 @@
                         </c:when>
                         <c:otherwise>
                             <button class="btn btn-secondary" disabled>
-                                <i class="fas fa-user-times"></i> Đã đủ người
+                                <c:choose>
+                                    <c:when test="${alreadyJoined}">
+                                        <i class="fas fa-user-check"></i> Đã tham gia
+                                    </c:when>
+                                    <c:otherwise>
+                                        <i class="fas fa-user-times"></i> Đã đủ người
+                                    </c:otherwise>
+                                </c:choose>
                             </button>
                         </c:otherwise>
                     </c:choose>
@@ -209,7 +214,7 @@
     let stompClient = null;
 
     function connect() {
-        const socket = new SockJS("http://localhost:8080/ws");
+        const socket = new SockJS("/ws");
         stompClient = Stomp.over(socket);
         stompClient.connect({}, function (frame) {
             stompClient.subscribe('/topic/chat/' + postId, function (messageOutput) {

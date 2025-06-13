@@ -3,6 +3,7 @@ package com.example.quanly.controller.client;
 import com.example.quanly.domain.MatchPost;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.ChatMessageDto;
+import com.example.quanly.repository.MatchParticipantRepository;
 import com.example.quanly.service.AuthenticationFacade;
 import com.example.quanly.service.ChatService;
 import com.example.quanly.service.MatchPostService;
@@ -21,10 +22,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 // MatchPostController.java
@@ -37,6 +35,7 @@ public class MatchPostController {
     private final ChatService chatService;
     private final AuthenticationFacade authenticationFacade;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MatchParticipantRepository matchParticipantRepository;
 
     @GetMapping
     public String searchPosts(
@@ -56,6 +55,10 @@ public class MatchPostController {
         } else {
             posts = matchPostService.getAllPosts(pageable);
         }
+
+        Set<Long> joinedPostIds = currentUser != null
+                ? matchParticipantRepository.findPostIdsByUserId(currentUser.getId())
+                : Collections.emptySet();
 
         // Tạo list Map chứa dữ liệu và chuỗi ngày đã format
         List<Map<String, Object>> postsView = posts.stream().map(post -> {
@@ -78,6 +81,7 @@ public class MatchPostController {
                     currentUser.getId(),
                     post.getUser().getId()
             ));
+            map.put("joined", currentUser != null && joinedPostIds.contains(post.getId()));
             return map;
 
         }).collect(Collectors.toList());
@@ -99,6 +103,8 @@ public class MatchPostController {
 
         // Format các ChatMessage thành DTO
         List<ChatMessageDto> messages = chatService.getMessageDtos(post.getId());
+        boolean alreadyJoined = post.getParticipants().stream()
+                .anyMatch(participant -> Long.valueOf(participant.getUser().getId()).equals(currentUser.getId()));
 
         model.addAttribute("post", post);
         model.addAttribute("messages", messages); // dùng DTO
@@ -106,6 +112,7 @@ public class MatchPostController {
         model.addAttribute("newMessage", new ChatMessageDto()); // tạo rỗng để binding form nếu cần
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("participants", post.getParticipants());
+        model.addAttribute("alreadyJoined", alreadyJoined);
         return "client/match-post/detail";
     }
 

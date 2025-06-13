@@ -96,7 +96,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             text-align: center;
             margin-bottom: 40px;
-            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
@@ -111,11 +110,7 @@
             background: linear-gradient(90deg, #4e54c8 0%, #8f94fb 100%);
         }
 
-        .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.12);
-        }
-
+        /* Removed hover transform effect */
         .stats-number {
             font-size: 2.5rem;
             font-weight: 800;
@@ -197,18 +192,17 @@
             padding: 18px 15px;
             vertical-align: middle;
             border-bottom: 1px solid #f0f0f0;
-            transition: all 0.2s ease;
             text-align: center;
         }
 
         .table tbody tr {
-            transition: all 0.2s ease;
+            /* Removed hover transform and background change */
+            transition: background-color 0.2s ease;
         }
 
         .table tbody tr:hover {
             background-color: #f8f9fa;
-            transform: scale(1.01);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            /* Removed transform scale effect */
         }
 
         .table tbody tr:last-child td {
@@ -371,7 +365,7 @@
             border-radius: 8px;
             padding: 0.6rem 0.9rem;
             font-weight: 500;
-            transition: all 0.3s ease;
+            transition: color 0.3s ease, background-color 0.3s ease;
             text-decoration: none;
             display: flex;
             align-items: center;
@@ -385,8 +379,7 @@
             background-color: #f8f9fa;
             color: #4e54c8;
             border-color: #4e54c8;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            /* Removed transform translateY effect */
         }
 
         .page-item.disabled .page-link {
@@ -394,11 +387,6 @@
             background-color: #f8f9fa;
             border-color: #dee2e6;
             cursor: not-allowed;
-        }
-
-        .page-item.disabled .page-link:hover {
-            transform: none;
-            box-shadow: none;
         }
 
         .pagination-info {
@@ -599,26 +587,6 @@
                 max-width: 60px;
             }
         }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .stats-card, .history-container {
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        .stats-card:nth-child(1) { animation-delay: 0.1s; }
-        .stats-card:nth-child(2) { animation-delay: 0.2s; }
-        .stats-card:nth-child(3) { animation-delay: 0.3s; }
-        .stats-card:nth-child(4) { animation-delay: 0.4s; }
     </style>
 </head>
 
