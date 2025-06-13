@@ -180,7 +180,7 @@ public class BookingService {
         bookingDetailRepository.save(bookingDetail);
 
         temporaryBookingRepository.deleteBySubCourtAndAvailableTimeAndBookingDate(subCourt, time, bookingDate);
-        emailService.sendBookingConfirmationEmail(user.getEmail(), saveBooking.getBookingCode());
+        emailService.sendBookingConfirmationEmail(user.getEmail(), saveBooking.getBookingCode(), booking.getId());
         return saveBooking;
     }
 
