@@ -62,7 +62,8 @@ public class ForgotPasswordController {
         tokenDAO.save(resetToken);
 
         // Gửi mail
-        String resetLink = "http://localhost:8080/api/reset-password?token=" + token;
+//        String resetLink = "http://localhost:8080/api/reset-password?token=" + token;
+        String resetLink = "https://ta-batmintin.store/api/reset-password?token=" + token;
         sendEmail(user.getEmail(), resetLink);
 
         model.addAttribute("message", "Liên kết đặt lại mật khẩu đã được gửi đến email.");
