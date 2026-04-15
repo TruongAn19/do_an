@@ -1,0 +1,19 @@
+-- ============================================================
+-- V1__init_schema.sql
+-- Baseline schema cho hệ thống Quản Lý Sân Cầu Lông
+--
+-- HƯỚNG DẪN SỬ DỤNG:
+-- File này là nền móng của Flyway. Bạn cần export toàn bộ
+-- cấu trúc bảng (CREATE TABLE) từ database hiện tại của mình
+-- bằng công cụ DBeaver hoặc MySQL Workbench và paste vào đây.
+--
+-- Lệnh gợi ý với mysqldump (chỉ lấy schema, không lấy data):
+--   mysqldump -h <host> -u <user> -p --no-data sancaulong1 > V1__init_schema.sql
+--
+-- Sau khi paste schema vào đây, Flyway sẽ dùng file này làm
+-- baseline (vì baseline-on-migrate=true) và KHÔNG chạy lại
+-- trên database đã tồn tại. Chỉ các file V2__, V3__... trở đi
+-- mới được áp dụng cho các thay đổi mới.
+-- ============================================================
+
+-- TODO: Paste nội dung export schema từ DBeaver/MySQL Workbench vào đây.

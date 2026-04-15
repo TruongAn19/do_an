@@ -3,6 +3,8 @@ package com.example.quanly.service;
 import com.example.quanly.domain.MatchParticipant;
 import com.example.quanly.domain.MatchPost;
 import com.example.quanly.domain.User;
+import com.example.quanly.domain.dto.MatchPostResponseDTO;
+import com.example.quanly.mapper.MatchPostMapper;
 import com.example.quanly.repository.MatchParticipantRepository;
 import com.example.quanly.repository.MatchPostRepository;
 import jakarta.transaction.Transactional;
@@ -16,26 +18,34 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchPostService {
     private final MatchPostRepository matchPostRepository;
     private final MatchParticipantRepository participantRepository;
     private final NotificationService notificationService;
+    private final MatchPostMapper matchPostMapper;
 
-    public Page<MatchPost> getAllPosts(Pageable pageable) {
-        return matchPostRepository.findByStatusNot("expired", pageable);
+    public Page<MatchPostResponseDTO> getAllPosts(Pageable pageable) {
+        return matchPostRepository.findByStatusNot("expired", pageable).map(matchPostMapper::toDTO);
     }
 
-    public Page<MatchPost> searchPosts(String area, LocalDate playDate, String skillLevel, Pageable pageable) {
+    public Page<MatchPostResponseDTO> searchPosts(String area, LocalDate playDate, String skillLevel,
+            Pageable pageable) {
+        Page<MatchPost> posts;
         if (skillLevel == null || skillLevel.isBlank()) {
-            return matchPostRepository.findByAreaAndPlayDateAndStatus(area, playDate, "open", pageable);
+            posts = matchPostRepository.findByAreaAndPlayDateAndStatus(area, playDate, "open", pageable);
         } else {
-            return matchPostRepository.findByAreaAndPlayDateAndSkillLevelAndStatus(area, playDate, skillLevel, "open", pageable);
+            posts = matchPostRepository.findByAreaAndPlayDateAndSkillLevelAndStatus(area, playDate, skillLevel, "open",
+                    pageable);
         }
+        return posts.map(matchPostMapper::toDTO);
     }
 
-    public MatchPost createPost(MatchPost post, User creator) {
+    public MatchPostResponseDTO createPost(MatchPost post, User creator) {
         if (post.getMaxParticipants() <= 0) {
             throw new IllegalArgumentException("Số người tham gia tối đa phải lớn hơn 0");
         }
@@ -43,16 +53,22 @@ public class MatchPostService {
         post.setUser(creator);
         post.setStatus("open");
         post.setCurrentParticipants(0);
-        return matchPostRepository.save(post);
+        return matchPostMapper.toDTO(matchPostRepository.save(post));
     }
 
-    public MatchPost getPostById(Long id) {
+    public MatchPostResponseDTO getPostById(Long id) {
+        return matchPostRepository.findById(id)
+                .map(matchPostMapper::toDTO)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
+    }
+
+    public MatchPost getPostEntityById(Long id) {
         return matchPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
     }
 
     public MatchParticipant joinPost(Long postId, User user) {
-        MatchPost post = getPostById(postId);
+        MatchPost post = getPostEntityById(postId);
 
         validateJoinConditions(post, user);
 
@@ -69,7 +85,7 @@ public class MatchPostService {
     }
 
     public void leavePost(Long postId, User user) {
-        MatchPost post = getPostById(postId);
+        MatchPost post = getPostEntityById(postId);
 
         MatchParticipant participant = participantRepository.findByMatchPostIdAndUserId(postId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn chưa tham gia bài đăng này"));
@@ -81,7 +97,7 @@ public class MatchPostService {
     }
 
     public void cancelPost(Long postId, User requester) {
-        MatchPost post = getPostById(postId);
+        MatchPost post = getPostEntityById(postId);
 
         if (!Objects.equals(post.getUser().getId(), requester.getId())) {
             throw new RuntimeException("Bạn không có quyền huỷ bài đăng này");
@@ -97,7 +113,7 @@ public class MatchPostService {
     }
 
     public void kickParticipant(Long postId, Long userIdToKick, User requester) {
-        MatchPost post = getPostById(postId);
+        MatchPost post = getPostEntityById(postId);
 
         if (!Objects.equals(post.getUser().getId(), requester.getId())) {
             throw new IllegalArgumentException("Bạn không có quyền kick người này");
@@ -150,6 +166,6 @@ public class MatchPostService {
                 matchPostRepository.save(post);
             }
         }
-        System.out.println("Updated expired posts at " + LocalDateTime.now());
+        log.info("Updated expired posts at {}", LocalDateTime.now());
     }
 }

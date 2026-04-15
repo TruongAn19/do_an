@@ -1,31 +1,33 @@
 package com.example.quanly.controller.admin;
 
-
-
+import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
-
 import com.example.quanly.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 public class DashboardController {
     private final UserService userService;
-    private final RacketService racketServie;
-    private  final ProductService productService;
+    private final RacketService racketService;
+    private final ProductService productService;
 
-
-
-    @RequestMapping("/admin")
-    public String getDashBoard(Model model) {
-        model.addAttribute("countUser", this.userService.countUser());
-        model.addAttribute("countProduct", this.productService.getCourtProduct());
-        model.addAttribute("countByRacket", this.racketServie.countRacket());
-        return "admin/dashboard/show";
+    @GetMapping("/dashboard")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboard() {
+        Map<String, Object> data = Map.of(
+                "countUser", userService.countUser(),
+                "countProduct", productService.getCourtProduct(),
+                "countByRacket", racketService.countRacket()
+        );
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(data).build());
     }
 }

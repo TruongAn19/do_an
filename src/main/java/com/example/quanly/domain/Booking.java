@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -22,11 +23,18 @@ public class Booking {
     private String status;
     private LocalDate bookingDate;
     private double depositPrice;
-    // user id
+
+    private String bookingType = "ONE_TIME"; // ONE_TIME, WEEKLY_RECURRING
+    private LocalDate recurringEndDate;
+
     @ManyToOne
+
     @JoinColumn(name = "user_id")
+    @JsonIgnoreProperties({ "bookings", "matchPosts", "participations", "messages", "products", "password" })
     private User user;
+
     @OneToMany(mappedBy = "booking")
+    @JsonIgnoreProperties("booking")
     private List<BookingDetail> bookingDetails;
 
     @ManyToOne

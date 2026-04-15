@@ -1,6 +1,8 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.Product;
+import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.service.BookingStatsService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.UploadService;
@@ -11,152 +13,120 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.Map;
-import java.util.Optional;
 
-@Controller
+@RestController
+@RequestMapping("/api/v1/admin/products")
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ProductController {
-    
+
     ProductService productService;
     UploadService uploadService;
     BookingStatsService bookingStatsService;
 
-    @GetMapping("/admin/mainProduct")
-    public String getMainProductPage(Model model,
-            @RequestParam("page") Optional<String> optionalPage,
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProducts(
+            @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "search", required = false) String searchTerm) {
-        int page = 1;
-        try {
-            if (optionalPage.isPresent()) {
-                page = Integer.parseInt(optionalPage.get());
-            } else {
-            }
-        } catch (Exception e) {
-            // TODO: handle exception
-        }
+
         Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Product> mainProducts;
+        Page<ProductResponseDTO> mainProducts;
+
         if (searchTerm != null && !searchTerm.isEmpty()) {
-            // Tìm kiếm sản phẩm theo tên
-            mainProducts = this.productService.findByNameContaining(searchTerm, pageable);
-            model.addAttribute("searchTerm", searchTerm); // Giữ lại từ khóa tìm kiếm
+            mainProducts = productService.findByNameContaining(searchTerm, pageable);
         } else {
-            // Lấy tất cả sản phẩm
-            mainProducts = this.productService.getAllProductAdmin(pageable);
+            mainProducts = productService.getAllProductAdmin(pageable);
         }
-        model.addAttribute("mainProducts", mainProducts.getContent());
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", mainProducts.getTotalPages());
-        return "admin/product/main-product";
+
+        Map<String, Object> result = Map.of(
+                "products", mainProducts.getContent(),
+                "currentPage", page,
+                "totalPages", mainProducts.getTotalPages(),
+                "totalElements", mainProducts.getTotalElements());
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(result).build());
     }
 
-    @GetMapping("/admin/product/create_mainProduct")
-    public String getCreateProductPage(Model model) {
-        model.addAttribute("newProduct", new Product());
-        return "admin/product/create_mainProduct";
-    }
+    @PostMapping(consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
+            @RequestPart("product") Product product,
+            @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
-    @PostMapping(value = "/admin/product/create")
-    public String createProductPage(Model model, @ModelAttribute("newProduct") Product product,
-            @RequestParam("productImg") MultipartFile file, @RequestParam("productType") String productType) {
-        String productImage = this.uploadService.handleSaveUploadFile(file, "product");
-        product.setDetailDesc(product.getDetailDesc().replace("\n", "<br>"));
-        product.setImage(productImage);
+        if (file != null && !file.isEmpty()) {
+            product.setImage(uploadService.handleSaveUploadFile(file, "product"));
+        }
+        product.setDetailDesc(product.getDetailDesc() != null
+                ? product.getDetailDesc().replace("\n", "<br>")
+                : "");
         product.setStatus("AVAILABLE");
-        this.productService.handSaveProduct(product);
+        ProductResponseDTO savedProduct = productService.handSaveProduct(product);
 
-        return "redirect:/admin/mainProduct";
-
+        return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
+                .status(200).message("Tạo sân thành công").data(savedProduct).build());
     }
 
-    @GetMapping("/admin/mainProduct/{productId}")
-    public String getMainProduct(Model model, @PathVariable long productId) {
-        Product product = this.productService.getProductByID(productId);
-        model.addAttribute("product", product);
-        model.addAttribute("id", productId);
-        return "admin/product/mainProduct_detail";
+    @GetMapping("/{productId}")
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> getProduct(@PathVariable long productId) {
+        ProductResponseDTO product = productService.getProductByID(productId);
+        return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
+                .status(200).message("Thành công").data(product).build());
     }
 
-    @GetMapping("/admin/product/update_mainProduct/{productId}")
-    public String getUpdateMainProductPage(Model model, @PathVariable long productId) {
-        Product existProduct = this.productService.getProductByID(productId);
-        model.addAttribute("editProduct", existProduct);
-        return "admin/product/update_mainProduct";
-    }
+    @PutMapping(value = "/{productId}", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
+            @PathVariable long productId,
+            @RequestPart("product") Product product,
+            @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
-    @PostMapping("/admin/product/update_product")
-    public String postUpdateProduct(Model model, @ModelAttribute("editProduct") Product product,
-            @RequestParam("productImg") MultipartFile file) {
-        Product existProduct = this.productService.getProductByID(product.getId());
-
-        if (existProduct != null) {
-            existProduct.setName(product.getName());
-            existProduct.setDetailDesc(product.getDetailDesc());
-            existProduct.setAddress(product.getAddress());
-            existProduct.setSale(product.getSale());
-            existProduct.setPrice(product.getPrice());
-            existProduct.setStatus(product.getStatus());
-
-            // Kiểm tra nếu người dùng có tải lên ảnh mới
-            if (!file.isEmpty()) {
-                // Lưu ảnh mới và cập nhật đường dẫn
-                String productImage = this.uploadService.handleSaveUploadFile(file, "product");
-                existProduct.setImage(productImage);
-            }
-            this.productService.handSaveProduct(existProduct);
+        ProductResponseDTO existingDTO = productService.getProductByID(productId);
+        if (existingDTO == null) {
+            throw new IllegalArgumentException("Không tìm thấy sân id=" + productId);
         }
-        return "redirect:/admin/mainProduct";
+
+        // Cần lấy Entity để update
+        Product existing = new Product();
+        existing.setId(productId);
+        existing.setName(product.getName());
+        existing.setDetailDesc(product.getDetailDesc());
+        existing.setAddress(product.getAddress());
+        existing.setSale(product.getSale());
+        existing.setPrice(product.getPrice());
+        existing.setStatus(product.getStatus());
+        existing.setQuantity(product.getQuantity()); // Giữ nguyên quantity hoặc update tùy logic
+
+        if (file != null && !file.isEmpty()) {
+            existing.setImage(uploadService.handleSaveUploadFile(file, "product"));
+        } else {
+            existing.setImage(existingDTO.getImage());
+        }
+
+        ProductResponseDTO updatedProduct = productService.handSaveProduct(existing);
+
+        return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
+                .status(200).message("Cập nhật sân thành công").data(updatedProduct).build());
     }
 
-    @GetMapping("/admin/product/delete_product/{productId}")
-    public String getDeleteProductPage(Model model, @PathVariable long productId) {
-        Product product = this.productService.getProductByID(productId);
-        model.addAttribute("product", product);
-        model.addAttribute("productID", productId);
-        return "admin/product/delete_product";
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable long productId) {
+        productService.deleteAllProduct(productId);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200).message("Xóa sân thành công").data(null).build());
     }
 
-    @PostMapping("/admin/product/delete_product")
-    public String postMethodName(Model model, @ModelAttribute("product") Product product) {
-        this.productService.deleteAllProduct(product.getId());
+    @GetMapping("/statistics/revenue")
+    public ResponseEntity<ApiResponse<Map<String, Double>>> getRevenue(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        return "redirect:/admin/mainProduct";
-    }
-
-    @GetMapping("/admin/statistics/revenue")
-    public String revenueForm() {
-        return "admin/chart/revenue_chart";
-    }
-
-    @PostMapping("/admin/statistics/revenue")
-    public String revenueChart(
-            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            Model model) {
-
-        // Chuyển LocalDate thành java.util.Date
-        Date startDateConverted = java.util.Date.from(startDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        Date endDateConverted = java.util.Date.from(endDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
-
-        // Lấy dữ liệu doanh thu
         Map<String, Double> revenueData = bookingStatsService.getRevenueBetweenDates(startDate, endDate);
-
-        // Đưa vào model
-        model.addAttribute("revenueData", revenueData);
-        model.addAttribute("startDate", startDateConverted);
-        model.addAttribute("endDate", endDateConverted);
-
-        return "admin/chart/revenue_chart";
+        return ResponseEntity.ok(ApiResponse.<Map<String, Double>>builder()
+                .status(200).message("Thành công").data(revenueData).build());
     }
-
 }

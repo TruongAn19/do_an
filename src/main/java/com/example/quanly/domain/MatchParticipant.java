@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,10 +20,12 @@ public class MatchParticipant {
 
     @ManyToOne
     @JoinColumn(name = "match_post_id", nullable = false)
+    @JsonIgnoreProperties({"participants", "messages", "user"})
     private MatchPost matchPost;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"matchPosts", "participations", "messages", "products", "password"})
     private User user;
 
     @Column(name = "joined_at")

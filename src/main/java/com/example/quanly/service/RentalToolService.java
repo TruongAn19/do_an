@@ -1,6 +1,8 @@
 package com.example.quanly.service;
 
 import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.RentalToolDTO;
+import com.example.quanly.mapper.RentalToolMapper;
 import com.example.quanly.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -33,18 +35,21 @@ public class RentalToolService {
     RacketStockByDateRepository racketStockByDateRepository;
     UserRepository userRepository;
     BookingDetailRepository bookingDetailRepository;
+    RentalToolMapper rentalToolMapper;
 
-    public Page<RentalTool> getRentalByTypeDAILY(int page, int size) {
+    public Page<RentalToolDTO> getRentalByTypeDAILY(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("rentalDate").descending());
-        return rentalToolRepository.findByType("DAILY", pageable);
+        return rentalToolRepository.findByType("DAILY", pageable).map(rentalToolMapper::toDTO);
     }
 
-    public RentalTool getRentalToolById(Long id) {
-        return rentalToolRepository.findById(id).orElseThrow(() -> new RuntimeException("RentalTool not found"));
+    public RentalToolDTO getRentalToolById(Long id) {
+        RentalTool rentalTool = rentalToolRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("RentalTool not found"));
+        return rentalToolMapper.toDTO(rentalTool);
     }
 
     @Transactional
-    public RentalTool changeStatus(Long rentalToolId, RentalToolStatus status) {
+    public RentalToolDTO changeStatus(Long rentalToolId, RentalToolStatus status) {
         RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
                 .orElseThrow(() -> new RuntimeException("RentalTool not found"));
         if (status == RentalToolStatus.COMPLETED) {
@@ -52,9 +57,8 @@ public class RentalToolService {
         } else
             rentalTool.setStatus(status);
 
-        return rentalToolRepository.save(rentalTool);
+        return rentalToolMapper.toDTO(rentalToolRepository.save(rentalTool));
     }
-
 
     public void handleSubmitRental(RentalTool rentalTool, Model model, User user, HttpServletRequest request) {
         Racket racket = racketRepository.findById(Long.valueOf(rentalTool.getRacketId()))
@@ -113,7 +117,8 @@ public class RentalToolService {
 
         double newTotalPrice = totalBookingDetailPrice + rentalTool.getRentalPrice();
 
-        // Cập nhật lại tổng giá vào booking (giả sử có field price hoặc totalPrice trong Booking)
+        // Cập nhật lại tổng giá vào booking (giả sử có field price hoặc totalPrice
+        // trong Booking)
         booking.setTotalPrice(newTotalPrice); // hoặc setTotalPrice(newTotalPrice);
         booking.setRentalToolCode(rentalTool.getRentalToolCode());
 
@@ -151,14 +156,13 @@ public class RentalToolService {
         rentalToolRepository.save(rentalTool);
     }
 
-
-    public Page<RentalTool> fetchRentalToolCode(String searchTerm, int page, int size) {
+    public Page<RentalToolDTO> fetchRentalToolCode(String searchTerm, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable);
+        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable).map(rentalToolMapper::toDTO);
     }
 
-    public Page<RentalTool> fetchRentalByUser(User user, Pageable pageable) {
-        return rentalToolRepository.findRentalByUserId(user.getId(), pageable);
+    public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rentalToolMapper::toDTO);
     }
 
     @Transactional
@@ -167,7 +171,8 @@ public class RentalToolService {
         LocalDate today = LocalDate.now();
 
         // Lấy tất cả đơn đang ở trạng thái PENDING hoặc PAID
-        List<RentalTool> rentals = rentalToolRepository.findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID));
+        List<RentalTool> rentals = rentalToolRepository
+                .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID));
 
         for (RentalTool rental : rentals) {
             Long racketId = rental.getRacketId();
@@ -189,7 +194,6 @@ public class RentalToolService {
             }
         }
     }
-
 
     private void validateDailyRentalAvailable(RentalTool rentalTool) {
         int quantity = rentalTool.getQuantity();
@@ -213,7 +217,6 @@ public class RentalToolService {
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
         Long racketId = rentalTool.getRacketId();
-
 
         // 2. Trừ tồn kho và tăng reservedStock
         for (int i = 0; i < quantityDay; i++) {

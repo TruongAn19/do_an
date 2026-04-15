@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -19,6 +20,7 @@ public class SubCourtAvailableTime {
 
     @ManyToOne
     @JoinColumn(name = "sub_court_id")
+    @JsonIgnoreProperties("subCourtAvailableTimes")
     private SubCourt subCourt;
 
     @ManyToOne

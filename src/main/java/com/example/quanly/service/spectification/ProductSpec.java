@@ -7,7 +7,6 @@ import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 
 import com.example.quanly.domain.Product;
-import com.example.quanly.domain.Product_;
 
 public class ProductSpec {
 
@@ -18,17 +17,17 @@ public class ProductSpec {
     }
 
     public static Specification<Product> nameLike(String name) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(Product_.NAME), "%" + name + "%");
+        return (root, query, criteriaBuilder) -> criteriaBuilder.like(root.get("name"), "%" + name + "%");
     }
 
     // case 1
     public static Specification<Product> minPrice(double price) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.ge(root.get(Product_.PRICE), price);
+        return (root, query, criteriaBuilder) -> criteriaBuilder.ge(root.get("price"), price);
     }
 
     // case 2
     public static Specification<Product> maxPrice(double price) {
-        return (root, query, criteriaBuilder) -> criteriaBuilder.le(root.get(Product_.PRICE), price);
+        return (root, query, criteriaBuilder) -> criteriaBuilder.le(root.get("price"), price);
     }
 
     public static Specification<Product> matchAddressContainsAny(String rawAddress) {
@@ -63,13 +62,13 @@ public class ProductSpec {
     // case5
     public static Specification<Product> matchPrice(double min, double max) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.and(
-                criteriaBuilder.gt(root.get(Product_.PRICE), min),
-                criteriaBuilder.le(root.get(Product_.PRICE), max));
+                criteriaBuilder.gt(root.get("price"), min),
+                criteriaBuilder.le(root.get("price"), max));
     }
 
     // case6
     public static Specification<Product> matchMultiplePrice(double min, double max) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.between(
-                root.get(Product_.PRICE), min, max);
+                root.get("price"), min, max);
     }
 }

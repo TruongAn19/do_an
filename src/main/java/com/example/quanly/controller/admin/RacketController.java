@@ -1,123 +1,94 @@
 package com.example.quanly.controller.admin;
 
-import com.example.quanly.domain.Product;
 import com.example.quanly.domain.Racket;
-import com.example.quanly.repository.ProductRepository;
+import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RacketStockByDateService;
 import com.example.quanly.service.UploadService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
-@Controller
+@RestController
+@RequiredArgsConstructor
 public class RacketController {
-    @Autowired
-    private RacketService racketService;
 
-    @Autowired
-    private UploadService uploadService;
+    private final RacketService racketService;
+    private final UploadService uploadService;
+    private final RacketStockByDateService racketStockByDateService;
 
-    @Autowired
-    private  ProductRepository productRepository  ;
-    @Autowired
-    private RacketStockByDateService racketStockByDateService;
+    @GetMapping("/api/v1/admin/rackets")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRackets(
+            @RequestParam(value = "page", defaultValue = "1") int page) {
 
-    @GetMapping("/admin/racket")
-    public String getByProductPage(Model model,
-            @RequestParam("page") Optional<String> optionalPage) {
-        int page = 1;
-        try {
-            if (optionalPage.isPresent()) {
-                page = Integer.parseInt(optionalPage.get());
-            } else {
-            }
-        } catch (Exception e) {
-            // TODO: handle exception
-        }
         Pageable pageable = PageRequest.of(page - 1, 4);
-        Page<Racket> byProducts = this.racketService.getAllRacket(pageable);
-        List<Racket> listByProducts = byProducts.getContent();
-        model.addAttribute("byProducts", listByProducts);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", byProducts.getTotalPages());
-        return "admin/racket/by-product";
+        Page<Racket> byProducts = racketService.getAllRacket(pageable);
+
+        Map<String, Object> result = Map.of(
+                "rackets", byProducts.getContent(),
+                "currentPage", page,
+                "totalPages", byProducts.getTotalPages()
+        );
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(result).build());
     }
 
-    @GetMapping("/admin/racket/{racketId}")
-    public String getDetailRacket(Model model, @PathVariable long racketId) {
-        Optional<Racket> racket = this.racketService.getRacketById(racketId);
-        model.addAttribute("racket", racket.get());
-        model.addAttribute("id", racketId);
-        return "admin/racket/byProduct_detail";
+    @GetMapping("/api/v1/admin/rackets/{racketId}")
+    public ResponseEntity<ApiResponse<Racket>> getRacketDetail(@PathVariable long racketId) {
+        Racket racket = racketService.getRacketById(racketId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt id=" + racketId));
+        return ResponseEntity.ok(ApiResponse.<Racket>builder()
+                .status(200).message("Thành công").data(racket).build());
     }
 
-    @GetMapping("/admin/racket/create_racket")
-    public String getCreateRacketPage(Model model) {
-        List<Product> product = this.productRepository.findAll();
-        model.addAttribute("newRacket", new Racket());
-        model.addAttribute("productList", product);
-        return "admin/racket/create_byProduct";
-    }
+    @PostMapping(value = "/api/v1/admin/rackets", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<Racket>> createRacket(
+            @RequestPart("racket") Racket racket,
+            @RequestPart(value = "racketImg", required = false) MultipartFile file) {
 
-    @PostMapping(value = "/admin/racket/create")
-    public String createProductPage(Model model, @ModelAttribute("newRacket") Racket racket,
-            @RequestParam("racketImg") MultipartFile file) {
-        String racketImage = this.uploadService.handleSaveUploadFile(file, "racket");
-        racket.setImage(racketImage);
-        racket.setStatus("AVAILABLE");
-        Racket saveRacket = this.racketService.handSaveRacket(racket);
-        racketStockByDateService.generateStockForRacket(saveRacket);
-        return "redirect:/admin/racket";
-
-    }
-
-    @GetMapping("/admin/racket/update_byProduct/{racketId}")
-    public String getUpdateByProductPage(Model model, @PathVariable long racketId) {
-        Optional<Racket> existRacket = this.racketService.getRacketById(racketId);
-        model.addAttribute("editRacket", existRacket);
-        List<Product> product = this.productRepository.findAll();
-        model.addAttribute("productList", product);
-        return "admin/racket/update_byProduct";
-    }
-
-    @PostMapping("/admin/racket/update_racket")
-    public String postUpdateProduct(Model model, @ModelAttribute("editRacket") Racket racket,
-            @RequestParam("racketImg") MultipartFile file) {
-        Optional<Racket> existRacket = this.racketService.getRacketById(racket.getId());
-
-        if (existRacket.isPresent()) {
-            Racket existing = existRacket.get();
-
-            existing.setName(racket.getName());
-            existing.setPrice(racket.getPrice());
-            existing.setFactory(racket.getFactory());
-            existing.setAvailable(racket.isAvailable());
-            existing.setRentalPricePerDay(racket.getRentalPricePerDay());
-            existing.setRentalPricePerPlay(racket.getRentalPricePerPlay());
-            existing.setBookingStockQuantity(racket.getBookingStockQuantity());
-            existing.setQuantity(racket.getQuantity());
-            existing.setStatus(racket.getStatus());
-            existing.setProduct(racket.getProduct());// nhớ lấy product
-            if (!file.isEmpty()) {
-                String racketImg = this.uploadService.handleSaveUploadFile(file, "racket");
-                existing.setImage(racketImg);
-            }
-
-            this.racketService.handSaveRacket(existing);
+        if (file != null && !file.isEmpty()) {
+            racket.setImage(uploadService.handleSaveUploadFile(file, "racket"));
         }
+        racket.setStatus("AVAILABLE");
+        Racket saved = racketService.handSaveRacket(racket);
+        racketStockByDateService.generateStockForRacket(saved);
 
-        return "redirect:/admin/racket";
+        return ResponseEntity.ok(ApiResponse.<Racket>builder()
+                .status(200).message("Tạo vợt thành công").data(saved).build());
     }
 
+    @PutMapping(value = "/api/v1/admin/rackets/{racketId}", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<Racket>> updateRacket(
+            @PathVariable long racketId,
+            @RequestPart("racket") Racket racket,
+            @RequestPart(value = "racketImg", required = false) MultipartFile file) {
 
+        Racket existing = racketService.getRacketById(racketId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt id=" + racketId));
 
+        existing.setName(racket.getName());
+        existing.setPrice(racket.getPrice());
+        existing.setFactory(racket.getFactory());
+        existing.setAvailable(racket.isAvailable());
+        existing.setRentalPricePerDay(racket.getRentalPricePerDay());
+        existing.setRentalPricePerPlay(racket.getRentalPricePerPlay());
+        existing.setBookingStockQuantity(racket.getBookingStockQuantity());
+        existing.setQuantity(racket.getQuantity());
+        existing.setStatus(racket.getStatus());
+        existing.setProduct(racket.getProduct());
+        if (file != null && !file.isEmpty()) {
+            existing.setImage(uploadService.handleSaveUploadFile(file, "racket"));
+        }
+        racketService.handSaveRacket(existing);
+
+        return ResponseEntity.ok(ApiResponse.<Racket>builder()
+                .status(200).message("Cập nhật vợt thành công").data(existing).build());
+    }
 }

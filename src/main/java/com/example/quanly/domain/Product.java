@@ -1,6 +1,7 @@
 package com.example.quanly.domain;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,6 +37,7 @@ public class Product {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @JsonIgnoreProperties({"matchPosts", "participations", "messages", "products", "password"})
     private User user;
 
     @ManyToMany

@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class MatchPost {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"matchPosts", "participations", "messages", "products", "password"})
     private User user;
 
     @Column(name = "play_date", nullable = false)
@@ -51,9 +53,11 @@ public class MatchPost {
     private int currentParticipants;
 
     @OneToMany(mappedBy = "matchPost", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"matchPost", "user"})
     private List<MatchParticipant> participants;
 
     @OneToMany(mappedBy = "matchPost", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"matchPost", "sender"})
     private List<ChatMessage> messages;
 
     @Transient

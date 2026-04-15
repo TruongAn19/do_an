@@ -1,40 +1,33 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.Product;
-import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.TopRacketDto;
 import com.example.quanly.repository.ProductRepository;
-import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketStatisticsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api/v1/admin/racket-statistics")
+@RequiredArgsConstructor
 public class RacketStatisticsController {
 
-    @Autowired
-    private RacketStatisticsService statisticsService;
-    @Autowired
-    private ProductService productService;
-    @Autowired
-    private ProductRepository productRepository;
+    private final RacketStatisticsService statisticsService;
+    private final ProductRepository productRepository;
 
-    @GetMapping("/admin/racket-statistics")
-    public String showStatistics(
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(value = "courtId", required = false) Long courtId,
-            Model model) {
+            @RequestParam(value = "courtId", required = false) Long courtId) {
 
         if (startDate == null || endDate == null) {
             YearMonth currentMonth = YearMonth.now();
@@ -54,21 +47,20 @@ public class RacketStatisticsController {
         Map<YearMonth, Integer> rentalsByMonth = statisticsService.getRentalCountByMonthRange(courtId, sixMonthsAgo, currentMonth);
         Map<YearMonth, Double> revenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth);
 
-
         List<Product> listProduct = productRepository.findAll();
-        model.addAttribute("listProduct", listProduct);
-        model.addAttribute("courtId", courtId);
-        model.addAttribute("totalRackets", totalRackets);
-        model.addAttribute("currentlyRented", currentlyRented);
-        model.addAttribute("monthlyRentals", rentalCount);
-        model.addAttribute("monthlyRevenue", revenue);
-        model.addAttribute("topRackets", topRackets);
-        model.addAttribute("startDate", startDate);
-        model.addAttribute("endDate", endDate);
-        model.addAttribute("rentalsByMonth", rentalsByMonth);
-        model.addAttribute("revenueByMonth", revenueByMonth);
 
-        return "admin/statistics/racket-statistics";
+        Map<String, Object> data = Map.of(
+                "listProduct", listProduct,
+                "totalRackets", totalRackets,
+                "currentlyRented", currentlyRented,
+                "monthlyRentals", rentalCount,
+                "monthlyRevenue", revenue,
+                "topRackets", topRackets,
+                "rentalsByMonth", rentalsByMonth,
+                "revenueByMonth", revenueByMonth
+        );
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(data).build());
     }
-
 }

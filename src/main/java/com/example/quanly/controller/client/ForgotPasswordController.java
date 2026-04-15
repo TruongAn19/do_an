@@ -2,6 +2,7 @@ package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.PasswordResetToken;
 import com.example.quanly.domain.User;
+import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.utility.PasswordResetTokenDAO;
 import com.example.quanly.domain.utility.UserDAO;
 import jakarta.transaction.Transactional;
@@ -11,20 +12,17 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-@RequestMapping("/api")
+@RequestMapping("/api/v1/auth")
 public class ForgotPasswordController {
 
     UserDAO userDAO;
@@ -32,28 +30,20 @@ public class ForgotPasswordController {
     JavaMailSender mailSender;
     PasswordEncoder passwordEncoder;
 
-
-    @GetMapping("/forgot-password")
-    public String showForgotForm() {
-        return "client/auth/forgot-password";
-    }
-
     @Transactional
     @PostMapping("/forgot-password")
-    public String handleForgot(@RequestParam("email") String email, Model model) {
+    public ResponseEntity<ApiResponse<String>> handleForgot(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
         User user = userDAO.findByEmail(email);
         if (user == null) {
-            model.addAttribute("message", "Email không tồn tại!");
-            return "client/auth/forgot-password";
+            throw new IllegalArgumentException("Email không tồn tại!");
         }
 
-        // 🔥 Xoá token cũ nếu tồn tại
         PasswordResetToken existingToken = tokenDAO.findByUser(user);
         if (existingToken != null) {
             tokenDAO.delete(existingToken);
         }
 
-        // ✅ Tạo token mới
         String token = UUID.randomUUID().toString();
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.setToken(token);
@@ -61,14 +51,14 @@ public class ForgotPasswordController {
         resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
         tokenDAO.save(resetToken);
 
-        // Gửi mail
-//        String resetLink = "http://localhost:8080/api/reset-password?token=" + token;
         String resetLink = "https://ta-batmintin.store/api/reset-password?token=" + token;
         sendEmail(user.getEmail(), resetLink);
-        model.addAttribute("message", "Liên kết đặt lại mật khẩu đã được gửi đến email.");
-        return "client/auth/forgot-password";
-    }
 
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200)
+                .message("Liên kết đặt lại mật khẩu đã được gửi đến email.")
+                .data(null).build());
+    }
 
     private void sendEmail(String to, String link) {
         SimpleMailMessage mail = new SimpleMailMessage();
@@ -78,37 +68,23 @@ public class ForgotPasswordController {
         mailSender.send(mail);
     }
 
-    @GetMapping("/reset-password")
-    public String showResetForm(@RequestParam("token") String token, Model model) {
-        PasswordResetToken resetToken = tokenDAO.findByToken(token);
-        if (resetToken == null || resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            model.addAttribute("message", "Token không hợp lệ hoặc đã hết hạn.");
-            return "error";
-        }
-        model.addAttribute("token", token);
-        return "client/auth/reset-password";
-    }
-
     @Transactional
     @PostMapping("/reset-password")
-    public String handleReset(@RequestParam("token") String token,
-                              @RequestParam("password") String password,
-                              Model model) {
+    public ResponseEntity<ApiResponse<String>> handleReset(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String password = body.get("password");
+
         PasswordResetToken resetToken = tokenDAO.findByToken(token);
         if (resetToken == null || resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            model.addAttribute("message", "Token không hợp lệ hoặc đã hết hạn.");
-            return "error";
+            throw new IllegalArgumentException("Token không hợp lệ hoặc đã hết hạn.");
         }
-        String hashPassword = this.passwordEncoder.encode(password);
-
 
         User user = resetToken.getUser();
-        user.setPassword(hashPassword);
+        user.setPassword(passwordEncoder.encode(password));
         userDAO.update(user);
         tokenDAO.delete(resetToken);
 
-        model.addAttribute("message", "Mật khẩu đã được đặt lại thành công.");
-        return "redirect:/login";
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200).message("Mật khẩu đã được đặt lại thành công.").data(null).build());
     }
 }
-

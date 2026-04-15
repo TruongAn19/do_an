@@ -1,94 +1,66 @@
 package com.example.quanly.controller.admin;
 
-
 import com.example.quanly.domain.Racket;
-import com.example.quanly.domain.RentalTool;
-import com.example.quanly.repository.RentalToolRepository;
+import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.RentalToolDTO;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RentalToolService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api/v1/admin/rentals")
+@RequiredArgsConstructor
 public class RentalToolController {
 
-    @Autowired
-    private RentalToolService rentalToolService;
-    @Autowired
-    private RacketService racketService;
-    @Autowired
-    private RentalToolRepository rentalToolRepository;
+        private final RentalToolService rentalToolService;
+        private final RacketService racketService;
 
-    // Danh sách vợt thuê loại DAILY
-    @GetMapping("/admin/rental")
-    public String getListRental(
-            Model model,
-            @RequestParam(value = "search", required = false) String searchTerm,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "5") int size) {
+        @GetMapping
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getRentals(
+                        @RequestParam(value = "search", required = false) String searchTerm,
+                        @RequestParam(value = "page", defaultValue = "0") int page,
+                        @RequestParam(value = "size", defaultValue = "5") int size) {
 
-        Page<RentalTool> rentals;
+                Page<RentalToolDTO> rentals = (searchTerm != null && !searchTerm.isEmpty())
+                                ? rentalToolService.fetchRentalToolCode(searchTerm, page, size)
+                                : rentalToolService.getRentalByTypeDAILY(page, size);
 
-        if (searchTerm != null && !searchTerm.isEmpty()) {
-            rentals = rentalToolService.fetchRentalToolCode(searchTerm, page, size);
-            model.addAttribute("searchTerm", searchTerm);
-        } else {
-            rentals = rentalToolService.getRentalByTypeDAILY(page, size);
+                Map<String, Object> result = Map.of(
+                                "rentals", rentals.getContent(),
+                                "currentPage", page,
+                                "totalPages", rentals.getTotalPages(),
+                                "totalElements", rentals.getTotalElements());
+
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(result).build());
         }
 
-        model.addAttribute("rentals", rentals.getContent());
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", rentals.getTotalPages());
-        model.addAttribute("totalItems", rentals.getTotalElements());
+        @GetMapping("/{id}")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getRentalDetail(@PathVariable Long id) {
+                RentalToolDTO rentalTool = rentalToolService.getRentalToolById(id);
+                Racket racket = racketService.getRacketById(Long.parseLong(rentalTool.getRacketId()))
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt"));
 
-        return "admin/rental_manager/show";
-    }
+                Map<String, Object> result = Map.of("rentalTool", rentalTool, "racket", racket);
 
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(result).build());
+        }
 
-    // Chi tiết vợt thuê
-    // Cập nhật vợt thuê
-// Chi tiết vợt thuê
-    @GetMapping("/admin/rental/{id}")
-    public String getRentalDetail(@PathVariable Long id, Model model) {
-        RentalTool rentalTool = rentalToolService.getRentalToolById(id);
-        // Lấy thông tin vợt từ bảng racket
-        Racket racket = racketService.getRacketById((rentalTool.getRacketId())).get();
+        @PutMapping("/{id}/status")
+        public ResponseEntity<ApiResponse<RentalToolDTO>> updateStatus(
+                        @PathVariable Long id,
+                        @RequestBody Map<String, String> body) {
 
-        // Thêm thông tin vợt vào mô hình (model)
-        model.addAttribute("rentalTool", rentalTool);
-        model.addAttribute("racket", racket);
+                RentalToolDTO updated = rentalToolService.changeStatus(id,
+                                com.example.quanly.domain.RentalToolStatus.valueOf(body.get("status")));
 
-        return "admin/rental_manager/detail";  // Chuyển đến trang detail.jsp
-    }
-
-
-    // Mở form cập nhật thông tin vợt thuê
-    // Cập nhật vợt thuê
-    @GetMapping("/admin/rental/update/{id}")
-    public String showUpdateRentalToolForm(@PathVariable Long id, Model model) {
-        RentalTool rentalTool = rentalToolService.getRentalToolById(id);
-        // Lấy thông tin vợt từ bảng racket
-        Racket racket = racketService.getRacketById(rentalTool.getRacketId()).get();
-
-        // Thêm thông tin vợt vào mô hình (model) cho form cập nhật
-        model.addAttribute("rentalTool", rentalTool);
-        model.addAttribute("racket", racket);
-
-        return "admin/rental_manager/update";  // Chuyển đến trang update.jsp
-    }
-
-
-    // Cập nhật thông tin vợt thuê
-    @PostMapping("/admin/rental/update/{id}")
-    public String updateRental(@PathVariable Long id, @ModelAttribute RentalTool rentalTool, Model model) {
-        RentalTool updatedRental = rentalToolService.changeStatus(id, rentalTool.getStatus());
-        model.addAttribute("rentalTool", updatedRental);
-        return "redirect:/admin/rental";  // Quay lại danh sách
-    }
+                return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
+                                .status(200).message("Cập nhật trạng thái thành công").data(updated).build());
+        }
 }
-

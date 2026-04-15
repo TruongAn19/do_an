@@ -15,11 +15,11 @@ public class UploadService {
     private final ServletContext servletContext;
 
     public UploadService(ServletContext servletContext) {
-        this.servletContext =servletContext;
+        this.servletContext = servletContext;
     }
-    
+
     public String handleSaveUploadFile(MultipartFile file, String targetFolder) {
-        if(file.isEmpty()) {
+        if (file.isEmpty()) {
             return "";
         }
         String rootPath = this.servletContext.getRealPath("/resources/images");
@@ -36,7 +36,6 @@ public class UploadService {
 
             File serverFile = new File(dir.getAbsolutePath() + File.separator + finalName);
             // uuid
-            // System.out.println(serverFile);
             BufferedOutputStream stream = new BufferedOutputStream(
                     new FileOutputStream(serverFile));
             stream.write(bytes);

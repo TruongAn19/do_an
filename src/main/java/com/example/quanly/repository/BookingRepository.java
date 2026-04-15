@@ -13,18 +13,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface BookingRepository extends JpaRepository<Booking, Long>{
+public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByUser(User user);
+
     // Tìm các Booking có ít nhất một BookingDetail với ngày cụ thể
-    @Query(
-            value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date",
-            countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date"
-    )
+    @Query(value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date", countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date")
     Page<Booking> findByBookingDetailsDate(@Param("date") LocalDate date, Pageable pageable);
 
     Booking findByBookingCode(String bookingCode);
-
 
     @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
     List<Booking> findBookingsByStatusAndDate(String status, LocalDate date);
@@ -36,5 +33,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
     Page<Booking> findByBookingCodeContainingIgnoreCase(String code, Pageable pageable);
 
     Page<Booking> findByUserId(Long userId, Pageable pageable);
+
+    @Query(value = "SELECT available_time_id FROM booking WHERE user_id = :userId GROUP BY available_time_id ORDER BY COUNT(*) DESC LIMIT 1", nativeQuery = true)
+    Long findMostFrequentTimeSlotByUserId(@Param("userId") Long userId);
 
 }

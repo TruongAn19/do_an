@@ -1,6 +1,5 @@
 package com.example.quanly.service;
 
-
 import com.example.quanly.domain.Racket;
 import com.example.quanly.domain.RentalToolStatus;
 import com.example.quanly.domain.dto.TopRacketDto;
@@ -9,8 +8,6 @@ import com.example.quanly.repository.RacketStockByDateRepository;
 import com.example.quanly.repository.RentalToolRepository;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j;
-import org.slf4j.Logger;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +26,7 @@ public class RacketStatisticsService {
     private final RacketRepository racketRepository;
     private final RacketStockByDateRepository racketStockByDateRepository;
     private final RentalToolRepository rentalToolRepository;
+
     /**
      * 1. Tổng số vợt hiện có trong kho của một sân
      */
@@ -60,13 +58,14 @@ public class RacketStatisticsService {
      * 4. Doanh thu từ thuê vợt trong tháng (theo DAILY rental)
      */
     public Double getRevenueInRange(Long courtId, LocalDate startDate, LocalDate endDate) {
-        return   rentalToolRepository.sumDailyRevenueByCourtAndDateRange(courtId, startDate, endDate);
+        return rentalToolRepository.sumDailyRevenueByCourtAndDateRange(courtId, startDate, endDate);
     }
 
     /**
      * 5. Top vợt được thuê nhiều nhất trong tháng (theo DAILY rental)
      */
-    public List<TopRacketDto> getTopRentedRacketsInRange(Long courtId, LocalDate startDate, LocalDate endDate,  int limit) {
+    public List<TopRacketDto> getTopRentedRacketsInRange(Long courtId, LocalDate startDate, LocalDate endDate,
+            int limit) {
         // Tạo một đối tượng Pageable với số lượng giới hạn (limit)
         Pageable pageable = (Pageable) PageRequest.of(0, limit);
 
@@ -97,7 +96,8 @@ public class RacketStatisticsService {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
 
-            int rentalCount = rentalToolRepository.countByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd, (RentalToolStatus.COMPLETED));
+            int rentalCount = rentalToolRepository.countByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd,
+                    (RentalToolStatus.COMPLETED));
 
             rentalCountMap.put(current, rentalCount);
 
@@ -114,7 +114,8 @@ public class RacketStatisticsService {
         while (!current.isAfter(endMonth)) {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
-            Double revenue = rentalToolRepository.sumRevenueByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd, (RentalToolStatus.COMPLETED));
+            Double revenue = rentalToolRepository.sumRevenueByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd,
+                    (RentalToolStatus.COMPLETED));
             if (revenue == null) {
                 revenue = 0.0;
             }

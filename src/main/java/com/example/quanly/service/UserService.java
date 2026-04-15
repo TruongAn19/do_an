@@ -3,35 +3,31 @@ package com.example.quanly.service;
 import com.example.quanly.domain.Role;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
+import com.example.quanly.domain.dto.UserResponseDTO;
+import com.example.quanly.mapper.UserMapper;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.RoleRepository;
 import com.example.quanly.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class UserService {
 
-    private final PasswordEncoder passwordEncoder;
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final ProductRepository productRepository;
-
-
-    public UserService(UserRepository userRepository,
-            RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder,
-            ProductRepository productRepository,
-            UploadService uploadService) {
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.productRepository = productRepository;
-
-    }
+    PasswordEncoder passwordEncoder;
+    UserRepository userRepository;
+    RoleRepository roleRepository;
+    ProductRepository productRepository;
+    UserMapper userMapper;
 
     @PostConstruct
     public void initAdminUser() {
@@ -47,7 +43,7 @@ public class UserService {
             Role userRole = new Role();
             userRole.setName("USER");
             Role staffRole = new Role();
-            userRole.setName("STAFF");
+            staffRole.setName("STAFF");
             roleRepository.save(adminRole);
             roleRepository.save(userRole);
             roleRepository.save(staffRole);
@@ -56,16 +52,18 @@ public class UserService {
         }
     }
 
-    public User handleSaveUser(User user) {
-        return this.userRepository.save(user);
+    public UserResponseDTO handleSaveUser(User user) {
+        return userMapper.toDTO(this.userRepository.save(user));
     }
 
-    public List<User> getAllUser() {
-        return this.userRepository.findAll();
+    public List<UserResponseDTO> getAllUser() {
+        return this.userRepository.findAll().stream()
+                .map(userMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
-    public User getUserById(long userId) {
-        return this.userRepository.findById(userId);
+    public UserResponseDTO getUserById(long userId) {
+        return userMapper.toDTO(this.userRepository.findById(userId));
     }
 
     public void deleteAUser(long id) {
@@ -92,6 +90,10 @@ public class UserService {
 
     public User getUserByEmail(String email) {
         return this.userRepository.findByEmail(email);
+    }
+
+    public UserResponseDTO getUserDTOByEmail(String email) {
+        return userMapper.toDTO(this.userRepository.findByEmail(email));
     }
 
     public long countUser() {

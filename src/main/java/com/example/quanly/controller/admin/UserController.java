@@ -1,113 +1,97 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.User;
+import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.UserResponseDTO;
 import com.example.quanly.service.UploadService;
 import com.example.quanly.service.UserService;
-
-import jakarta.validation.Valid;
-
-import java.util.List;
-
-import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@Controller
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/admin/users")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
     private final UploadService uploadService;
     private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserService userService, UploadService uploadService, PasswordEncoder passwordEncoder) {
-        this.userService = userService;
-        this.uploadService = uploadService;
-        this.passwordEncoder = passwordEncoder;
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<UserResponseDTO>>> getUsers() {
+        List<UserResponseDTO> users = userService.getAllUser();
+        return ResponseEntity.ok(ApiResponse.<List<UserResponseDTO>>builder()
+                .status(200).message("Thành công").data(users).build());
     }
 
-    @GetMapping("/admin/user")
-    public String getUserPage(Model model) {
-        List<User> users = this.userService.getAllUser();
-        model.addAttribute("users", users);
-        return "admin/user/show";
-    }
+    @PostMapping(consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> createUser(
+            @RequestPart("user") User user,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile file) {
 
-    @GetMapping("/admin/user/create") // GET
-    public String getCreateUserPage(Model model) {
-        model.addAttribute("newUser", new User());
-        return "admin/user/create";
-    }
-
-    @PostMapping(value = "/admin/user/create")
-    public String createUserPage(Model model, @ModelAttribute("newUser") @Valid User user,
-            BindingResult bindingResult,
-            @RequestParam("avatarFile") MultipartFile file) {
-
-        if (bindingResult.hasErrors()) {
-            return "admin/user/create";
+        if (file != null && !file.isEmpty()) {
+            user.setAvatar(uploadService.handleSaveUploadFile(file, "avatar"));
         }
-        String avatar = this.uploadService.handleSaveUploadFile(file, "avatar");
-        String hashPassword = this.passwordEncoder.encode(user.getPassword());
-        user.setAvatar(avatar);
-        user.setPassword(hashPassword);
-        user.setRole(this.userService.getRoleByName(user.getRole().getName()));
-        this.userService.handleSaveUser(user);
-        return "redirect:/admin/user";
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole(userService.getRoleByName(user.getRole().getName()));
+        UserResponseDTO savedUser = userService.handleSaveUser(user);
+
+        return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
+                .status(200).message("Tạo người dùng thành công").data(savedUser).build());
     }
 
-    @GetMapping("/admin/user/{userId}")
-    public String getUserDetail(Model model, @PathVariable long userId) {
-        User user = this.userService.getUserById(userId);
-        model.addAttribute("user", user);
-        model.addAttribute("id", userId);
-        return "admin/user/user_detail";
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> getUserDetail(@PathVariable long userId) {
+        UserResponseDTO user = userService.getUserById(userId);
+        return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
+                .status(200).message("Thành công").data(user).build());
     }
 
-    @GetMapping("/admin/user/update_user/{userId}") // GET
-    public String getUpdateUserPage(Model model, @PathVariable long userId) {
-        User currentUser = this.userService.getUserById(userId);
-        model.addAttribute("newUser", currentUser);
-        return "admin/user/update_user";
-    }
+    @PutMapping(value = "/{userId}", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> updateUser(
+            @PathVariable long userId,
+            @RequestPart("user") User user,
+            @RequestPart(value = "avatarFile", required = false) MultipartFile file) {
 
-    @PostMapping("/admin/user/update_user")
-    public String postUpdateUser(Model model, @ModelAttribute("newUser") User user,
-            @RequestParam("avatarFile") MultipartFile file) {
-        User currentUser = this.userService.getUserById(user.getId());
-        if (currentUser != null) {
-            currentUser.setAddress(user.getAddress());
-            currentUser.setFullName(user.getFullName());
-            currentUser.setPhone(user.getPhone());
-            if (!file.isEmpty()) {
-                // Lưu ảnh mới và cập nhật đường dẫn
-                String avatar = this.uploadService.handleSaveUploadFile(file, "avatar");
-                currentUser.setAvatar(avatar);
-            }
-            // bug here
-            this.userService.handleSaveUser(currentUser);
+        User current = userService.updateToUser(userId);
+        if (current == null)
+            throw new IllegalArgumentException("Không tìm thấy user id=" + userId);
+
+        current.setAddress(user.getAddress());
+        current.setFullName(user.getFullName());
+        current.setPhone(user.getPhone());
+        if (file != null && !file.isEmpty()) {
+            current.setAvatar(uploadService.handleSaveUploadFile(file, "avatar"));
         }
-        return "redirect:/admin/user";
+        UserResponseDTO updatedUser = userService.handleSaveUser(current);
+
+        return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
+                .status(200).message("Cập nhật thành công").data(updatedUser).build());
     }
 
-    @GetMapping("/admin/user/delete_user/{userId}")
-    public String getDeleteUserPage(Model model, @PathVariable long userId) {
-        model.addAttribute("id", userId);
-        model.addAttribute("user", new User());
-        return "admin/user/delete_user";
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable long userId) {
+        userService.deleteAUser(userId);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200).message("Xóa người dùng thành công").data(null).build());
     }
 
-    @PostMapping("/admin/user/delete_user")
-    public String postDeleteUser(Model model, @ModelAttribute("user") User user) {
-        this.userService.deleteAUser(user.getId());
-        return "redirect:/admin/user";
+    @PutMapping("/{userId}/role")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> updateRole(
+            @PathVariable long userId,
+            @RequestBody Map<String, String> body) {
+        User user = userService.updateToUser(userId);
+        if (user == null)
+            throw new IllegalArgumentException("Không tìm thấy user id=" + userId);
+        user.setRole(userService.getRoleByName(body.get("role")));
+        UserResponseDTO updatedUser = userService.handleSaveUser(user);
+        return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
+                .status(200).message("Cập nhật role thành công").data(updatedUser).build());
     }
-
 }

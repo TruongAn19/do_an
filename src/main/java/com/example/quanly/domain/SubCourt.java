@@ -3,6 +3,7 @@ package com.example.quanly.domain;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,9 +26,11 @@ public class SubCourt {
 
     @ManyToOne
     @JoinColumn(name = "product_id")
+    @JsonIgnoreProperties({"user", "rackets", "availableTimes"})
     private Product product;
 
     @OneToMany(mappedBy = "subCourt", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("subCourt")
     private List<SubCourtAvailableTime> subCourtAvailableTimes = new ArrayList<>();
 
     public Long getId() {

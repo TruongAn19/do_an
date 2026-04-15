@@ -1,6 +1,7 @@
 package com.example.quanly.domain;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDate;
 
 import jakarta.persistence.Column;
@@ -27,6 +28,7 @@ public class BookingDetail {
     
     @ManyToOne
     @JoinColumn(name = "booking_id")
+    @JsonIgnoreProperties("bookingDetails")
     private Booking booking;
 
     // product_id: long

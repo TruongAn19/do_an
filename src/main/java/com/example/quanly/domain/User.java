@@ -1,6 +1,6 @@
 package com.example.quanly.domain;
 
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
-
 @Entity
 @Table(name = "users")
 @Data
@@ -24,13 +23,13 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    
+
     @Email(message = "Email is not valid", regexp = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$")
     @NotEmpty(message = "Email cannot be empty")
     private String email;
 
     @NotBlank(message = "Password không được để trống")
-    @Size(min = 3,  message = "Password ít nhất có 3 ký tự")
+    @Size(min = 3, message = "Password ít nhất có 3 ký tự")
     private String password;
 
     @NotEmpty(message = "Full Name cannot be empty")
@@ -44,22 +43,28 @@ public class User {
 
     private String avatar;
 
+    private String memberLevel = "NORMAL"; // NORMAL, SILVER, GOLD
+
     @ManyToOne
+
     @JoinColumn(name = "role_id")
     private Role role;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("user")
     private List<MatchPost> matchPosts = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({ "user", "matchPost" })
     private List<MatchParticipant> participations = new ArrayList<>();
 
     @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({ "sender", "matchPost" })
     private List<ChatMessage> messages = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
+    @JsonIgnoreProperties("user")
     private List<Product> products;
-
 
     @Override
     public String toString() {
@@ -67,5 +72,4 @@ public class User {
                 + ", address=" + address + ", phone=" + phone + ", avatar=" + avatar + "]";
     }
 
-    
 }

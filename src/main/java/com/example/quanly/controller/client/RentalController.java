@@ -1,187 +1,153 @@
 package com.example.quanly.controller.client;
 
-import com.example.quanly.config.VnpayConfig;
 import com.example.quanly.domain.*;
+import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.BookingRepository;
-import com.example.quanly.repository.RacketRepository;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RentalToolService;
+import com.example.quanly.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@Controller
+import java.security.Principal;
+
+import java.util.Map;
+
+@RestController
 public class RentalController {
 
     private final RacketService racketService;
-    private final RacketRepository racketRepository;
     private final BookingRepository bookingRepository;
     private final RentalToolRepository rentalToolRepository;
     private final PaymentService paymentService;
     private final RentalToolService rentalToolService;
-    private final VnpayConfig vnpayConfig;
+    private final UserService userService;
 
-    public RentalController(RacketService racketService, RacketRepository racketRepository, BookingRepository bookingRepository, RentalToolRepository rentalToolRepository, PaymentService paymentService, RentalToolService rentalToolService, @Qualifier("vnpayConfig") VnpayConfig vnpayConfig) {
+    public RentalController(RacketService racketService,
+            BookingRepository bookingRepository, RentalToolRepository rentalToolRepository,
+            PaymentService paymentService, RentalToolService rentalToolService,
+            UserService userService) {
         this.racketService = racketService;
-        this.racketRepository = racketRepository;
         this.bookingRepository = bookingRepository;
         this.rentalToolRepository = rentalToolRepository;
         this.paymentService = paymentService;
         this.rentalToolService = rentalToolService;
-        this.vnpayConfig = vnpayConfig;
+        this.userService = userService;
     }
 
-    @GetMapping("/user/rental-page/{racketId}")
-    public String goToRentalPage(@PathVariable("racketId") Long racketId,
-                                 @RequestParam(value = "type") String type,
-                                 @RequestParam(value = "bookingCode", required = false) String bookingCode,
-                                 Model model) {
+    @GetMapping("/api/v1/client/rentals/{racketId}/page")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRentalPage(
+            @PathVariable Long racketId,
+            @RequestParam(value = "type") String type,
+            @RequestParam(value = "bookingCode", required = false) String bookingCode) {
 
-        model.addAttribute("racket", racketService.getRacketById(racketId).orElse(null));
-        model.addAttribute("typeOrder", type);
-        if(bookingCode!=null)
-            model.addAttribute("bookingCode", bookingCode);
+        Racket racket = racketService.getRacketById(racketId).orElse(null);
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put("racket", racket);
+        data.put("typeOrder", type);
+        if (bookingCode != null)
+            data.put("bookingCode", bookingCode);
 
-        return "client/racket/rental_page";
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(data).build());
     }
 
+    @PostMapping("/api/v1/client/rentals/checkout")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitRental(
+            @RequestBody RentalTool rentalTool,
+            @RequestParam(value = "bookingId", required = false) String bookingId,
+            Principal principal,
+            HttpServletRequest request) {
 
-
-    @PostMapping("/submit-rental")
-    public String submitRental(@ModelAttribute RentalTool rentalTool, Model model,
-                               @RequestParam(value = "bookingId", required = false) String bookingId,
-                               HttpServletRequest request, RedirectAttributes redirectAttributes) {
-
-        // Xử lý Booking nếu là ON_SITE
         if ("ON_SITE".equals(rentalTool.getType())) {
             Booking booking = bookingRepository.findByBookingCode(bookingId);
             rentalTool.setBookingId(booking.getBookingCode());
         }
 
-        // Lấy user từ session
-        HttpSession session = request.getSession(false);
-        long id = (long) session.getAttribute("id");
-        User currentUser = new User();
-        currentUser.setId(id);
+        User currentUser = userService.getUserByEmail(principal.getName());
 
-        try {
-            // Gọi xử lý thuê
-            rentalToolService.handleSubmitRental(rentalTool, model, currentUser, request);
+        rentalToolService.handleSubmitRental(rentalTool, null, currentUser, request);
 
-            // Thành công → chuyển hướng tiếp
-            return rentalTool.getType().equals("DAILY")
-                    ? "client/racket/rental_checkout"
-                    : "client/racket/rental_success";
-
-        } catch (RuntimeException e) {
-            // Không đủ hàng → thông báo lỗi
-            model.addAttribute("errorMessage", e.getMessage());
-
-            // Load lại thông tin hiển thị
-            Racket racket = racketRepository.findById(rentalTool.getRacketId()).orElse(null);
-            model.addAttribute("racket", racket);
-            model.addAttribute("rentalTool", rentalTool);
-
-            return "client/racket/rental_page";
+        if ("DAILY".equals(rentalTool.getType())) {
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Chuyển sang thanh toán")
+                    .data(Map.of("nextStep", "checkout")).build());
         }
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thuê vợt thành công")
+                .data(Map.of("nextStep", "success")).build());
     }
 
+    @PostMapping("/api/v1/client/rentals/daily-checkout")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitDailyCheckout(
+            @RequestParam("paymentMethod") String paymentMethod,
+            @RequestParam("racketName") String racketName,
+            HttpServletRequest request) {
 
-
-    @PostMapping("/submit-checkout-rental")
-    public String submitRentalCheckout(
-                                       @RequestParam("paymentMethod") String paymentMethod,
-                                       @RequestParam("racketName") String racketName,
-                                       HttpServletRequest request,
-                                       Model model) {
         HttpSession session = request.getSession();
         RentalTool rentalTool = (RentalTool) session.getAttribute("pendingRentalTool");
         if (rentalTool == null) {
             throw new RuntimeException("Không tìm thấy đơn thuê trong session");
         }
-        if (paymentMethod.equals("VNPAY")) {
+
+        if ("VNPAY".equals(paymentMethod)) {
             PaymentRequest paymentRequest = new PaymentRequest();
             paymentRequest.setId(0L);
             paymentRequest.setAmount(rentalTool.getPrice());
             paymentRequest.setType("RENTAL_TOOL");
             paymentRequest.setRedirectUrl("");
             VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
-            return "redirect:" + vnpayResponse.getPaymentUrl();
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Chuyển hướng thanh toán")
+                    .data(Map.of("paymentUrl", vnpayResponse.getPaymentUrl())).build());
         } else {
             rentalToolService.handleDailyRental(rentalTool);
-            model.addAttribute("rentalTool", rentalTool);
-            model.addAttribute("racketName", racketName);
-            return "client/racket/rental_success";
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Thuê vợt thành công")
+                    .data(Map.of("rentalTool", rentalTool, "racketName", racketName)).build());
         }
     }
 
-    @GetMapping("/payment/success")
-    public String paymentSuccess(Model model) {
-        // Giả sử sau khi thanh toán thành công, hệ thống nhận kết quả và gửi thông báo thành công.
-        String message = "Thanh toán thành công! Cảm ơn bạn đã sử dụng dịch vụ.";
-        // Thêm thông báo vào model
-        model.addAttribute("message", message);
-        // Trả về trang JSP hiển thị thông báo thành công
-        return "client/payment/payment-success";
-    }
-
-    @GetMapping("/payment/error")
-    public String paymentError(Model model) {
-        // Giả sử sau khi thanh toán thất bại, hệ thống nhận kết quả và gửi thông báo thất bại.
-        String message = "Thanh toán thất bại! Vui lòng thử lại.";
-        // Thêm thông báo vào model
-        model.addAttribute("message", message);
-        // Trả về trang JSP hiển thị thông báo thất bại
-        return "client/payment/payment-error";
-    }
-
-
-
-
-    @GetMapping("/payment/vnpay-callback")
-    public String handleVnpayCallback(HttpServletRequest request) {
-        // Lấy các tham số từ VNPay gửi lại
+    @GetMapping("/api/v1/payments/vnpay-callback")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleVnpayCallback(HttpServletRequest request) {
         String status = request.getParameter("vnp_ResponseCode");
-        String type = request.getParameter("vnp_OrderInfo").split("-")[1];
-        if(type.equals("RENTAL_TOOL")){
-            if (status == null) {
-                throw new RuntimeException("Invalid callback parameters");
-            }
-            if ("00".equals(status)) {
-                HttpSession session = request.getSession();
-                RentalTool rentalTool = (RentalTool) session.getAttribute("pendingRentalTool");
-                if (rentalTool == null) {
-                    throw new RuntimeException("Không tìm thấy đơn thuê trong session");
-                }
-                rentalToolService.handleDailyRental(rentalTool);
-                rentalTool.setStatus(RentalToolStatus.PAID);
-                rentalToolRepository.save(rentalTool);
-                return "redirect:/payment/success"; // Trang thành công
-            } else {
-                return "redirect:/payment/error"; // Trang thất bại
-            }
-        }else
-        { String bookingId = request.getParameter("vnp_OrderInfo").split("-")[0];
-            Booking booking = bookingRepository.findById(Long.parseLong(bookingId)).orElseThrow(() -> new RuntimeException("RentalTool not found"));
+        String orderInfo = request.getParameter("vnp_OrderInfo");
+        String type = orderInfo.split("-")[1];
 
+        if ("RENTAL_TOOL".equals(type)) {
+            if (!"00".equals(status)) {
+                throw new RuntimeException("Thanh toán thất bại");
+            }
+            HttpSession session = request.getSession();
+            RentalTool rentalTool = (RentalTool) session.getAttribute("pendingRentalTool");
+            if (rentalTool == null)
+                throw new RuntimeException("Không tìm thấy đơn thuê trong session");
+            rentalToolService.handleDailyRental(rentalTool);
+            rentalTool.setStatus(RentalToolStatus.PAID);
+            rentalToolRepository.save(rentalTool);
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Thanh toán vợt thuê thành công")
+                    .data(Map.of("type", "RENTAL_TOOL")).build());
+        } else {
+            String bookingId = orderInfo.split("-")[0];
+            Booking booking = bookingRepository.findById(Long.parseLong(bookingId))
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy booking"));
             if ("00".equals(status)) {
                 booking.setStatus("Đã đặt");
                 bookingRepository.save(booking);
-                return "redirect:/payment/success/"+ bookingId + "/booking"; // Trang thành công
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                        .status(200).message("Thanh toán đặt sân thành công")
+                        .data(Map.of("type", "BOOKING", "bookingId", bookingId)).build());
             } else {
                 bookingRepository.delete(booking);
-                return "redirect:/payment/error"; // Trang thất bại
+                throw new RuntimeException("Thanh toán đặt sân thất bại");
             }
         }
-
-
     }
 }

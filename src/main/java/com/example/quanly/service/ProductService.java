@@ -5,6 +5,8 @@ import com.example.quanly.domain.Product;
 import com.example.quanly.domain.SubCourt;
 import com.example.quanly.domain.SubCourtAvailableTime;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
+import com.example.quanly.domain.dto.ProductResponseDTO;
+import com.example.quanly.mapper.ProductMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.spectification.ProductSpec;
 import jakarta.persistence.criteria.Predicate;
@@ -24,40 +26,30 @@ import java.util.stream.Collectors;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class ProductService {
 
-    UserRepository userRepository;
     ProductRepository productRepository;
     TimeRepository timeRepository;
     SubCourtRepository subCourtRepository;
     SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
-
-    BookingDetailRepository bookingDetailRepository;
-
-    BookingRepository bookingRepository;
-
+    ProductMapper productMapper;
 
     // Sân đấu
-    public Page<Product> getAllProductClient(Pageable pageable) {
-        return this.productRepository.findByStatusNot("DELETED", pageable);
+    public Page<ProductResponseDTO> getAllProductClient(Pageable pageable) {
+        return this.productRepository.findByStatusNot("DELETED", pageable).map(productMapper::toDTO);
     }
 
-    public Page<Product> getAllProductAdmin(Pageable pageable) {
-        return this.productRepository.findAll(pageable);
+    public Page<ProductResponseDTO> getAllProductAdmin(Pageable pageable) {
+        return this.productRepository.findAll(pageable).map(productMapper::toDTO);
     }
 
-    public Product getCourtById(Long id) {
-        return productRepository.findById(id).orElse(null);
+    public ProductResponseDTO getCourtById(Long id) {
+        return productRepository.findById(id).map(productMapper::toDTO).orElse(null);
     }
 
     public long getCourtProduct() {
         return productRepository.count();
     }
 
-    public Page<Product> getAllProductWithSpec(Pageable pageable, ProductCriteriaDTO productCriteriaDTO) {
-        if (productCriteriaDTO.getAddress() == null
-                && productCriteriaDTO.getPrice() == null) {
-            return this.productRepository.findAll(pageable);
-        }
-
+    public Page<ProductResponseDTO> getAllProductWithSpec(Pageable pageable, ProductCriteriaDTO productCriteriaDTO) {
         Specification<Product> combinedSpec = Specification.where(null);
 
         if (productCriteriaDTO.getAddress() != null && productCriteriaDTO.getAddress().isPresent()) {
@@ -86,9 +78,8 @@ public class ProductService {
 
         combinedSpec = combinedSpec.and(Specification.not(ProductSpec.addressIsNullOrEmpty()));
 
-        return this.productRepository.findAll(combinedSpec, pageable);
+        return this.productRepository.findAll(combinedSpec, pageable).map(productMapper::toDTO);
     }
-
 
     // lọc giá
     public Specification<Product> buildPriceSpecification(List<String> price) {
@@ -128,7 +119,7 @@ public class ProductService {
 
     // -------------------------------//
 
-    public Product handSaveProduct(Product product) {
+    public ProductResponseDTO handSaveProduct(Product product) {
         Product savedProduct = productRepository.save(product);
 
         // Tạo SubCourts theo quantity
@@ -148,15 +139,15 @@ public class ProductService {
             }
         }
 
-        return savedProduct;
+        return productMapper.toDTO(savedProduct);
     }
 
-    public Product getProductByID(long productId) {
-        return this.productRepository.getById(productId);
+    public ProductResponseDTO getProductByID(long productId) {
+        return productMapper.toDTO(this.productRepository.getById(productId));
     }
 
-    public Optional<Product> fetchProductById(long productId) {
-        return Optional.ofNullable(this.productRepository.getById(productId));
+    public Optional<ProductResponseDTO> fetchProductById(long productId) {
+        return Optional.ofNullable(this.productRepository.getById(productId)).map(productMapper::toDTO);
     }
 
     public void deleteAllProduct(long productId) {
@@ -167,11 +158,12 @@ public class ProductService {
         return this.timeRepository.findAll();
     }
 
-    public Page<Product> findByNameContaining(String name, Pageable pageable) {
-        return productRepository.findByNameContainingIgnoreCase(name, pageable);
+    public Page<ProductResponseDTO> findByNameContaining(String name, Pageable pageable) {
+        return productRepository.findByNameContainingIgnoreCase(name, pageable).map(productMapper::toDTO);
     }
 
-    public List<SubCourt> getAllCourtsByProduct(Product product) {
+    public List<SubCourt> getAllCourtsByProduct(long productId) {
+        Product product = productRepository.getById(productId);
         List<SubCourt> allCourts = this.subCourtRepository.findByProduct(product);
 
         // Giữ lại SubCourt đầu tiên theo tên
@@ -182,6 +174,5 @@ public class ProductService {
 
         return new ArrayList<>(distinctByName.values());
     }
-
 
 }

@@ -1,13 +1,10 @@
 package com.example.quanly.controller.admin;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
-import com.example.quanly.domain.Product;
 import com.example.quanly.domain.RentalTool;
+import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.repository.RentalToolRepository;
-import com.example.quanly.service.ProductService;
+import com.example.quanly.service.BookingService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,88 +13,92 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import com.example.quanly.domain.Booking;
-import com.example.quanly.service.BookingService;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
-@Controller
+@RestController
+@RequestMapping("/api/v1/admin/bookings")
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingController {
-    BookingService bookingService;
-    RentalToolRepository rentalToolRepository;
+        BookingService bookingService;
+        RentalToolRepository rentalToolRepository;
 
-    @GetMapping("/admin/booking")
-    public String getBooking(
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
-            @RequestParam(value = "search", required = false) String searchTerm,
-            @RequestParam(value = "page", defaultValue = "1") int page,
-            @RequestParam(value = "size", defaultValue = "5") int size,
-            Model model) {
+        @GetMapping
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookings(
+                        @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
+                        @RequestParam(value = "search", required = false) String searchTerm,
+                        @RequestParam(value = "page", defaultValue = "1") int page,
+                        @RequestParam(value = "size", defaultValue = "5") int size) {
 
-        Page<Booking> bookingPage;
+                Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
+                Page<BookingResponseDTO> bookingPage;
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
+                if (date != null) {
+                        bookingPage = bookingService.fetchBookingsByDate(date, pageable);
+                } else if (searchTerm != null && !searchTerm.isEmpty()) {
+                        bookingPage = bookingService.fetchBookingCode(searchTerm, pageable);
+                } else {
+                        bookingPage = bookingService.fetchAllBookings(pageable);
+                }
 
-        if (date != null) {
-            bookingPage = bookingService.fetchBookingsByDate(date, pageable);
-            model.addAttribute("selectedDate", date);
-        } else if (searchTerm != null && !searchTerm.isEmpty()) {
-            bookingPage = bookingService.fetchBookingCode(searchTerm, pageable);
-            model.addAttribute("searchTerm", searchTerm);
-        } else {
-            bookingPage = bookingService.fetchAllBookings(pageable);
+                Map<String, Object> result = Map.of(
+                                "bookings", bookingPage.getContent(),
+                                "currentPage", page,
+                                "totalPages", bookingPage.getTotalPages(),
+                                "totalElements", bookingPage.getTotalElements());
+
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200)
+                                .message("Thành công")
+                                .data(result)
+                                .build());
         }
 
-        model.addAttribute("bookings", bookingPage.getContent());
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", bookingPage.getTotalPages());
+        @GetMapping("/{id}")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingDetail(@PathVariable long id) {
+                BookingResponseDTO bookingDTO = bookingService.fetchBookingById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking id=" + id));
+                List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
 
-        return "admin/booking/show";
-    }
+                Map<String, Object> result = Map.of(
+                                "booking", bookingDTO,
+                                "rentalTools", rentalTools);
 
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200)
+                                .message("Thành công")
+                                .data(result)
+                                .build());
+        }
 
-    @GetMapping("/admin/booking/{id}")
-    public String getBookingDetailPage(Model model, @PathVariable long id) {
-        Booking booking = this.bookingService.fetchBookingById(id).get();
-        List<RentalTool> rentalTool = this.rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId()));
-        model.addAttribute("booking", booking);
-        model.addAttribute("id", id);
-        model.addAttribute("bookingDetails", booking.getBookingDetails());
-        model.addAttribute("rentalTool", rentalTool);
-        return "admin/booking/detail";
-    }
+        @DeleteMapping("/{id}")
+        public ResponseEntity<ApiResponse<String>> deleteBooking(@PathVariable long id) {
+                bookingService.deleteBookingById(id);
+                return ResponseEntity.ok(ApiResponse.<String>builder()
+                                .status(200)
+                                .message("Xóa booking thành công")
+                                .data(null)
+                                .build());
+        }
 
-    @GetMapping("/admin/booking/delete/{id}")
-    public String getDeleteBookingPage(Model model, @PathVariable long id) {
-        model.addAttribute("id", id);
-        model.addAttribute("newBooking", new Booking());
-        return "admin/booking/delete";
-    }
+        @PutMapping("/{id}/status")
+        public ResponseEntity<ApiResponse<BookingResponseDTO>> updateBookingStatus(
+                        @PathVariable long id,
+                        @RequestBody Map<String, String> body) {
+                String status = body.get("status");
+                bookingService.updateBooking(id, status);
+                BookingResponseDTO updatedBooking = bookingService.fetchBookingById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking sau cập nhật"));
 
-    @PostMapping("/admin/booking/delete")
-    public String postDeleteBooking(@ModelAttribute("newBooking") Booking booking) {
-        this.bookingService.deleteBookingById(booking.getId());
-        return "redirect:/admin/booking";
-    }
-
-    @GetMapping("/admin/booking/update/{id}")
-    public String getUpdateBookingPage(Model model, @PathVariable long id) {
-        Optional<Booking> currentBooking = this.bookingService.fetchBookingById(id);
-        model.addAttribute("newBooking", currentBooking.get());
-        return "admin/booking/update";
-    }
-
-    @PostMapping("/admin/booking/update")
-    public String handleUpdateBooking(@ModelAttribute("newBooking") Booking booking) {
-        this.bookingService.updateBooking(booking);
-        return "redirect:/admin/booking";
-    }
+                return ResponseEntity.ok(ApiResponse.<BookingResponseDTO>builder()
+                                .status(200)
+                                .message("Cập nhật trạng thái thành công")
+                                .data(updatedBooking)
+                                .build());
+        }
 }

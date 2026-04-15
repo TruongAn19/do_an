@@ -1,7 +1,6 @@
 package com.example.quanly.service;
 
 import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.User;
 import com.example.quanly.repository.BookingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -17,16 +16,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @EnableScheduling
+@Slf4j
 public class NtfyService {
 
     @Autowired
     private RestTemplate restTemplate;
 
-    @Autowired
-    private UserService userService;
     @Autowired
     private BookingRepository bookingRepository;
 
@@ -43,13 +42,13 @@ public class NtfyService {
             headers.setContentType(MediaType.TEXT_PLAIN);
 
             // In ra để kiểm tra giá trị message trước khi gửi
-            System.out.println("Gửi thông báo: " + message);
+            log.info("Gửi thông báo: {}", message);
 
             HttpEntity<String> request = new HttpEntity<>(message, headers);
             restTemplate.postForEntity(url, request, String.class);
             return true;
         } catch (Exception e) {
-            System.err.println("Lỗi khi gửi thông báo: " + e.getMessage());
+            log.error("Lỗi khi gửi thông báo: {}", e.getMessage());
             return false;
         }
     }
@@ -61,7 +60,7 @@ public class NtfyService {
     public void checkAndSendNotifications() {
         List<Booking> bookings = bookingRepository.findBookingsByStatusAndDate("Đã đặt", LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
-        System.out.print("===================================");
+        log.info("===================================");
         for (Booking booking : bookings) {
             LocalTime startTime = booking.getAvailableTime().getTime();
             if (startTime != null) {
@@ -77,9 +76,9 @@ public class NtfyService {
 
                     boolean sent = sendNotification(topic, message, title);
                     if (sent) {
-                        System.out.println("Đã gửi thông báo đến topic: " + topic);
+                        log.info("Đã gửi thông báo đến topic: {}", topic);
                     } else {
-                        System.err.println("Không thể gửi thông báo đến: " + topic);
+                        log.error("Không thể gửi thông báo đến: {}", topic);
                     }
                 }
             }

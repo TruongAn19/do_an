@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,10 +21,12 @@ public class ChatMessage {
 
     @ManyToOne
     @JoinColumn(name = "match_post_id", nullable = false)
+    @JsonIgnoreProperties({"participants", "messages", "user"})
     private MatchPost matchPost;
 
     @ManyToOne
     @JoinColumn(name = "sender_id", nullable = false)
+    @JsonIgnoreProperties({"matchPosts", "participations", "messages", "products", "password"})
     private User sender;
 
     @Column(nullable = false, columnDefinition = "TEXT")
