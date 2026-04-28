@@ -8,14 +8,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.TreeMap;
 
 @Service
-@EnableScheduling
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class PaymentService {
@@ -24,24 +23,21 @@ public class PaymentService {
 
     @Transactional
     public VnpayResponse createVnPayPayment(PaymentRequest paymentRequest, HttpServletRequest request) {
-        // Lấy thông tin từ PaymentRequest
-
         String bankCode = request.getParameter("bankCode");
         long amount = (long) paymentRequest.getAmount();
-        // Lưu transactionId cho giao dịch Payment
-        String transactionId = VnpayUtil.getRandomNumber(8); // Tạo một transactionId ngẫu nhiên
-        // Tạo Map các tham số cho VNPay
+
+        String transactionId = VnpayUtil.getRandomNumber(8);
         Map<String, String> vnpParamsMap = vnpayConfig.getVNPayConfig();
         vnpParamsMap.put("vnp_Amount", String.valueOf(amount * 100));
+        // OrderInfo format: "{id}-{TYPE}" — callback dùng id để tra cứu từ DB
         vnpParamsMap.put("vnp_OrderInfo", paymentRequest.getId() + "-" + paymentRequest.getType());
-        vnpParamsMap.put("vnp_TxnRef", transactionId); // Mã giao dịch
+        vnpParamsMap.put("vnp_TxnRef", transactionId);
         vnpParamsMap.put("vnp_IpAddr", VnpayUtil.getIpAddress(request));
 
         if (bankCode != null && !bankCode.isEmpty()) {
             vnpParamsMap.put("vnp_BankCode", bankCode);
         }
 
-        // Tạo URL thanh toán
         String queryUrl = VnpayUtil.getPaymentURL(vnpParamsMap, true);
         String hashData = VnpayUtil.getPaymentURL(vnpParamsMap, false);
         String vnpSecureHash = VnpayUtil.hmacSHA512(vnpayConfig.getSecretKey(), hashData);
@@ -49,12 +45,34 @@ public class PaymentService {
 
         String paymentUrl = vnpayConfig.getVnp_PayUrl() + "?" + queryUrl;
 
-        // Trả về VnpayResponse với URL thanh toán
         return VnpayResponse.builder()
-                .code("00") // Thành công
+                .code("00")
                 .message("Tạo thanh toán thành công")
                 .paymentUrl(paymentUrl)
                 .build();
     }
 
+    /**
+     * Xác thực chữ ký HMAC-SHA512 từ VNPay gửi về.
+     * Phải gọi trước khi xử lý bất kỳ nghiệp vụ nào trong callback.
+     */
+    public boolean verifyVnpayCallback(HttpServletRequest request) {
+        String vnpSecureHash = request.getParameter("vnp_SecureHash");
+        if (vnpSecureHash == null || vnpSecureHash.isBlank()) {
+            return false;
+        }
+
+        // Thu thập tất cả params ngoại trừ chữ ký, sắp xếp theo key
+        Map<String, String> fields = new TreeMap<>();
+        request.getParameterMap().forEach((key, values) -> {
+            if (!"vnp_SecureHash".equals(key) && !"vnp_SecureHashType".equals(key)) {
+                fields.put(key, values[0]);
+            }
+        });
+
+        // Tính lại hash từ params và so sánh (case-insensitive)
+        String hashData = VnpayUtil.getPaymentURL(fields, false);
+        String calculatedHash = VnpayUtil.hmacSHA512(vnpayConfig.getSecretKey(), hashData);
+        return calculatedHash.equalsIgnoreCase(vnpSecureHash);
+    }
 }

@@ -3,7 +3,6 @@ package com.example.quanly.controller.admin;
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.BookingResponseDTO;
-import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.BookingService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +25,6 @@ import java.util.Map;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingController {
         BookingService bookingService;
-        RentalToolRepository rentalToolRepository;
 
         @GetMapping
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookings(
@@ -63,7 +61,7 @@ public class BookingController {
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingDetail(@PathVariable long id) {
                 BookingResponseDTO bookingDTO = bookingService.fetchBookingById(id)
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking id=" + id));
-                List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
+                List<RentalTool> rentalTools = bookingService.getRentalToolsByBookingId(id);
 
                 Map<String, Object> result = Map.of(
                                 "booking", bookingDTO,

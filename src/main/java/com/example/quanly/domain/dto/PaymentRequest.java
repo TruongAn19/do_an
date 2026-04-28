@@ -1,5 +1,6 @@
 package com.example.quanly.domain.dto;
 
+import com.example.quanly.domain.PaymentType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PaymentRequest {
     private Long id;
-    private String type;
+    private PaymentType type;
     private double amount;
     private String redirectUrl;
 }

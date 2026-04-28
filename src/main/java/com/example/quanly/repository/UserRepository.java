@@ -7,7 +7,7 @@ import com.example.quanly.domain.User;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    User findById(long id);
+    User findUserById(long id);
 
     boolean existsByEmail(String email);
 

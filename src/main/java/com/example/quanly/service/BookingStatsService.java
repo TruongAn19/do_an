@@ -1,5 +1,6 @@
 package com.example.quanly.service;
 
+import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.repository.BookingDetailRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,7 @@ public class BookingStatsService {
     private BookingDetailRepository bookingDetailRepository;
 
     public Map<String, Double> getRevenueBetweenDates(LocalDate start, LocalDate end) {
-        List<Object[]> results = bookingDetailRepository.getRevenuePerProductBetweenDates(start, end);
+        List<Object[]> results = bookingDetailRepository.getRevenuePerProductBetweenDates(start, end, BookingStatus.DA_THANH_TOAN);
         Map<String, Double> data = new LinkedHashMap<>();
         for (Object[] result : results) {
             String productName = (String) result[0];

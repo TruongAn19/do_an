@@ -63,7 +63,7 @@ public class UserService {
     }
 
     public UserResponseDTO getUserById(long userId) {
-        return userMapper.toDTO(this.userRepository.findById(userId));
+        return userMapper.toDTO(this.userRepository.findUserById(userId));
     }
 
     public void deleteAUser(long id) {
@@ -105,7 +105,7 @@ public class UserService {
     }
 
     public User updateToUser(long id) {
-        return this.userRepository.findById(id);
+        return this.userRepository.findUserById(id);
     }
 
     public User findByEmail(String email) {

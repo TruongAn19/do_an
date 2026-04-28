@@ -11,6 +11,9 @@ import java.util.List;
 @Table(name = "booking")
 @Data
 public class Booking {
+
+    public static final String NO_RENTAL = "KHONG_THUE";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
@@ -20,11 +23,12 @@ public class Booking {
     private String bookingCode;
     private String receiverAddress;
     private String receiverPhone;
-    private String status;
+    private BookingStatus status;
     private LocalDate bookingDate;
     private double depositPrice;
 
-    private String bookingType = "ONE_TIME"; // ONE_TIME, WEEKLY_RECURRING
+    @Enumerated(EnumType.STRING)
+    private BookingType bookingType = BookingType.ONE_TIME;
     private LocalDate recurringEndDate;
 
     @ManyToOne
@@ -47,6 +51,6 @@ public class Booking {
     }
 
     @Column(name = "rental_tool_code")
-    private String rentalToolCode = "KHONG_THUE";
+    private String rentalToolCode = NO_RENTAL;
 
 }

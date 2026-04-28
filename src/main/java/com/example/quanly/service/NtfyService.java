@@ -1,6 +1,7 @@
 package com.example.quanly.service;
 
 import com.example.quanly.domain.Booking;
+import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.repository.BookingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -58,7 +59,7 @@ public class NtfyService {
      */
     @Scheduled(cron = "0 */30 * * * *") // Mỗi 30 phút
     public void checkAndSendNotifications() {
-        List<Booking> bookings = bookingRepository.findBookingsByStatusAndDate("Đã đặt", LocalDate.now());
+        List<Booking> bookings = bookingRepository.findBookingsByStatusAndDate(BookingStatus.DA_DAT, LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
         log.info("===================================");
         for (Booking booking : bookings) {

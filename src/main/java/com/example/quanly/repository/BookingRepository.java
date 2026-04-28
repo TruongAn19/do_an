@@ -1,6 +1,7 @@
 package com.example.quanly.repository;
 
 import com.example.quanly.domain.Booking;
+import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +25,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Booking findByBookingCode(String bookingCode);
 
     @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
-    List<Booking> findBookingsByStatusAndDate(String status, LocalDate date);
+    List<Booking> findBookingsByStatusAndDate(BookingStatus status, LocalDate date);
 
     List<Booking> findByBookingCodeContainingIgnoreCase(String bookingCode);
 

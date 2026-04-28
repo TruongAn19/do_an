@@ -2,6 +2,7 @@ package com.example.quanly.repository;
 
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.RentalToolStatus;
+import com.example.quanly.domain.RentalType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,7 +16,7 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     List<RentalTool> findRentalToolsByBookingId(String id);
 
-    List<RentalTool> findByType(String type);
+    List<RentalTool> findByType(RentalType type);
 
     @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = 'DAILY' AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND r.productId = :courtId")
     int countDailyRentalByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
@@ -52,7 +53,7 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
 
-    Page<RentalTool> findByType(String type, Pageable pageable);
+    Page<RentalTool> findByType(RentalType type, Pageable pageable);
 
     Page<RentalTool> findByRentalToolCodeContaining(String code, Pageable pageable);
 

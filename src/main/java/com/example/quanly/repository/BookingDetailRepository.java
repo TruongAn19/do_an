@@ -2,6 +2,7 @@ package com.example.quanly.repository;
 
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.BookingDetail;
+import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.domain.SubCourt;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,9 +25,12 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
       "FROM BookingDetail bd " +
       "JOIN bd.booking b " +
       "WHERE bd.date BETWEEN :start AND :end " +
-      "AND b.status = 'Đã thanh toán' " +
+      "AND b.status = :status " +
       "GROUP BY bd.product.name")
-  List<Object[]> getRevenuePerProductBetweenDates(@Param("start") LocalDate start, @Param("end") LocalDate end);
+  List<Object[]> getRevenuePerProductBetweenDates(
+      @Param("start") LocalDate start,
+      @Param("end") LocalDate end,
+      @Param("status") BookingStatus status);
 
   List<BookingDetail> findByBookingId(long id);
 

@@ -54,17 +54,13 @@ public class BookingService {
         return this.bookingRepository.findById(id).map(bookingMapper::toDTO);
     }
 
+    @Transactional
     public void deleteBookingById(long id) {
-        // delete order detail
         Optional<Booking> bookingOptional = this.bookingRepository.findById(id);
         if (bookingOptional.isPresent()) {
-            Booking booking = bookingOptional.get();
-            List<BookingDetail> bookingDetails = booking.getBookingDetails();
-            for (BookingDetail bookingDetail : bookingDetails) {
-                this.bookingDetailRepository.deleteById(bookingDetail.getId());
-            }
+            List<BookingDetail> bookingDetails = bookingOptional.get().getBookingDetails();
+            this.bookingDetailRepository.deleteAllInBatch(bookingDetails);
         }
-
         this.bookingRepository.deleteById(id);
     }
 
@@ -73,16 +69,18 @@ public class BookingService {
         if (bOptional.isEmpty())
             return;
         Booking currentBooking = bOptional.get();
-        currentBooking.setStatus(status);
+        currentBooking.setStatus(BookingStatus.fromLabel(status));
         this.bookingRepository.save(currentBooking);
-        if (currentBooking.getStatus().equals("Đã thanh toán")) {
-            List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(currentBooking.getId() + "");
-            for (RentalTool rentalTool : rentalTools) {
-                rentalTool.setStatus(RentalToolStatus.COMPLETED);
-                rentalToolRepository.save(rentalTool);
-            }
-        }
 
+        if (currentBooking.getStatus() == BookingStatus.DA_THANH_TOAN) {
+            List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(currentBooking.getId() + "");
+            rentalTools.forEach(rt -> rt.setStatus(RentalToolStatus.COMPLETED));
+            rentalToolRepository.saveAll(rentalTools);
+        }
+    }
+
+    public List<RentalTool> getRentalToolsByBookingId(long id) {
+        return rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
     }
 
     public List<BookingResponseDTO> fetchBookingByUser(User user) {
@@ -98,14 +96,15 @@ public class BookingService {
             String bookingType, LocalDate recurringEndDate) {
 
         // 1. Kiểm tra người dùng
-        user = userRepository.findById(user.getId());
+        user = userRepository.findUserById(user.getId());
         if (user == null) {
             throw new IllegalArgumentException("Không tìm thấy người dùng.");
         }
 
         // 2. Tính toán danh sách ngày cần đặt
+        BookingType type = (bookingType != null) ? BookingType.valueOf(bookingType) : BookingType.ONE_TIME;
         java.util.List<LocalDate> datesToBook = new java.util.ArrayList<>();
-        if ("WEEKLY_RECURRING".equals(bookingType) && recurringEndDate != null) {
+        if (type == BookingType.WEEKLY_RECURRING && recurringEndDate != null) {
             if (recurringEndDate.isBefore(bookingDate)) {
                 throw new IllegalArgumentException("Ngày kết thúc chu kỳ không thể trước ngày bắt đầu.");
             }
@@ -176,10 +175,10 @@ public class BookingService {
         booking.setReceiverPhone(receiverPhone);
         booking.setAvailableTime(time);
         booking.setBookingDate(bookingDate);
-        booking.setBookingType(bookingType != null ? bookingType : "ONE_TIME");
+        booking.setBookingType(type);
         booking.setRecurringEndDate(recurringEndDate);
-        booking.setDepositPrice(product.getDepositPrice() * datesToBook.size()); // Cọc nhân lên
-        booking.setStatus("Đã đặt");
+        booking.setDepositPrice(product.getDepositPrice() * datesToBook.size());
+        booking.setStatus(BookingStatus.DA_DAT);
 
         // 9. Tính toán giá linh hoạt cho từng slot và cộng dồn
         double totalBookingPrice = 0;
@@ -209,10 +208,7 @@ public class BookingService {
 
         booking.setTotalPrice(totalBookingPrice);
         Booking savedBooking = bookingRepository.save(booking);
-
-        for (BookingDetail detail : details) {
-            bookingDetailRepository.save(detail);
-        }
+        bookingDetailRepository.saveAll(details);
 
         // Xóa giữ chỗ
         temporaryBookingRepository.delete(hold);
@@ -224,5 +220,4 @@ public class BookingService {
     public Page<BookingResponseDTO> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
         return bookingRepository.findByUserId(userId, pageable).map(bookingMapper::toDTO);
     }
-
 }

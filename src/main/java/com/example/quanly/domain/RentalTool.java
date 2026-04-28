@@ -16,7 +16,8 @@ public class RentalTool implements Serializable {
     private String fullName;
     private String email;
     private String phone;
-    private String type; // DAILY or ON_SITE
+    @Enumerated(EnumType.STRING)
+    private RentalType type;
     private String bookingId;
     private Long racketId;
     private Long productId;

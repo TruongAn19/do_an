@@ -4,17 +4,20 @@ import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.domain.dto.BookingResponseDTO;
-import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.domain.dto.HoldBookingRequest;
+import com.example.quanly.domain.PaymentType;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.PlaceBookingRequest;
+import com.example.quanly.domain.dto.ProductResponseDTO;
+import jakarta.validation.Valid;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.BookingService;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketService;
-import com.example.quanly.service.UserService;
+import com.example.quanly.service.RecommendationService;
+import com.example.quanly.util.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -24,8 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -43,204 +44,183 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingClientController {
-        ProductService productService;
-        RacketService racketService;
-        SubCourtRepository subCourtRepository;
-        TimeRepository timeRepository;
-        BookingDetailRepository bookingDetailRepository;
-        BookingService bookingService;
-        PaymentService paymentService;
-        TemporaryBookingRepository temporaryBookingRepository;
-        UserService userService;
-        com.example.quanly.service.RecommendationService recommendationService;
 
-        @GetMapping("/recommend/{productId}")
-        public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
-                        @PathVariable Long productId,
-                        Principal principal) {
-                if (principal == null)
-                        return ResponseEntity.status(401).build();
-                User user = userService.getUserByEmail(principal.getName());
-                List<AvailableTimeDTO> recs = recommendationService.recommendSlots(user.getId(), productId);
-                return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
-                                .status(200).message("Gợi ý cho bạn").data(recs).build());
-        }
+    ProductService productService;
+    RacketService racketService;
+    SubCourtRepository subCourtRepository;
+    TimeRepository timeRepository;
+    BookingDetailRepository bookingDetailRepository;
+    BookingService bookingService;
+    PaymentService paymentService;
+    TemporaryBookingRepository temporaryBookingRepository;
+    RecommendationService recommendationService;
+    SecurityUtils securityUtils;
 
-        @GetMapping("/{productId}/info")
-        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingInfo(
-                        @PathVariable long productId,
-                        Principal principal) {
+    @GetMapping("/recommend/{productId}")
+    public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
+            @PathVariable Long productId) {
 
-                if (principal == null) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                        .body(ApiResponse.<Map<String, Object>>builder()
-                                                        .status(401).message("Bạn cần đăng nhập").data(null).build());
-                }
+        User user = getCurrentUser();
+        List<AvailableTimeDTO> recs = recommendationService.recommendSlots(user.getId(), productId);
+        return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
+                .status(200).message("Gợi ý cho bạn").data(recs).build());
+    }
 
-                ProductResponseDTO product = productService.getProductByID(productId);
-                List<AvailableTime> allTimes = productService.getAllTime();
-                List<SubCourt> courts = productService.getAllCourtsByProduct(productId);
+    @GetMapping("/{productId}/info")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingInfo(
+            @PathVariable long productId) {
 
-                double price = product.getPrice();
-                double discount = product.getSale() / 100.0;
-                double totalPrice = price - (price * discount);
+        ProductResponseDTO product = productService.getProductByID(productId);
+        List<AvailableTime> allTimes = productService.getAllTime();
+        List<SubCourt> courts = productService.getAllCourtsByProduct(productId);
 
-                Map<String, Object> data = Map.of(
-                                "product", product,
-                                "courts", courts,
-                                "availableTimes", allTimes,
-                                "totalPrice", totalPrice);
+        double price = product.getPrice();
+        double totalPrice = price - (price * product.getSale() / 100.0);
 
-                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                                .status(200).message("Thành công").data(data).build());
-        }
+        Map<String, Object> data = Map.of(
+                "product", product,
+                "courts", courts,
+                "availableTimes", allTimes,
+                "totalPrice", totalPrice);
 
-        @GetMapping("/available-times")
-        public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getAvailableTimes(
-                        @RequestParam("date") String dateStr,
-                        @RequestParam("courtId") Long courtId) {
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(data).build());
+    }
 
-                LocalDate date = LocalDate.parse(dateStr);
-                SubCourt court = subCourtRepository.findById(courtId).orElse(null);
+    @GetMapping("/available-times")
+    public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getAvailableTimes(
+            @RequestParam("date") String dateStr,
+            @RequestParam("courtId") Long courtId) {
 
-                List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
-                Set<Long> bookedTimeIds = bookings.stream()
-                                .map(b -> b.getAvailableTime().getId())
-                                .collect(Collectors.toSet());
+        LocalDate date = LocalDate.parse(dateStr);
+        SubCourt court = subCourtRepository.findById(courtId).orElse(null);
 
-                List<AvailableTime> allTimes = timeRepository.findAll();
-                LocalDate today = LocalDate.now();
-                LocalTime now = LocalTime.now();
+        List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
+        Set<Long> bookedTimeIds = bookings.stream()
+                .map(b -> b.getAvailableTime().getId())
+                .collect(Collectors.toSet());
 
-                log.info("Date: {}, CourtId: {}", date, courtId);
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        log.info("Date: {}, CourtId: {}", date, courtId);
 
-                List<AvailableTimeDTO> result = allTimes.stream()
-                                .filter(time -> {
-                                        if (date.equals(today) && time.getTime().isBefore(now))
-                                                return false;
-                                        return !bookedTimeIds.contains(time.getId());
-                                })
-                                .map(AvailableTimeDTO::new)
-                                .collect(Collectors.toList());
+        List<AvailableTimeDTO> result = timeRepository.findAll().stream()
+                .filter(time -> {
+                    if (date.equals(today) && time.getTime().isBefore(now)) return false;
+                    return !bookedTimeIds.contains(time.getId());
+                })
+                .map(AvailableTimeDTO::new)
+                .collect(Collectors.toList());
 
-                return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
-                                .status(200).message("Thành công").data(result).build());
-        }
+        return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
+                .status(200).message("Thành công").data(result).build());
+    }
 
-        @PostMapping("/hold")
-        @Transactional
-        public ResponseEntity<ApiResponse<Map<String, Object>>> holdCourt(
-                        @RequestBody HoldBookingRequest holdRequest,
-                        Principal principal) {
+    @PostMapping("/hold")
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, Object>>> holdCourt(
+            @Valid @RequestBody HoldBookingRequest holdRequest) {
 
-                if (principal == null) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                        .body(ApiResponse.<Map<String, Object>>builder()
-                                                        .status(401).message("Bạn cần đăng nhập").data(null).build());
-                }
+        User currentUser = getCurrentUser();
+        Long userId = currentUser.getId();
 
-                User currentUser = userService.getUserByEmail(principal.getName());
-                Long userId = currentUser.getId();
+        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
+        temporaryBookingRepository.deleteExpiredHolds(expiryTime);
+        temporaryBookingRepository.flush();
 
-                LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
-                temporaryBookingRepository.deleteExpiredHolds(expiryTime);
+        SubCourt court = subCourtRepository.findById(holdRequest.getSubCourtId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
+        AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
+
+        Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
+                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(court, time, holdRequest.getBookingDate());
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (existingOpt.isPresent()) {
+            TemporaryBooking existing = existingOpt.get();
+            if (existing.isExpired()) {
+                temporaryBookingRepository.delete(existing);
                 temporaryBookingRepository.flush();
-
-                SubCourt court = subCourtRepository.findById(holdRequest.getSubCourtId())
-                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
-                AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
-                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
-
-                Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
-                                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(court, time,
-                                                holdRequest.getBookingDate());
-
-                LocalDateTime now = LocalDateTime.now();
-
-                if (existingOpt.isPresent()) {
-                        TemporaryBooking existing = existingOpt.get();
-                        if (existing.isExpired()) {
-                                temporaryBookingRepository.delete(existing);
-                                temporaryBookingRepository.flush();
-                        } else {
-                                if (!existing.getUserId().equals(userId)) {
-                                        long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
-                                        long remaining = Math.max(180 - elapsed, 0);
-                                        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
-                                                        .<Map<String, Object>>builder()
-                                                        .status(409)
-                                                        .message("Khung giờ này đang được giữ. Vui lòng thử lại sau.")
-                                                        .data(Map.of("remainingTime", remaining))
-                                                        .build());
-                                } else {
-                                        existing.setHoldStartTime(now);
-                                        temporaryBookingRepository.save(existing);
-                                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                                                        .status(200).message("Tiếp tục giữ sân tạm thời")
-                                                        .data(Map.of("remainingTime", 180)).build());
-                                }
-                        }
+            } else {
+                if (!existing.getUserId().equals(userId)) {
+                    long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
+                    long remaining = Math.max(180 - elapsed, 0);
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
+                            .<Map<String, Object>>builder()
+                            .status(409)
+                            .message("Khung giờ này đang được giữ. Vui lòng thử lại sau.")
+                            .data(Map.of("remainingTime", remaining))
+                            .build());
+                } else {
+                    existing.setHoldStartTime(now);
+                    temporaryBookingRepository.save(existing);
+                    return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                            .status(200).message("Tiếp tục giữ sân tạm thời")
+                            .data(Map.of("remainingTime", 180)).build());
                 }
-
-                TemporaryBooking newHold = new TemporaryBooking();
-                newHold.setSubCourt(court);
-                newHold.setAvailableTime(time);
-                newHold.setBookingDate(holdRequest.getBookingDate());
-                newHold.setUserId(userId);
-                newHold.setHoldStartTime(now);
-                temporaryBookingRepository.save(newHold);
-
-                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                                .status(200).message("Giữ sân tạm thời thành công")
-                                .data(Map.of("remainingTime", 180)).build());
+            }
         }
 
-        @PostMapping("/place")
-        public ResponseEntity<ApiResponse<Map<String, Object>>> placeBooking(
-                        @RequestBody PlaceBookingRequest req,
-                        Principal principal,
-                        HttpServletRequest request) {
+        TemporaryBooking newHold = new TemporaryBooking();
+        newHold.setSubCourt(court);
+        newHold.setAvailableTime(time);
+        newHold.setBookingDate(holdRequest.getBookingDate());
+        newHold.setUserId(userId);
+        newHold.setHoldStartTime(now);
+        temporaryBookingRepository.save(newHold);
 
-                if (principal == null) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                        .body(ApiResponse.<Map<String, Object>>builder()
-                                                        .status(401).message("Vui lòng đăng nhập để đặt sân").data(null)
-                                                        .build());
-                }
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Giữ sân tạm thời thành công")
+                .data(Map.of("remainingTime", 180)).build());
+    }
 
-                User currentUser = userService.getUserByEmail(principal.getName());
+    @PostMapping("/place")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> placeBooking(
+            @Valid @RequestBody PlaceBookingRequest req,
+            HttpServletRequest request) {
 
-                BookingResponseDTO booking = bookingService.handlePlaceBooking(currentUser,
-                                req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
-                                req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
-                                req.getBookingType(), req.getRecurringEndDate());
+        User currentUser = getCurrentUser();
 
-                PaymentRequest paymentRequest = new PaymentRequest();
-                paymentRequest.setId(booking.getId());
-                paymentRequest.setAmount(booking.getDepositPrice());
-                paymentRequest.setType("BOOKING");
-                paymentRequest.setRedirectUrl("");
-                VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
+        BookingResponseDTO booking = bookingService.handlePlaceBooking(currentUser,
+                req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
+                req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
+                req.getBookingType(), req.getRecurringEndDate());
 
-                Map<String, Object> data = Map.of(
-                                "bookingId", booking.getId(),
-                                "bookingCode", booking.getBookingCode(),
-                                "paymentUrl", vnpayResponse.getPaymentUrl());
+        PaymentRequest paymentRequest = new PaymentRequest();
+        paymentRequest.setId(booking.getId());
+        paymentRequest.setAmount(booking.getDepositPrice());
+        paymentRequest.setType(PaymentType.BOOKING);
+        paymentRequest.setRedirectUrl("");
 
-                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                                .status(200).message("Đặt sân thành công").data(data).build());
-        }
+        VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
 
-        @GetMapping("/{bookingCode}/{courtId}/rackets")
-        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingThanks(
-                        @PathVariable String bookingCode,
-                        @PathVariable long courtId) {
+        Map<String, Object> data = Map.of(
+                "bookingId", booking.getId(),
+                "bookingCode", booking.getBookingCode(),
+                "paymentUrl", vnpayResponse.getPaymentUrl());
 
-                List<Racket> racketList = racketService.getAvailableRacketsByCourt(courtId);
-                Map<String, Object> data = Map.of(
-                                "rackets", racketList,
-                                "bookingCode", bookingCode);
-                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                                .status(200).message("Thành công").data(data).build());
-        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<Map<String, Object>>builder()
+                        .status(HttpStatus.CREATED.value())
+                        .message("Đặt sân thành công").data(data).build());
+    }
+
+    @GetMapping("/{bookingCode}/{courtId}/rackets")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingRackets(
+            @PathVariable String bookingCode,
+            @PathVariable long courtId) {
+
+        List<Racket> racketList = racketService.getAvailableRacketsByCourt(courtId);
+        Map<String, Object> data = Map.of(
+                "rackets", racketList,
+                "bookingCode", bookingCode);
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Thành công").data(data).build());
+    }
+
+    private User getCurrentUser() {
+        return securityUtils.getCurrentUser();
+    }
 }

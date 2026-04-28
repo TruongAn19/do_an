@@ -1,38 +1,41 @@
 package com.example.quanly;
 
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
+import com.example.quanly.domain.RentalTool;
+import com.example.quanly.domain.RentalToolStatus;
+import com.example.quanly.repository.RentalToolRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
-import static org.hamcrest.Matchers.containsString;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Kiểm thử security và validation của REST API.
+ *
+ * Chiến lược:
+ *  - Dùng profile "test" với H2 in-memory, không cần MySQL hay Redis thật.
+ *  - Các test security/401/403 không cần DB vì Spring Security chặn trước controller.
+ *  - Các test validation/400 không cần DB vì @Valid chặn trước service được gọi.
+ *  - @MockBean cho RentalToolRepository ở một số test cần tra cứu entity.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class SecurityTests {
-
-    private static final Logger logger = LoggerFactory.getLogger(SecurityTests.class);
-
-    // Test users
-    private static final String TEST_USER = "testuser";
-    private static final String TEST_PASSWORD = "correctpassword";
-    private static final String ADMIN_USER = "admin";
-    private static final String NORMAL_USER = "normal";
+@ActiveProfiles("test")
+class SecurityTests {
 
     @Autowired
     private MockMvc mockMvc;
@@ -40,133 +43,200 @@ public class SecurityTests {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @MockBean
+    private RentalToolRepository rentalToolRepository;
+
+    // =========================================================================
+    // Unauthenticated access → 401
+    // =========================================================================
+
     @Test
-    @Order(1)
-    void testLoginSuccess() throws Exception {
-        logger.info("🔐 Testing valid login");
-
-        mockMvc.perform(formLogin("/login")
-                .user("username", TEST_USER)
-                .password("password", TEST_PASSWORD))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/"));
-
-        logger.info("✅ Login successful with valid credentials");
+    @DisplayName("POST /api/v1/rentals không có token → 401")
+    void whenCreateRentalWithoutToken_thenUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rentals")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @Order(2)
-    void testLoginFailure() throws Exception {
-        logger.info("🔐 Testing invalid login");
-
-        mockMvc.perform(formLogin("/login")
-                .user("username", TEST_USER)
-                .password("password", "wrongpassword"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login?error"));
-
-        logger.info("✅ Login failed as expected with invalid credentials");
+    @DisplayName("POST /api/v1/rentals/{id}/pay không có token → 401")
+    void whenPayRentalWithoutToken_thenUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/rentals/1/pay")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"paymentMethod\":\"CASH\"}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @Order(3)
-    void testPasswordEncodedWithBCrypt() {
-        logger.info("🔐 Testing password encryption with BCrypt");
-
-        String rawPassword = "mypassword";
-        String encoded = passwordEncoder.encode(rawPassword);
-
-        assertAll(
-                () -> assertNotEquals(rawPassword, encoded, "Password should be encoded"),
-                () -> assertTrue(passwordEncoder.matches(rawPassword, encoded), "Encoded password should match raw password")
-        );
-
-        logger.info("✅ Password properly encoded and matched");
+    @DisplayName("POST /api/v1/client/bookings/hold không có token → 401")
+    void whenHoldCourtWithoutToken_thenUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/client/bookings/hold")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @Order(4)
-    void testXssInputShouldBeEscaped() throws Exception {
-        logger.info("🛡️ Testing XSS protection");
-
-        String xssInput = "<script>alert('hack')</script>";
-
-        MvcResult result = mockMvc.perform(get("/profile")
-                .param("fullName", xssInput))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String responseContent = result.getResponse().getContentAsString();
-        assertFalse(responseContent.contains(xssInput), "XSS input should be escaped");
-
-        logger.info("✅ XSS input was properly escaped");
+    @DisplayName("POST /api/v1/client/bookings/place không có token → 401")
+    void whenPlaceBookingWithoutToken_thenUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/client/bookings/place")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    @Order(5)
-    void testSqlInjectionFails() throws Exception {
-        logger.info("🛡️ Testing SQL injection protection");
-
-        String sqlInjection = "' OR '1'='1";
-
-        MvcResult result = mockMvc.perform(get("/admin/user")
-                .param("q", sqlInjection))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String responseContent = result.getResponse().getContentAsString();
-        assertFalse(responseContent.toLowerCase().contains("user list"), "SQL injection should not return user list");
-
-        logger.info("✅ SQL injection attempt was blocked");
-    }
+    // =========================================================================
+    // Authorization: USER role không được truy cập admin endpoint → 403
+    // =========================================================================
 
     @Test
-    @Order(6)
-    @WithMockUser(username = NORMAL_USER, roles = {"USER"})
-    void testUserCannotAccessAdmin() throws Exception {
-        logger.info("🔒 Testing USER role cannot access admin page");
-
-        mockMvc.perform(get("/admin"))
+    @DisplayName("USER role truy cập GET /api/v1/admin/bookings → 403")
+    @WithMockUser(roles = "USER")
+    void whenUserRoleAccessesAdminBookings_thenForbidden() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/bookings"))
                 .andExpect(status().isForbidden());
-
-        logger.info("✅ User properly denied access to admin page");
     }
 
     @Test
-    @Order(7)
-    @WithMockUser(username = ADMIN_USER, roles = {"ADMIN"})
-    void testAdminCanAccessAdminPage() throws Exception {
-        logger.info("🔓 Testing ADMIN role can access admin page");
+    @DisplayName("USER role truy cập GET /api/v1/admin/users → 403")
+    @WithMockUser(roles = "USER")
+    void whenUserRoleAccessesAdminUsers_thenForbidden() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/users"))
+                .andExpect(status().isForbidden());
+    }
 
-        mockMvc.perform(get("/admin"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Admin Dashboard"))); // Thêm kiểm tra nội dung cụ thể
+    // =========================================================================
+    // Validation: thiếu field bắt buộc → 400 với field errors
+    // =========================================================================
 
-        logger.info("✅ Admin successfully accessed admin page");
+    @Test
+    @DisplayName("POST /api/v1/rentals thiếu field bắt buộc → 400 validation error")
+    @WithMockUser
+    void whenCreateRentalWithEmptyBody_thenBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/rentals")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Dữ liệu đầu vào không hợp lệ"))
+                .andExpect(jsonPath("$.data.fullName").exists())
+                .andExpect(jsonPath("$.data.email").exists())
+                .andExpect(jsonPath("$.data.racketId").exists());
     }
 
     @Test
-    @Order(8)
-    @WithMockUser(username = "user1")
-    void testBookingConflict() throws Exception {
-        logger.info("🔄 Testing booking conflict handling");
+    @DisplayName("POST /api/v1/rentals với email không hợp lệ → 400")
+    @WithMockUser
+    void whenCreateRentalWithInvalidEmail_thenBadRequest() throws Exception {
+        String body = """
+                {
+                  "fullName": "Nguyen Van A",
+                  "email": "not-an-email",
+                  "phone": "0901234567",
+                  "type": "DAILY",
+                  "racketId": 1,
+                  "quantity": 1,
+                  "quantityDay": 1,
+                  "rentalDate": "2026-05-01"
+                }
+                """;
+        mockMvc.perform(post("/api/v1/rentals")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data.email").value("Email không hợp lệ"));
+    }
 
-        // First booking should succeed
-        mockMvc.perform(post("/api/temp-booking")
+    @Test
+    @DisplayName("POST /api/v1/rentals/{id}/pay thiếu paymentMethod → 400")
+    @WithMockUser
+    void whenPayRentalWithMissingPaymentMethod_thenBadRequest() throws Exception {
+        RentalTool mockRental = new RentalTool();
+        mockRental.setStatus(RentalToolStatus.PENDING);
+        mockRental.setUserId(1L);
+        when(rentalToolRepository.findById(anyLong())).thenReturn(Optional.of(mockRental));
 
-                .param("subCourtId", "1")
-                .param("availableTimeId", "1")
-                .param("bookingDate", "2025-06-13"))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/rentals/1/pay")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data.paymentMethod").exists());
+    }
 
-        // Second booking for same slot should conflict
-        mockMvc.perform(post("/api/temp-booking")
+    @Test
+    @DisplayName("POST /api/v1/client/bookings/place thiếu receiverName → 400")
+    @WithMockUser
+    void whenPlaceBookingWithMissingFields_thenBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/client/bookings/place")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.data.receiverName").exists());
+    }
 
-                .param("subCourtId", "1")
-                .param("availableTimeId", "1")
-                .param("bookingDate", "2025-06-13"))
-                .andExpect(status().isConflict());
+    // =========================================================================
+    // VNPay callback: chữ ký không hợp lệ → 400
+    // =========================================================================
 
-        logger.info("✅ Booking conflict properly detected");
+    @Test
+    @DisplayName("GET /api/v1/payments/vnpay-callback không có chữ ký → 400")
+    void whenVnpayCallbackWithoutSignature_thenBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/payments/vnpay-callback")
+                        .param("vnp_ResponseCode", "00")
+                        .param("vnp_OrderInfo", "1-BOOKING"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Chữ ký không hợp lệ"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/payments/vnpay-callback với chữ ký sai → 400")
+    void whenVnpayCallbackWithInvalidSignature_thenBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/payments/vnpay-callback")
+                        .param("vnp_ResponseCode", "00")
+                        .param("vnp_OrderInfo", "1-BOOKING")
+                        .param("vnp_SecureHash", "deadbeefdeadbeefdeadbeef"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Chữ ký không hợp lệ"));
+    }
+
+    // =========================================================================
+    // Bảo mật mật khẩu BCrypt
+    // =========================================================================
+
+    @Test
+    @DisplayName("BCrypt: mật khẩu được mã hóa và kiểm tra đúng")
+    void whenPasswordEncoded_thenMatchesCorrectly() {
+        String raw = "P@ssw0rd123";
+        String encoded = passwordEncoder.encode(raw);
+
+        assertNotEquals(raw, encoded, "Mật khẩu phải được mã hóa");
+        assertTrue(passwordEncoder.matches(raw, encoded), "Mật khẩu đúng phải khớp");
+        assertFalse(passwordEncoder.matches("wrongpassword", encoded), "Mật khẩu sai không được khớp");
+    }
+
+    // =========================================================================
+    // Public endpoints: không cần auth
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /api/v1/products (public) → không bị chặn bởi security")
+    void whenAccessPublicProductEndpoint_thenNotBlocked() throws Exception {
+        // Có thể trả 200 hoặc 5xx nếu service lỗi, nhưng không được là 401/403
+        int status = mockMvc.perform(get("/api/v1/products"))
+                .andReturn().getResponse().getStatus();
+        assertNotEquals(401, status, "Public endpoint không được trả 401");
+        assertNotEquals(403, status, "Public endpoint không được trả 403");
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/payments/vnpay-callback (public) → không bị chặn bởi security")
+    void whenAccessVnpayCallback_thenNotBlocked() throws Exception {
+        // Endpoint này public (VNPay gọi về), không được bị 401/403 dù không có token
+        int status = mockMvc.perform(get("/api/v1/payments/vnpay-callback"))
+                .andReturn().getResponse().getStatus();
+        assertNotEquals(401, status);
+        assertNotEquals(403, status);
     }
 }
