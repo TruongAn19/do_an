@@ -71,7 +71,7 @@ VALUES
   2,
   'Elite Arena Badminton',
   65000,
-  'https://images.unsplash.com/photo-1599474924187-334a4ae5bd3a?w=800',
+  'https://sieuthicaulong.vn/userfiles/files/top%205%20%C4%91%E1%BB%8Ba%20%C4%91i%E1%BB%83m%20d%E1%BA%A1y%20c%E1%BA%A7u%20l%C3%B4ng%20q4/san-cau-long-t12.png',
   'Cụm 4 sân cao cấp với sàn gỗ Taraflex nhập khẩu từ Pháp. Hệ thống điều hoà trung tâm, ghế khán giả 50 chỗ, camera an ninh 24/7. Phù hợp tổ chức giải đấu cấp câu lạc bộ và thi đấu giao lưu.',
   'Cụm 4 sân sàn gỗ cao cấp — Quận 3',
   4, 0,
@@ -177,30 +177,30 @@ INSERT IGNORE INTO `racket`
 VALUES
 -- ── Antigravity (product_id = 1) ──
 (1, 'Yonex Astrox 99 Play',    1500000, 1, 'Yonex',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://racketsports.hk/wp-content/uploads/2021/12/Yonex-ax99-play.png',
     50000, 20000, 10, 10, 'ACTIVE', 1),
 (2, 'Victor Thruster K 9900',  1200000, 1, 'Victor',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://www.tennisnuts.com/images/product/full/13799_06-17.jpg',
     40000, 15000,  8,  8, 'ACTIVE', 1),
 (3, 'Li-Ning N9 II',            800000, 1, 'Li-Ning',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://tse2.mm.bing.net/th/id/OIP.OOj1pdpSB9DnCa-byQUEFAHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
     30000, 12000,  6,  6, 'ACTIVE', 1),
 
 -- ── Elite Arena (product_id = 2) ──
 (4, 'Yonex Nanoflare 800 Pro', 2000000, 1, 'Yonex',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://tse3.mm.bing.net/th/id/OIP.PpsgfaEYuXGbXktMP2o2iQHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
     60000, 25000,  8,  8, 'ACTIVE', 2),
 (5, 'Victor Jetspeed S 12',    1500000, 1, 'Victor',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://th.bing.com/th/id/R.ab02edfcc6bf4ad1b194c167aab20b14?rik=tfrLZsLkVotX9w&pid=ImgRaw&r=0',
     50000, 20000,  6,  6, 'ACTIVE', 2),
 
 -- ── Pro Center (product_id = 3) ──
 (6, 'Yonex Voltric Z Force II', 3500000, 1, 'Yonex',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://tse1.mm.bing.net/th/id/OIP.Dxv5JsDYjHBZaxt_DdkBaQHaO0?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
     80000, 35000,  5,  5, 'ACTIVE', 3),
 (7, 'Li-Ning 3D Calibar 900B',  2500000, 1, 'Li-Ning',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://tse3.mm.bing.net/th/id/OIP.7rVFG1WIMChPp6jXwVbFWwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
     70000, 30000,  4,  4, 'ACTIVE', 3),
 (8, 'Apacs Feather Weight 55',   900000, 1, 'Apacs',
-    'https://images.unsplash.com/photo-1613532696025-10850d9cd808?w=400',
+    'https://tse2.mm.bing.net/th/id/OIP.5__CB6rvLNeHTbuEPz_73gHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
     35000, 15000,  8,  8, 'ACTIVE', 3);
