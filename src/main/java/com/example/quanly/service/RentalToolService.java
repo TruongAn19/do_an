@@ -58,7 +58,17 @@ public class RentalToolService {
     }
 
     public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
-        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rentalToolMapper::toDTO);
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rt -> {
+            RentalToolDTO dto = rentalToolMapper.toDTO(rt);
+            racketRepository.findById(rt.getRacketId()).ifPresent(r -> dto.setRacketName(r.getName()));
+            if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
+                try {
+                    bookingRepository.findById(Long.parseLong(rt.getBookingId()))
+                            .ifPresent(b -> dto.setBookingCode(b.getBookingCode()));
+                } catch (NumberFormatException ignored) {}
+            }
+            return dto;
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -102,9 +112,9 @@ public class RentalToolService {
         rentalTool.setStatus(RentalToolStatus.PENDING);
         rentalTool.setCreateAt(LocalDateTime.now());
         rentalTool.setUpdateAt(LocalDateTime.now());
-        rentalTool.setRentalPrice(rentalPricingService.unitPrice(request.getType(), racket));
-        rentalTool.setPrice(rentalPricingService.totalPrice(
+        rentalTool.setRentalPrice(rentalPricingService.totalPrice(
                 request.getType(), racket, request.getQuantity(), request.getQuantityDay()));
+        rentalTool.setPrice(racket.getPrice() * request.getQuantity());
 
         if (request.getType() == RentalType.DAILY) {
             rentalTool.setQuantityDay(request.getQuantityDay());

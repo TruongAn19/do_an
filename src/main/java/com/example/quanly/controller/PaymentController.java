@@ -1,14 +1,16 @@
 package com.example.quanly.controller;
 
-import com.example.quanly.domain.Booking;
-import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.domain.PaymentType;
 import com.example.quanly.domain.RentalTool;
 import com.example.quanly.domain.RentalToolStatus;
 import com.example.quanly.domain.dto.ApiResponse;
-import com.example.quanly.repository.BookingRepository;
+import com.example.quanly.domain.dto.BookingResponseDTO;
+import com.example.quanly.domain.dto.PendingBookingData;
 import com.example.quanly.repository.RentalToolRepository;
+import com.example.quanly.service.BookingService;
+import com.example.quanly.service.EmailService;
 import com.example.quanly.service.PaymentService;
+import com.example.quanly.service.PendingBookingCache;
 import com.example.quanly.service.RentalToolService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;
@@ -23,15 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Xử lý callback từ VNPay sau khi người dùng hoàn tất thanh toán.
- *
- * Điểm mấu chốt so với phiên bản cũ:
- *  1. Xác thực vnp_SecureHash trước khi làm bất kỳ điều gì → chống giả mạo callback.
- *  2. Tra cứu đơn hàng từ DB bằng ID trong OrderInfo thay vì từ HttpSession
- *     → hoàn toàn stateless, hoạt động đúng ngay cả khi server restart hoặc scale ngang.
- *  3. Tách biệt hoàn toàn khỏi RentalController → Single Responsibility.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -42,17 +35,19 @@ public class PaymentController {
     PaymentService paymentService;
     RentalToolService rentalToolService;
     RentalToolRepository rentalToolRepository;
-    BookingRepository bookingRepository;
+    BookingService bookingService;
+    PendingBookingCache pendingBookingCache;
+    EmailService emailService;
 
     /**
      * GET /api/v1/payments/vnpay-callback
      *
-     * VNPay gọi endpoint này sau khi người dùng thanh toán.
-     * OrderInfo có định dạng: "{id}-{TYPE}" (vd: "42-RENTAL_TOOL", "7-BOOKING")
+     * OrderInfo format: "{id}-{TYPE}"
+     *   PENDING_BOOKING: id is the in-memory pendingId (nothing saved to DB before payment)
+     *   RENTAL_TOOL:     id is the RentalTool DB id
      */
     @GetMapping("/vnpay-callback")
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleVnpayCallback(HttpServletRequest request) {
-        // Bước 1: Xác thực chữ ký — từ chối mọi request không hợp lệ
         if (!paymentService.verifyVnpayCallback(request)) {
             log.warn("VNPay callback bị từ chối: chữ ký không hợp lệ. IP={}", request.getRemoteAddr());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -61,7 +56,7 @@ public class PaymentController {
         }
 
         String responseCode = request.getParameter("vnp_ResponseCode");
-        String orderInfo = request.getParameter("vnp_OrderInfo"); // e.g. "42-RENTAL_TOOL"
+        String orderInfo = request.getParameter("vnp_OrderInfo");
 
         String[] parts = orderInfo.split("-", 2);
         if (parts.length < 2) {
@@ -93,7 +88,7 @@ public class PaymentController {
         if (paymentType == PaymentType.RENTAL_TOOL) {
             return handleRentalToolCallback(entityId, paymentSuccess);
         } else {
-            return handleBookingCallback(entityId, paymentSuccess);
+            return handlePendingBookingCallback(entityId, paymentSuccess);
         }
     }
 
@@ -102,39 +97,66 @@ public class PaymentController {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn thuê id=" + rentalToolId));
 
         if (!success) {
-            log.info("Thanh toán RENTAL_TOOL id={} thất bại, giữ trạng thái PENDING", rentalToolId);
+            log.info("Thanh toán RENTAL_TOOL id={} thất bại", rentalToolId);
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán thất bại")
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());
         }
 
-        // Đặt PAID trước rồi mới trừ tồn kho → handleDailyRental sẽ save với status PAID
         rentalTool.setStatus(RentalToolStatus.PAID);
         rentalToolService.handleDailyRental(rentalTool);
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thanh toán vợt thuê thành công")
-                .data(Map.of("type", "RENTAL_TOOL", "rentalToolId", rentalToolId)).build());
+                .data(Map.of(
+                        "type", "RENTAL_TOOL",
+                        "rentalToolId", rentalToolId,
+                        "rentalCode", rentalTool.getRentalToolCode()
+                )).build());
     }
 
-    private ResponseEntity<ApiResponse<Map<String, Object>>> handleBookingCallback(long bookingId, boolean success) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking id=" + bookingId));
+    private ResponseEntity<ApiResponse<Map<String, Object>>> handlePendingBookingCallback(long pendingId, boolean success) {
+        PendingBookingData data = pendingBookingCache.get(pendingId)
+                .orElse(null);
 
-        if (success) {
-            booking.setStatus(BookingStatus.DA_THANH_TOAN);
-            bookingRepository.save(booking);
-            log.info("Thanh toán BOOKING id={} thành công", bookingId);
+        if (data == null) {
+            log.warn("Không tìm thấy phiên đặt sân trong cache: pendingId={}", pendingId);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(400).message("Phiên đặt sân không tồn tại hoặc đã hết hạn").data(null).build());
+        }
+
+        if (!success) {
+            bookingService.cancelPendingBooking(data);
+            pendingBookingCache.remove(pendingId);
+            log.info("Thanh toán PENDING_BOOKING pendingId={} thất bại, đã giải phóng giữ chỗ", pendingId);
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Thanh toán thất bại, vui lòng thử lại")
+                    .data(Map.of("type", "BOOKING", "status", "FAILED")).build());
+        }
+
+        try {
+            BookingResponseDTO booking = bookingService.confirmPendingBooking(data);
+            pendingBookingCache.remove(pendingId);
+            log.info("Thanh toán PENDING_BOOKING pendingId={} thành công, bookingId={}", pendingId, booking.getId());
+            try {
+                emailService.sendBookingConfirmationEmail(
+                        data.getUser().getEmail(), booking.getBookingCode(), booking.getId());
+            } catch (Exception e) {
+                log.warn("Gửi email xác nhận thất bại cho {}: {}", data.getUser().getEmail(), e.getMessage());
+            }
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán đặt sân thành công")
-                    .data(Map.of("type", "BOOKING", "bookingId", bookingId)).build());
-        } else {
-            bookingRepository.delete(booking);
-            log.info("Thanh toán BOOKING id={} thất bại, đã xóa booking", bookingId);
-            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                    .status(200).message("Thanh toán thất bại, đơn đặt sân đã bị hủy")
-                    .data(Map.of("type", "BOOKING", "status", "FAILED")).build());
+                    .data(Map.of("type", "BOOKING", "bookingId", booking.getId(), "bookingCode", booking.getBookingCode()))
+                    .build());
+        } catch (IllegalStateException e) {
+            // Slot was taken by another user during payment — rare race condition
+            pendingBookingCache.remove(pendingId);
+            log.error("Xung đột lịch sau thanh toán thành công (pendingId={}): {}", pendingId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(409).message(e.getMessage()).data(null).build());
         }
     }
 }

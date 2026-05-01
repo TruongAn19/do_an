@@ -65,7 +65,7 @@ public class ProductController {
         product.setDetailDesc(product.getDetailDesc() != null
                 ? product.getDetailDesc().replace("\n", "<br>")
                 : "");
-        product.setStatus("AVAILABLE");
+        product.setStatus("ACTIVE");
         ProductResponseDTO savedProduct = productService.handSaveProduct(product);
 
         return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
@@ -98,11 +98,15 @@ public class ProductController {
         existing.setAddress(product.getAddress());
         existing.setSale(product.getSale());
         existing.setPrice(product.getPrice());
-        existing.setStatus(product.getStatus());
-        existing.setQuantity(product.getQuantity()); // Giữ nguyên quantity hoặc update tùy logic
+        existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
+        existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
+        existing.setDepositPrice(existingDTO.getDepositPrice());
+        existing.setShortDesc(existingDTO.getShortDesc());
 
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "product"));
+        } else if (product.getImage() != null && !product.getImage().isEmpty()) {
+            existing.setImage(product.getImage());
         } else {
             existing.setImage(existingDTO.getImage());
         }

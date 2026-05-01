@@ -1,5 +1,6 @@
 package com.example.quanly.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -37,6 +38,7 @@ public class Racket {
     private String status;
 
     @ManyToOne(fetch = FetchType.EAGER)
+    @JsonIgnoreProperties("rackets")
     private Product product;
 }
 

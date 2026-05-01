@@ -34,6 +34,9 @@ public class Product {
     private double depositPrice;
     private String status;
 
+    @Transient
+    private String subCourtNames;
+
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -48,7 +51,7 @@ public class Product {
     )
     private Set<AvailableTime> availableTimes;
 
-    @OneToMany
+    @OneToMany(mappedBy = "product")
     private List<Racket> rackets;
 
 

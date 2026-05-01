@@ -27,6 +27,10 @@ public class RacketService {
         return racketRepository.findByProductAndAvailableTrue(courtId);
     }
 
+    public List<Racket> getRacketsByProductId(Long productId) {
+        return racketRepository.findByProductAndAvailableTrue(productId);
+    }
+
     // Phụ kiện
     public Page<Racket> getAllRacket(Pageable pageable) {
         return racketRepository.findAll(pageable);
@@ -57,23 +61,23 @@ public class RacketService {
             spec = spec.and((root, query, cb) -> root.get("factory").in(factories));
         }
 
-        // Lọc theo mức giá
+        // Lọc theo mức giá thuê (rentalPricePerDay)
         if (prices != null && !prices.isEmpty()) {
             spec = spec.and((root, query, cb) -> {
                 List<Predicate> predicates = new ArrayList<>();
                 for (String price : prices) {
                     switch (price) {
-                        case "duoi-500-nghin":
-                            predicates.add(cb.lessThan(root.get("price"), 500000));
+                        case "duoi-50-nghin":
+                            predicates.add(cb.lessThan(root.get("rentalPricePerDay"), 50000));
                             break;
-                        case "500-nghin-1-trieu":
-                            predicates.add(cb.between(root.get("price"), 500000, 1000000));
+                        case "50-nghin-100-nghin":
+                            predicates.add(cb.between(root.get("rentalPricePerDay"), 50000, 100000));
                             break;
-                        case "1-5-trieu":
-                            predicates.add(cb.between(root.get("price"), 1000000, 5000000));
+                        case "100-nghin-200-nghin":
+                            predicates.add(cb.between(root.get("rentalPricePerDay"), 100000, 200000));
                             break;
-                        case "tren-5-trieu":
-                            predicates.add(cb.greaterThan(root.get("price"), 5000000));
+                        case "tren-200-nghin":
+                            predicates.add(cb.greaterThan(root.get("rentalPricePerDay"), 200000));
                             break;
                     }
                 }
@@ -86,11 +90,11 @@ public class RacketService {
             switch (sort) {
                 case "gia-tang-dan":
                     pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
-                            Sort.by("price").ascending());
+                            Sort.by("rentalPricePerDay").ascending());
                     break;
                 case "gia-giam-dan":
                     pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
-                            Sort.by("price").descending());
+                            Sort.by("rentalPricePerDay").descending());
                     break;
             }
         }

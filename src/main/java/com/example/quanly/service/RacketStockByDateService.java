@@ -26,11 +26,11 @@ public class RacketStockByDateService {
     @Autowired
     private RacketStockByDateRepository racketStockByDateRepository;
 
-    @Scheduled(cron = "0 0,30 * * * *") // Mỗi ngày vào lúc 00:00
+    @Scheduled(cron = "0 0 0 * * *") // Mỗi ngày lúc 00:00
     @Transactional
     public void generateStockByDate() {
         LocalDate today = LocalDate.now();
-        LocalDate targetDate = today.plusDays(7);
+        LocalDate targetDate = today.plusDays(6); // 7 ngày: today đến today+6
         List<Racket> allRackets = racketRepository.findAll();
         for (Racket racket : allRackets) {
             for (LocalDate date = today; !date.isAfter(targetDate); date = date.plusDays(1)) {
@@ -55,7 +55,7 @@ public class RacketStockByDateService {
     @Async
     public void generateStockForRacket(Racket racket) {
         LocalDate today = LocalDate.now();
-        LocalDate targetDate = today.plusDays(10);
+        LocalDate targetDate = today.plusDays(6); // 7 ngày: đồng bộ với window của scheduler
 
         List<RacketStockByDate> stocks = new ArrayList<>();
 

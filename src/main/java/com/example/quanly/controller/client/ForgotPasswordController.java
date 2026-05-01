@@ -12,6 +12,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +35,11 @@ public class ForgotPasswordController {
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> handleForgot(@RequestBody Map<String, String> body) {
         String email = body.get("email");
+        String redirectUrl = body.get("redirectUrl");
+        if (!StringUtils.hasText(redirectUrl)) {
+            throw new IllegalArgumentException("Thiếu tham số redirectUrl.");
+        }
+
         User user = userDAO.findByEmail(email);
         if (user == null) {
             throw new IllegalArgumentException("Email không tồn tại!");
@@ -51,7 +57,7 @@ public class ForgotPasswordController {
         resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
         tokenDAO.save(resetToken);
 
-        String resetLink = "https://ta-batmintin.store/api/reset-password?token=" + token;
+        String resetLink = redirectUrl + "?token=" + token;
         sendEmail(user.getEmail(), resetLink);
 
         return ResponseEntity.ok(ApiResponse.<String>builder()

@@ -1,6 +1,7 @@
 package com.example.quanly.domain;
 
 public enum BookingStatus {
+    CHO_THANH_TOAN("Chờ thanh toán"),
     DA_DAT("Đã đặt"),
     DA_THANH_TOAN("Đã thanh toán"),
     DA_HUY("Đã hủy");

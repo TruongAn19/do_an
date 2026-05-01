@@ -11,6 +11,8 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -36,6 +38,17 @@ public class PaymentService {
 
         if (bankCode != null && !bankCode.isEmpty()) {
             vnpParamsMap.put("vnp_BankCode", bankCode);
+        }
+
+        // Chế độ mock: trả về trang thanh toán giả chạy local, không cần VNPay thật
+        if (vnpayConfig.isMockEnabled()) {
+            String mockUrl = "http://localhost:8080/api/v1/mock-payment"
+                    + "?amount=" + vnpParamsMap.get("vnp_Amount")
+                    + "&orderInfo=" + URLEncoder.encode(vnpParamsMap.get("vnp_OrderInfo"), StandardCharsets.UTF_8)
+                    + "&returnUrl=" + URLEncoder.encode(vnpParamsMap.get("vnp_ReturnUrl"), StandardCharsets.UTF_8)
+                    + "&txnRef=" + transactionId;
+            return VnpayResponse.builder()
+                    .code("00").message("Mock payment").paymentUrl(mockUrl).build();
         }
 
         String queryUrl = VnpayUtil.getPaymentURL(vnpParamsMap, true);

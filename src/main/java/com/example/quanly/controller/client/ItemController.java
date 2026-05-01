@@ -34,37 +34,23 @@ public class ItemController {
 
     @GetMapping("/api/v1/products")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProducts(
-            ProductCriteriaDTO productCriteriaDTO,
-            @RequestParam(value = "search", required = false) String searchTerm) {
-
-        int page = 1;
-        try {
-            if (productCriteriaDTO.getPage().isPresent()) {
-                page = Integer.parseInt(productCriteriaDTO.getPage().get());
-            }
-        } catch (Exception ignored) {
-        }
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "address", required = false) String address,
+            @RequestParam(value = "price", required = false) Double maxPrice,
+            @RequestParam(value = "sort", required = false) String sort,
+            @RequestParam(value = "page", defaultValue = "1") int page) {
 
         Pageable pageable = PageRequest.of(page - 1, 6);
-        Optional<String> sortOpt = productCriteriaDTO.getSort();
-        if (sortOpt != null && sortOpt.isPresent()) {
-            String sort = sortOpt.get();
-            if ("gia-tang-dan".equals(sort)) {
+        
+        if (sort != null && !sort.trim().isEmpty()) {
+            if ("gia-tang-dan".equals(sort) || "pricePerHour,asc".equals(sort)) {
                 pageable = PageRequest.of(page - 1, 6, Sort.by("price").ascending());
-            } else if ("gia-giam-dan".equals(sort)) {
+            } else if ("gia-giam-dan".equals(sort) || "pricePerHour,desc".equals(sort)) {
                 pageable = PageRequest.of(page - 1, 6, Sort.by("price").descending());
             }
         }
 
-        Page<ProductResponseDTO> mainProduct;
-        if (searchTerm != null && !searchTerm.isEmpty()) {
-            mainProduct = productService.findByNameContaining(searchTerm, pageable);
-        } else if (sortOpt != null && sortOpt.isPresent()
-                && (productCriteriaDTO.getAddress() != null || productCriteriaDTO.getPrice() != null)) {
-            mainProduct = productService.getAllProductWithSpec(pageable, productCriteriaDTO);
-        } else {
-            mainProduct = productService.getAllProductClient(pageable);
-        }
+        Page<ProductResponseDTO> mainProduct = productService.searchProducts(search, address, maxPrice, pageable);
 
         Map<String, Object> result = Map.of(
                 "products", mainProduct.getContent(),
@@ -81,11 +67,13 @@ public class ItemController {
         ProductResponseDTO product = productService.getProductByID(productId);
         List<AvailableTime> availableTime = productService.getAllTime();
         double discountPrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
+        List<Racket> rackets = racketService.getRacketsByProductId(productId);
 
         Map<String, Object> data = Map.of(
                 "product", product,
                 "availableTime", availableTime,
-                "discountPrice", discountPrice);
+                "discountPrice", discountPrice,
+                "rackets", rackets);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thành công").data(data).build());
     }

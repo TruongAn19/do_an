@@ -6,6 +6,7 @@ import com.example.quanly.domain.SubCourt;
 import com.example.quanly.domain.SubCourtAvailableTime;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
 import com.example.quanly.domain.dto.ProductResponseDTO;
+import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.mapper.ProductMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.spectification.ProductSpec;
@@ -120,22 +121,48 @@ public class ProductService {
     // -------------------------------//
 
     public ProductResponseDTO handSaveProduct(Product product) {
+        boolean isNew = product.getId() == 0;
+
+        if (isNew) {
+            // Liên kết product với toàn bộ khung giờ → populate bảng court_time
+            List<AvailableTime> allTimes = timeRepository.findAll();
+            product.setAvailableTimes(new HashSet<>(allTimes));
+        }
+
         Product savedProduct = productRepository.save(product);
 
-        // Tạo SubCourts theo quantity
-        for (int i = 1; i <= savedProduct.getQuantity(); i++) {
-            SubCourt subCourt = new SubCourt();
-            subCourt.setName("Sân " + i);
-            subCourt.setProduct(savedProduct);
-            subCourt = subCourtRepository.save(subCourt);
+        if (isNew) {
+            // Tạo sub-courts và subcourt_available_time chỉ khi tạo mới
+            List<AvailableTime> allTimes = timeRepository.findAll();
+            
+            String[] names = null;
+            if (product.getSubCourtNames() != null && !product.getSubCourtNames().trim().isEmpty()) {
+                names = product.getSubCourtNames().split(",");
+            }
+            
+            int actualQuantity = (int) savedProduct.getQuantity();
+            if (names != null && names.length > actualQuantity) {
+                actualQuantity = names.length;
+                savedProduct.setQuantity(actualQuantity);
+                savedProduct = productRepository.save(savedProduct);
+            }
 
-            // Tạo các available times cho từng SubCourt
-            List<AvailableTime> availableTimes = this.timeRepository.findAll();
-            for (AvailableTime availableTime : availableTimes) {
-                SubCourtAvailableTime subCourtAvailableTime = new SubCourtAvailableTime();
-                subCourtAvailableTime.setSubCourt(subCourt);
-                subCourtAvailableTime.setAvailableTime(availableTime);
-                subCourtAvailableTimeRepository.save(subCourtAvailableTime);
+            for (int i = 1; i <= actualQuantity; i++) {
+                SubCourt subCourt = new SubCourt();
+                if (names != null && i <= names.length) {
+                    subCourt.setName(names[i - 1].trim());
+                } else {
+                    subCourt.setName("Sân " + i);
+                }
+                subCourt.setProduct(savedProduct);
+                subCourt = subCourtRepository.save(subCourt);
+
+                for (AvailableTime availableTime : allTimes) {
+                    SubCourtAvailableTime sat = new SubCourtAvailableTime();
+                    sat.setSubCourt(subCourt);
+                    sat.setAvailableTime(availableTime);
+                    subCourtAvailableTimeRepository.save(sat);
+                }
             }
         }
 
@@ -143,11 +170,13 @@ public class ProductService {
     }
 
     public ProductResponseDTO getProductByID(long productId) {
-        return productMapper.toDTO(this.productRepository.getById(productId));
+        return productRepository.findById(productId)
+                .map(productMapper::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
     }
 
     public Optional<ProductResponseDTO> fetchProductById(long productId) {
-        return Optional.ofNullable(this.productRepository.getById(productId)).map(productMapper::toDTO);
+        return productRepository.findById(productId).map(productMapper::toDTO);
     }
 
     public void deleteAllProduct(long productId) {
@@ -162,8 +191,39 @@ public class ProductService {
         return productRepository.findByNameContainingIgnoreCase(name, pageable).map(productMapper::toDTO);
     }
 
+    public Page<ProductResponseDTO> searchProducts(String search, String address, Double maxPrice, Pageable pageable) {
+        Specification<Product> spec = Specification.where(null);
+
+        if (search != null && !search.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                    cb.like(cb.lower(root.get("name")), "%" + search.trim().toLowerCase() + "%"));
+        }
+
+        if (address != null && !address.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                    cb.like(cb.lower(root.get("address")), "%" + address.trim().toLowerCase() + "%"));
+        }
+
+        if (maxPrice != null) {
+            spec = spec.and((root, query, cb) -> 
+                    cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+        }
+
+        spec = spec.and(Specification.not(ProductSpec.addressIsNullOrEmpty()));
+
+        spec = spec.and((root, query, cb) -> 
+            cb.or(
+                cb.notEqual(root.get("status"), "DELETED"),
+                cb.isNull(root.get("status"))
+            )
+        );
+
+        return this.productRepository.findAll(spec, pageable).map(productMapper::toDTO);
+    }
+
     public List<SubCourt> getAllCourtsByProduct(long productId) {
-        Product product = productRepository.getById(productId);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
         List<SubCourt> allCourts = this.subCourtRepository.findByProduct(product);
 
         // Giữ lại SubCourt đầu tiên theo tên

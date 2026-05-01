@@ -3,8 +3,8 @@ package com.example.quanly.controller.client;
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
-import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.domain.dto.HoldBookingRequest;
+import com.example.quanly.domain.dto.PreparedBookingResult;
 import com.example.quanly.domain.PaymentType;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.PlaceBookingRequest;
@@ -183,28 +183,25 @@ public class BookingClientController {
 
         User currentUser = getCurrentUser();
 
-        BookingResponseDTO booking = bookingService.handlePlaceBooking(currentUser,
+        PreparedBookingResult prepared = bookingService.preparePendingBooking(currentUser,
                 req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
                 req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
                 req.getBookingType(), req.getRecurringEndDate());
 
         PaymentRequest paymentRequest = new PaymentRequest();
-        paymentRequest.setId(booking.getId());
-        paymentRequest.setAmount(booking.getDepositPrice());
-        paymentRequest.setType(PaymentType.BOOKING);
+        paymentRequest.setId(prepared.pendingId());
+        paymentRequest.setAmount(prepared.depositPrice());
+        paymentRequest.setType(PaymentType.PENDING_BOOKING);
         paymentRequest.setRedirectUrl("");
 
         VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
 
-        Map<String, Object> data = Map.of(
-                "bookingId", booking.getId(),
-                "bookingCode", booking.getBookingCode(),
-                "paymentUrl", vnpayResponse.getPaymentUrl());
+        Map<String, Object> data = Map.of("paymentUrl", vnpayResponse.getPaymentUrl());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.<Map<String, Object>>builder()
                         .status(HttpStatus.CREATED.value())
-                        .message("Đặt sân thành công").data(data).build());
+                        .message("Vui lòng hoàn tất thanh toán để xác nhận đặt sân").data(data).build());
     }
 
     @GetMapping("/{bookingCode}/{courtId}/rackets")

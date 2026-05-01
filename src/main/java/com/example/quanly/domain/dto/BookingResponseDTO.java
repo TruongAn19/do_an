@@ -18,5 +18,7 @@ public class BookingResponseDTO {
     private LocalDate bookingDate;
     private String rentalToolCode;
     private UserResponseDTO user;
+    private String courtName;
+    private String time;
     private List<BookingDetailResponseDTO> bookingDetails;
 }

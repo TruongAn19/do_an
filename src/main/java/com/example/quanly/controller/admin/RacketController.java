@@ -56,7 +56,7 @@ public class RacketController {
         if (file != null && !file.isEmpty()) {
             racket.setImage(uploadService.handleSaveUploadFile(file, "racket"));
         }
-        racket.setStatus("AVAILABLE");
+        racket.setStatus("ACTIVE");
         Racket saved = racketService.handSaveRacket(racket);
         racketStockByDateService.generateStockForRacket(saved);
 

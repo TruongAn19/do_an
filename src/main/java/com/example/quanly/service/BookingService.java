@@ -2,6 +2,8 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.BookingResponseDTO;
+import com.example.quanly.domain.dto.PendingBookingData;
+import com.example.quanly.domain.dto.PreparedBookingResult;
 import com.example.quanly.mapper.BookingMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.pricing.BookingContext;
@@ -10,17 +12,21 @@ import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
@@ -34,9 +40,9 @@ public class BookingService {
     TimeRepository timeRepository;
     SubCourtRepository subCourtRepository;
     TemporaryBookingRepository temporaryBookingRepository;
-    EmailService emailService;
     BookingMapper bookingMapper;
     PricingService pricingService;
+    PendingBookingCache pendingBookingCache;
 
     public Page<BookingResponseDTO> fetchAllBookings(Pageable pageable) {
         return bookingRepository.findAll(pageable).map(bookingMapper::toDTO);
@@ -89,8 +95,12 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Validates and pre-computes booking data, caches it in memory, and extends the
+     * TemporaryBooking hold to cover the VNPay payment window. Nothing is written to DB.
+     */
     @Transactional
-    public BookingResponseDTO handlePlaceBooking(User user,
+    public PreparedBookingResult preparePendingBooking(User user,
             String receiverName, String receiverAddress, String receiverPhone,
             long productId, long timeId, long subCourtId, LocalDate bookingDate,
             String bookingType, LocalDate recurringEndDate) {
@@ -103,7 +113,7 @@ public class BookingService {
 
         // 2. Tính toán danh sách ngày cần đặt
         BookingType type = (bookingType != null) ? BookingType.valueOf(bookingType) : BookingType.ONE_TIME;
-        java.util.List<LocalDate> datesToBook = new java.util.ArrayList<>();
+        List<LocalDate> datesToBook = new ArrayList<>();
         if (type == BookingType.WEEKLY_RECURRING && recurringEndDate != null) {
             if (recurringEndDate.isBefore(bookingDate)) {
                 throw new IllegalArgumentException("Ngày kết thúc chu kỳ không thể trước ngày bắt đầu.");
@@ -142,7 +152,6 @@ public class BookingService {
         for (LocalDate date : datesToBook) {
             Optional<BookingDetail> existingBooking = bookingDetailRepository
                     .findBySubCourtAndAvailableTimeAndDate(subCourt, time, date);
-
             if (existingBooking.isPresent()) {
                 throw new IllegalArgumentException("Sân này đã bị trùng lịch vào ngày "
                         + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
@@ -167,22 +176,9 @@ public class BookingService {
             throw new IllegalArgumentException("Sân đang được giữ bởi người khác.");
         }
 
-        // 8. Tạo Header Booking
-        Booking booking = new Booking();
-        booking.setUser(user);
-        booking.setReceiverName(receiverName);
-        booking.setReceiverAddress(receiverAddress);
-        booking.setReceiverPhone(receiverPhone);
-        booking.setAvailableTime(time);
-        booking.setBookingDate(bookingDate);
-        booking.setBookingType(type);
-        booking.setRecurringEndDate(recurringEndDate);
-        booking.setDepositPrice(product.getDepositPrice() * datesToBook.size());
-        booking.setStatus(BookingStatus.DA_DAT);
-
-        // 9. Tính toán giá linh hoạt cho từng slot và cộng dồn
+        // 8. Tính toán giá linh hoạt cho từng slot
         double totalBookingPrice = 0;
-        java.util.List<BookingDetail> details = new java.util.ArrayList<>();
+        List<PendingBookingData.SlotData> slots = new ArrayList<>();
 
         for (LocalDate date : datesToBook) {
             double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
@@ -191,32 +187,95 @@ public class BookingService {
                     .time(time)
                     .bookingDate(date)
                     .build();
-
             double finalPriceForSlot = pricingService.calculateFinalPrice(basePrice, context);
             totalBookingPrice += finalPriceForSlot;
-
-            BookingDetail detail = new BookingDetail();
-            detail.setBooking(booking);
-            detail.setProduct(product);
-            detail.setPrice(finalPriceForSlot);
-            detail.setSubCourt(subCourt);
-            detail.setDate(date);
-            detail.setSale(product.getSale());
-            detail.setAvailableTime(time);
-            details.add(detail);
+            slots.add(new PendingBookingData.SlotData(date, finalPriceForSlot, (long) product.getSale()));
         }
 
-        booking.setTotalPrice(totalBookingPrice);
+        double depositPrice = product.getDepositPrice() * datesToBook.size();
+
+        // 9. Mở rộng thời gian giữ chỗ để đủ thời gian thanh toán VNPay (~18 phút từ lúc này)
+        hold.setHoldStartTime(LocalDateTime.now().plusMinutes(15));
+        temporaryBookingRepository.save(hold);
+
+        // 10. Lưu vào cache — KHÔNG ghi DB
+        PendingBookingData data = new PendingBookingData(
+                hold.getId(), user,
+                receiverName, receiverAddress, receiverPhone,
+                product, time, subCourt,
+                bookingDate, type, recurringEndDate,
+                totalBookingPrice, depositPrice, slots);
+
+        long pendingId = pendingBookingCache.store(data);
+        return new PreparedBookingResult(pendingId, depositPrice);
+    }
+
+    /**
+     * Called on successful VNPay payment. Performs a final collision check then
+     * writes the confirmed booking to DB with DA_THANH_TOAN status.
+     */
+    @Transactional
+    public BookingResponseDTO confirmPendingBooking(PendingBookingData data) {
+        // Final collision check — guard against a race where the hold expired
+        for (PendingBookingData.SlotData slot : data.getSlots()) {
+            Optional<BookingDetail> conflict = bookingDetailRepository
+                    .findBySubCourtAndAvailableTimeAndDate(data.getSubCourt(), data.getAvailableTime(), slot.getDate());
+            if (conflict.isPresent()) {
+                log.error("Xung đột lịch sau khi thanh toán thành công: subCourt={}, time={}, date={}",
+                        data.getSubCourt().getId(), data.getAvailableTime().getId(), slot.getDate());
+                throw new IllegalStateException("Sân đã bị đặt bởi người khác trong lúc thanh toán (ngày "
+                        + slot.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
+            }
+        }
+
+        Booking booking = new Booking();
+        booking.setUser(data.getUser());
+        booking.setReceiverName(data.getReceiverName());
+        booking.setReceiverAddress(data.getReceiverAddress());
+        booking.setReceiverPhone(data.getReceiverPhone());
+        booking.setAvailableTime(data.getAvailableTime());
+        booking.setBookingDate(data.getFirstBookingDate());
+        booking.setBookingType(data.getBookingType());
+        booking.setRecurringEndDate(data.getRecurringEndDate());
+        booking.setDepositPrice(data.getDepositPrice());
+        booking.setTotalPrice(data.getTotalBookingPrice());
+        booking.setStatus(BookingStatus.DA_THANH_TOAN);
+
         Booking savedBooking = bookingRepository.save(booking);
+
+        List<BookingDetail> details = new ArrayList<>();
+        for (PendingBookingData.SlotData slot : data.getSlots()) {
+            BookingDetail detail = new BookingDetail();
+            detail.setBooking(savedBooking);
+            detail.setProduct(data.getProduct());
+            detail.setPrice(slot.getPrice());
+            detail.setSubCourt(data.getSubCourt());
+            detail.setDate(slot.getDate());
+            detail.setSale(slot.getSale());
+            detail.setAvailableTime(data.getAvailableTime());
+            details.add(detail);
+        }
         bookingDetailRepository.saveAll(details);
 
-        // Xóa giữ chỗ
-        temporaryBookingRepository.delete(hold);
+        Long tmpId = data.getTemporaryBookingId();
+        if (tmpId != null) {
+            temporaryBookingRepository.deleteById(tmpId);
+        }
 
-        emailService.sendBookingConfirmationEmail(user.getEmail(), savedBooking.getBookingCode(), booking.getId());
         return bookingMapper.toDTO(savedBooking);
     }
 
+    /**
+     * Called on failed VNPay payment. Frees the slot hold and removes the pending booking.
+     */
+    public void cancelPendingBooking(PendingBookingData data) {
+        Long tmpId = data.getTemporaryBookingId();
+        if (tmpId != null) {
+            temporaryBookingRepository.deleteById(tmpId);
+        }
+    }
+
+    @Transactional
     public Page<BookingResponseDTO> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
         return bookingRepository.findByUserId(userId, pageable).map(bookingMapper::toDTO);
     }

@@ -30,6 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -65,10 +67,11 @@ public class HomePageController {
                                         previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
                 }
                 List<ProductResponseDTO> topProducts = topProductIds.stream()
-                                .map(productService::fetchProductById)
-                                .filter(opt -> opt.isPresent() && !"DELETED".equals(opt.get().getStatus()))
+                                .map(id -> productService.fetchProductById(id))
+                                .filter(Optional::isPresent)
                                 .map(Optional::get)
-                                .toList();
+                                .filter(p -> !"DELETED".equals(p.getStatus()))
+                                .collect(Collectors.toList());
 
                 List<Long> topRacketIds = rentalToolRepository.findTop4RacketIdsByMonth(
                                 currentMonth.getYear(), currentMonth.getMonthValue(), PageRequest.of(0, 4));
@@ -77,10 +80,11 @@ public class HomePageController {
                                         previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
                 }
                 List<Racket> topRackets = topRacketIds.stream()
-                                .map(racketService::getRacketById)
-                                .filter(opt -> opt.isPresent() && !"DELETED".equals(opt.get().getStatus()))
+                                .map(id -> racketService.getRacketById(id))
+                                .filter(Optional::isPresent)
                                 .map(Optional::get)
-                                .toList();
+                                .filter(r -> !"DELETED".equals(r.getStatus()))
+                                .collect(Collectors.toList());
 
                 Map<String, Object> data = Map.of(
                                 "products", mainProducts.getContent(),
@@ -137,7 +141,7 @@ public class HomePageController {
                 Page<RentalToolDTO> rentals = rentalToolService.fetchRentalByUser(user, pageable);
 
                 Map<String, Object> data = Map.of(
-                                "rentalHistories", rentals.getContent(),
+                                "rentals", rentals.getContent(),
                                 "totalPages", rentals.getTotalPages(),
                                 "currentPage", rentals.getNumber());
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
