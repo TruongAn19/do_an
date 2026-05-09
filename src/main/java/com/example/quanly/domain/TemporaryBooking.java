@@ -17,8 +17,8 @@ public class TemporaryBooking {
     private Long userId;
 
     @ManyToOne
-    @JoinColumn(name = "sub_court_id")
-    private SubCourt subCourt;
+    @JoinColumn(name = "sub_pitch_id")
+    private SubPitch subPitch;
 
     @ManyToOne
     @JoinColumn(name = "available_time_id")

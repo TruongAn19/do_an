@@ -1,10 +1,10 @@
 package com.example.quanly.service;
 
-import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.Equipment;
 import com.example.quanly.domain.RentalToolStatus;
-import com.example.quanly.domain.dto.TopRacketDto;
-import com.example.quanly.repository.RacketRepository;
-import com.example.quanly.repository.RacketStockByDateRepository;
+import com.example.quanly.domain.dto.TopEquipmentDto;
+import com.example.quanly.repository.EquipmentRepository;
+import com.example.quanly.repository.EquipmentStockByDateRepository;
 import com.example.quanly.repository.RentalToolRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -21,26 +21,26 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class RacketStatisticsService {
+public class EquipmentStatisticsService {
 
-    private final RacketRepository racketRepository;
-    private final RacketStockByDateRepository racketStockByDateRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final EquipmentStockByDateRepository equipmentStockByDateRepository;
     private final RentalToolRepository rentalToolRepository;
 
     /**
-     * 1. Tổng số vợt hiện có trong kho của một sân
+     * 1. Tổng số thiết bị hiện có trong kho của một sân
      */
-    public Integer getTotalRackets(Long courtId) {
-        Integer total = racketRepository.countRacketByProductId(courtId);
+    public Integer getTotalEquipments(Long courtId) {
+        Integer total = equipmentRepository.countEquipmentByProductId(courtId);
         return total == null ? 0 : total;
     }
 
     /**
-     * 2. Số vợt đang cho thuê hiện tại tại một sân
+     * 2. Số thiết bị đang cho thuê hiện tại tại một sân
      */
-    public int getCurrentlyRentedRackets(Long courtId) {
+    public int getCurrentlyRentedEquipments(Long courtId) {
         LocalDate today = LocalDate.now();
-        Integer sum = racketStockByDateRepository.sumRentalStockByCourtAndDate(courtId, today);
+        Integer sum = equipmentStockByDateRepository.sumRentalStockByCourtAndDate(courtId, today);
         if (sum == null) {
             sum = 0;
         }
@@ -48,44 +48,44 @@ public class RacketStatisticsService {
     }
 
     /**
-     * 3. Số lượt thuê vợt trong tháng (theo DAILY rental)
+     * 3. Số lượt thuê thiết bị trong tháng (theo DAILY rental)
      */
     public int getRentalCountInRange(Long courtId, LocalDate startDate, LocalDate endDate) {
         return rentalToolRepository.countDailyRentalByCourtAndDateRange(courtId, startDate, endDate);
     }
 
     /**
-     * 4. Doanh thu từ thuê vợt trong tháng (theo DAILY rental)
+     * 4. Doanh thu từ thuê thiết bị trong tháng (theo DAILY rental)
      */
     public Double getRevenueInRange(Long courtId, LocalDate startDate, LocalDate endDate) {
         return rentalToolRepository.sumDailyRevenueByCourtAndDateRange(courtId, startDate, endDate);
     }
 
     /**
-     * 5. Top vợt được thuê nhiều nhất trong tháng (theo DAILY rental)
+     * 5. Top thiết bị được thuê nhiều nhất trong tháng (theo DAILY rental)
      */
-    public List<TopRacketDto> getTopRentedRacketsInRange(Long courtId, LocalDate startDate, LocalDate endDate,
+    public List<TopEquipmentDto> getTopRentedEquipmentsInRange(Long courtId, LocalDate startDate, LocalDate endDate,
             int limit) {
         // Tạo một đối tượng Pageable với số lượng giới hạn (limit)
         Pageable pageable = (Pageable) PageRequest.of(0, limit);
 
-        // Truy vấn để lấy các vợt thuê nhiều nhất
-        List<Object[]> results = rentalToolRepository.findTopDailyRentedRackets(courtId, startDate, endDate, pageable);
+        // Truy vấn để lấy các thiết bị thuê nhiều nhất
+        List<Object[]> results = rentalToolRepository.findTopDailyRentedEquipments(courtId, startDate, endDate, pageable);
 
-        List<TopRacketDto> topRackets = new ArrayList<>();
+        List<TopEquipmentDto> topEquipments = new ArrayList<>();
         for (Object[] result : results) {
-            Racket racket = (Racket) result[0];
+            Equipment equipment = (Equipment) result[0];
             Long rentalCount = (Long) result[1];
 
-            TopRacketDto dto = new TopRacketDto();
-            dto.setId(racket.getId());
-            dto.setFactory(racket.getFactory());
-            dto.setName(racket.getName());
+            TopEquipmentDto dto = new TopEquipmentDto();
+            dto.setId(equipment.getId());
+            dto.setFactory(equipment.getFactory());
+            dto.setName(equipment.getName());
             dto.setRentalStock(rentalCount.intValue());
 
-            topRackets.add(dto);
+            topEquipments.add(dto);
         }
-        return topRackets;
+        return topEquipments;
     }
 
     public Map<YearMonth, Integer> getRentalCountByMonthRange(Long courtId, YearMonth startMonth, YearMonth endMonth) {

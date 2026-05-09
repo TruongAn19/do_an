@@ -6,6 +6,6 @@ import java.time.LocalDate;
 
 @Data
 public class CheckStockRequest {
-    private Long racketId;
+    private Long equipmentId;
     private LocalDate date;
 }

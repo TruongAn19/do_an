@@ -19,7 +19,7 @@ public class RentalTool implements Serializable {
     @Enumerated(EnumType.STRING)
     private RentalType type;
     private String bookingId;
-    private Long racketId;
+    private Long equipmentId;
     private Long productId;
     private double price;
     private double rentalPrice;

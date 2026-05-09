@@ -13,7 +13,7 @@ public class HoldBookingRequest {
 
     @NotNull(message = "Sân phụ không được để trống")
     @Positive(message = "Sân phụ không hợp lệ")
-    private Long subCourtId;
+    private Long subPitchId;
 
     @NotNull(message = "Khung giờ không được để trống")
     @Positive(message = "Khung giờ không hợp lệ")

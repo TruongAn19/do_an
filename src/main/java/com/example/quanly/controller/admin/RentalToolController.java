@@ -1,9 +1,9 @@
 package com.example.quanly.controller.admin;
 
-import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.Equipment;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.RentalToolDTO;
-import com.example.quanly.service.RacketService;
+import com.example.quanly.service.EquipmentService;
 import com.example.quanly.service.RentalToolService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,7 +18,7 @@ import java.util.Map;
 public class RentalToolController {
 
         private final RentalToolService rentalToolService;
-        private final RacketService racketService;
+        private final EquipmentService equipmentService;
 
         @GetMapping
         public ResponseEntity<ApiResponse<Map<String, Object>>> getRentals(
@@ -43,10 +43,10 @@ public class RentalToolController {
         @GetMapping("/{id}")
         public ResponseEntity<ApiResponse<Map<String, Object>>> getRentalDetail(@PathVariable Long id) {
                 RentalToolDTO rentalTool = rentalToolService.getRentalToolById(id);
-                Racket racket = racketService.getRacketById(Long.parseLong(rentalTool.getRacketId()))
-                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt"));
+                Equipment equipment = equipmentService.getEquipmentById(Long.parseLong(rentalTool.getEquipmentId()))
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị"));
 
-                Map<String, Object> result = Map.of("rentalTool", rentalTool, "racket", racket);
+                Map<String, Object> result = Map.of("rentalTool", rentalTool, "equipment", equipment);
 
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                 .status(200).message("Thành công").data(result).build());

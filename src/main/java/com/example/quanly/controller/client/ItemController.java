@@ -1,12 +1,12 @@
 package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.Equipment;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
 import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.service.ProductService;
-import com.example.quanly.service.RacketService;
+import com.example.quanly.service.EquipmentService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -30,7 +30,7 @@ import java.util.Optional;
 public class ItemController {
 
     ProductService productService;
-    RacketService racketService;
+    EquipmentService equipmentService;
 
     @GetMapping("/api/v1/products")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProducts(
@@ -67,19 +67,19 @@ public class ItemController {
         ProductResponseDTO product = productService.getProductByID(productId);
         List<AvailableTime> availableTime = productService.getAllTime();
         double discountPrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
-        List<Racket> rackets = racketService.getRacketsByProductId(productId);
+        List<Equipment> equipments = equipmentService.getEquipmentsByProductId(productId);
 
         Map<String, Object> data = Map.of(
                 "product", product,
                 "availableTime", availableTime,
                 "discountPrice", discountPrice,
-                "rackets", rackets);
+                "equipments", equipments);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thành công").data(data).build());
     }
 
-    @GetMapping("/api/v1/rackets")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getRackets(
+    @GetMapping("/api/v1/equipments")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEquipments(
             @RequestParam(value = "factory", required = false) String[] factories,
             @RequestParam(value = "price", required = false) String[] prices,
             @RequestParam(value = "sort", required = false, defaultValue = "gia-nothing") String sort,
@@ -90,23 +90,23 @@ public class ItemController {
         List<String> factoryList = (factories != null && factories.length > 0) ? Arrays.asList(factories) : null;
         List<String> priceList = (prices != null && prices.length > 0) ? Arrays.asList(prices) : null;
 
-        Page<Racket> racketPage = racketService.getRackets(factoryList, priceList, sort, pageable);
+        Page<Equipment> equipmentPage = equipmentService.getEquipments(factoryList, priceList, sort, pageable);
 
         Map<String, Object> result = Map.of(
-                "rackets", racketPage.getContent(),
+                "equipments", equipmentPage.getContent(),
                 "currentPage", page,
-                "totalPages", racketPage.getTotalPages(),
-                "totalElements", racketPage.getTotalElements());
+                "totalPages", equipmentPage.getTotalPages(),
+                "totalElements", equipmentPage.getTotalElements());
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thành công").data(result).build());
     }
 
-    @GetMapping("/api/v1/rackets/{racketId}")
-    public ResponseEntity<ApiResponse<Racket>> getRacket(@PathVariable long racketId) {
-        Racket racket = racketService.getRacketById(racketId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt id=" + racketId));
-        return ResponseEntity.ok(ApiResponse.<Racket>builder()
-                .status(200).message("Thành công").data(racket).build());
+    @GetMapping("/api/v1/equipments/{equipmentId}")
+    public ResponseEntity<ApiResponse<Equipment>> getEquipment(@PathVariable long equipmentId) {
+        Equipment equipment = equipmentService.getEquipmentById(equipmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị id=" + equipmentId));
+        return ResponseEntity.ok(ApiResponse.<Equipment>builder()
+                .status(200).message("Thành công").data(equipment).build());
     }
 }

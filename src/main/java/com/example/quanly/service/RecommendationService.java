@@ -2,11 +2,11 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.BookingDetail;
-import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubPitch;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.repository.BookingDetailRepository;
 import com.example.quanly.repository.BookingRepository;
-import com.example.quanly.repository.SubCourtRepository;
+import com.example.quanly.repository.SubPitchRepository;
 import com.example.quanly.repository.TimeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,14 +24,14 @@ public class RecommendationService {
     private final BookingRepository bookingRepository;
     private final TimeRepository timeRepository;
     private final BookingDetailRepository bookingDetailRepository;
-    private final SubCourtRepository subCourtRepository;
+    private final SubPitchRepository subPitchRepository;
 
     public List<AvailableTimeDTO> recommendSlots(Long userId, Long productId) {
         // 1. Tìm khung giờ hay đặt nhất
         Long frequentTimeId = bookingRepository.findMostFrequentTimeSlotByUserId(userId);
 
         // 2. Lấy tất cả các sân thuộc sản phẩm này
-        List<SubCourt> courts = subCourtRepository.findByProductId(productId);
+        List<SubPitch> courts = subPitchRepository.findByProductId(productId);
 
         // 3. Kiểm tra xem hôm nay hoặc ngày mai, khung giờ này có trống ở sân nào không
         LocalDate today = LocalDate.now();
@@ -52,9 +52,9 @@ public class RecommendationService {
                     if (t.getTime().isBefore(now))
                         return false;
 
-                    for (SubCourt court : courts) {
+                    for (SubPitch court : courts) {
                         Optional<BookingDetail> opt = bookingDetailRepository
-                                .findBySubCourtAndAvailableTimeAndDate(court, t, today);
+                                .findBySubPitchAndAvailableTimeAndDate(court, t, today);
                         if (opt.isEmpty())
                             return true; // Còn ít nhất 1 sân trống
                     }

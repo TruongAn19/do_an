@@ -15,6 +15,6 @@ public class BookingDetailResponseDTO {
     private String productName;
     private Long availableTimeId;
     private LocalTime availableTime;
-    private Long subCourtId;
-    private String subCourtName;
+    private Long subPitchId;
+    private String subPitchName;
 }

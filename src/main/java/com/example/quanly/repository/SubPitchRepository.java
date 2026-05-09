@@ -6,11 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.example.quanly.domain.Product;
-import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubPitch;
 
 @Repository
-public interface SubCourtRepository extends JpaRepository<SubCourt, Long> {
-    List<SubCourt> findByProduct(Product product);
+public interface SubPitchRepository extends JpaRepository<SubPitch, Long> {
+    List<SubPitch> findByProduct(Product product);
 
-    List<SubCourt> findByProductId(Long productId);
+    List<SubPitch> findByProductId(Long productId);
 }

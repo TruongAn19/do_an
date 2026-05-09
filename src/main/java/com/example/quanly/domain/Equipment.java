@@ -6,39 +6,39 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 @Entity
-@Table(name = "racket")
+@Table(name = "equipment")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Racket {
-    
+public class Equipment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // Mã ID của cây vợt
+    private Long id;
 
     @Column(nullable = false, length = 100)
-    private String name;  // Tên của cây vợt
+    private String name;
 
-    private double price;  // Giá của cây vợt (giá mua)
+    private double price;
 
     private boolean available = true;
-    
+
     private String factory;
 
     private String image;
 
-    private double rentalPricePerDay;  // Giá cho thuê mỗi ngày
+    private double rentalPricePerDay;
 
-    private double rentalPricePerPlay; //
+    private double rentalPricePerPlay;
 
-    private int bookingStockQuantity;  // Số lượng vợt cho thuê theo booking
+    private int bookingStockQuantity;
 
-    private int quantity; // số vợt cho thuê
+    private int quantity;
 
     private String status;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JsonIgnoreProperties("rackets")
+    @JsonIgnoreProperties("equipments")
     private Product product;
 }
 

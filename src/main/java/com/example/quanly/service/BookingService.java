@@ -39,7 +39,7 @@ public class BookingService {
     UserRepository userRepository;
     ProductRepository productRepository;
     TimeRepository timeRepository;
-    SubCourtRepository subCourtRepository;
+    SubPitchRepository subPitchRepository;
     TemporaryBookingRepository temporaryBookingRepository;
     BookingMapper bookingMapper;
     PricingService pricingService;
@@ -103,7 +103,7 @@ public class BookingService {
     @Transactional
     public PreparedBookingResult preparePendingBooking(User user,
             String receiverName, String receiverAddress, String receiverPhone,
-            long productId, long timeId, long subCourtId, LocalDate bookingDate,
+            long productId, long timeId, long subPitchId, LocalDate bookingDate,
             String bookingType, LocalDate recurringEndDate) {
 
         // 1. Kiểm tra người dùng
@@ -139,8 +139,8 @@ public class BookingService {
         // 4. Lấy thông tin sân, khung giờ
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm ID: " + productId));
-        SubCourt subCourt = subCourtRepository.findById(subCourtId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subCourtId));
+        SubPitch subPitch = subPitchRepository.findById(subPitchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subPitchId));
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
 
@@ -155,7 +155,7 @@ public class BookingService {
         // 6. Kiểm tra va chạm (Collision Check) cho TẤT CẢ các ngày
         for (LocalDate date : datesToBook) {
             Optional<BookingDetail> existingBooking = bookingDetailRepository
-                    .findBySubCourtAndAvailableTimeAndDate(subCourt, time, date);
+                    .findBySubPitchAndAvailableTimeAndDate(subPitch, time, date);
             if (existingBooking.isPresent()) {
                 throw new IllegalArgumentException("Sân này đã bị trùng lịch vào ngày "
                         + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
@@ -164,7 +164,7 @@ public class BookingService {
 
         // 7. Kiểm tra giữ chỗ (Hold Court) cho ngày đầu tiên
         Optional<TemporaryBooking> tempHold = temporaryBookingRepository
-                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(subCourt, time, bookingDate);
+                .findBySubPitchAndAvailableTimeAndBookingDateWithLock(subPitch, time, bookingDate);
 
         if (tempHold.isEmpty()) {
             throw new IllegalArgumentException("Bạn cần giữ chỗ cho ngày đầu tiên trước khi xác nhận đặt.");
@@ -206,7 +206,7 @@ public class BookingService {
         PendingBookingData data = new PendingBookingData(
                 hold.getId(), user,
                 receiverName, receiverAddress, receiverPhone,
-                product, time, subCourt,
+                product, time, subPitch,
                 bookingDate, type, recurringEndDate,
                 totalBookingPrice, depositPrice, slots);
 
@@ -223,10 +223,10 @@ public class BookingService {
         // Final collision check — guard against a race where the hold expired
         for (PendingBookingData.SlotData slot : data.getSlots()) {
             Optional<BookingDetail> conflict = bookingDetailRepository
-                    .findBySubCourtAndAvailableTimeAndDate(data.getSubCourt(), data.getAvailableTime(), slot.getDate());
+                    .findBySubPitchAndAvailableTimeAndDate(data.getSubPitch(), data.getAvailableTime(), slot.getDate());
             if (conflict.isPresent()) {
-                log.error("Xung đột lịch sau khi thanh toán thành công: subCourt={}, time={}, date={}",
-                        data.getSubCourt().getId(), data.getAvailableTime().getId(), slot.getDate());
+                log.error("Xung đột lịch sau khi thanh toán thành công: SubPitch={}, time={}, date={}",
+                        data.getSubPitch().getId(), data.getAvailableTime().getId(), slot.getDate());
                 throw new IllegalStateException("Sân đã bị đặt bởi người khác trong lúc thanh toán (ngày "
                         + slot.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
             }
@@ -253,7 +253,7 @@ public class BookingService {
             detail.setBooking(savedBooking);
             detail.setProduct(data.getProduct());
             detail.setPrice(slot.getPrice());
-            detail.setSubCourt(data.getSubCourt());
+            detail.setSubPitch(data.getSubPitch());
             detail.setDate(slot.getDate());
             detail.setSale(slot.getSale());
             detail.setAvailableTime(data.getAvailableTime());

@@ -1,7 +1,7 @@
 package com.example.quanly.repository;
 
 import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubPitch;
 import com.example.quanly.domain.TemporaryBooking;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
@@ -20,13 +20,13 @@ import java.util.Optional;
 @Repository
 public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooking, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT t FROM TemporaryBooking t WHERE t.subCourt = :subCourt AND t.availableTime = :time AND t.bookingDate = :date")
-    Optional<TemporaryBooking> findBySubCourtAndAvailableTimeAndBookingDateWithLock(
-            @Param("subCourt") SubCourt subCourt,
+    @Query("SELECT t FROM TemporaryBooking t WHERE t.subPitch = :subPitch AND t.availableTime = :time AND t.bookingDate = :date")
+    Optional<TemporaryBooking> findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+            @Param("SubPitch") SubPitch subPitch,
             @Param("time") AvailableTime time,
             @Param("date") LocalDate date);
 
-    List<TemporaryBooking> findBySubCourtAndBookingDate(SubCourt subCourt, LocalDate bookingDate);
+    List<TemporaryBooking> findBySubPitchAndBookingDate(SubPitch subPitch, LocalDate bookingDate);
 
     @Modifying
     @Transactional
@@ -38,5 +38,5 @@ public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooki
     }
 
     @Modifying
-    void deleteBySubCourtAndAvailableTimeAndBookingDate(SubCourt subCourt, AvailableTime time, LocalDate date);
+    void deleteBySubPitchAndAvailableTimeAndBookingDate(SubPitch subPitch, AvailableTime time, LocalDate date);
 }

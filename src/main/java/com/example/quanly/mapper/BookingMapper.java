@@ -19,7 +19,7 @@ public interface BookingMapper {
     @Mapping(source = "product.name", target = "productName")
     @Mapping(source = "availableTime.id", target = "availableTimeId")
     @Mapping(source = "availableTime.time", target = "availableTime")
-    @Mapping(source = "subCourt.id", target = "subCourtId")
-    @Mapping(source = "subCourt.name", target = "subCourtName")
+    @Mapping(source = "subPitch.id", target = "subPitchId")
+    @Mapping(source = "subPitch.name", target = "subPitchName")
     BookingDetailResponseDTO toDetailDTO(BookingDetail bookingDetail);
 }

@@ -1,21 +1,21 @@
 package com.example.quanly.service;
 
-import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.Equipment;
 import com.example.quanly.domain.RentalType;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RentalPricingService {
 
-    public double unitPrice(RentalType type, Racket racket) {
+    public double unitPrice(RentalType type, Equipment equipment) {
         return type == RentalType.DAILY
-                ? racket.getRentalPricePerDay()
-                : racket.getRentalPricePerPlay();
+                ? equipment.getRentalPricePerDay()
+                : equipment.getRentalPricePerPlay();
     }
 
-    public double totalPrice(RentalType type, Racket racket, int quantity, int quantityDay) {
+    public double totalPrice(RentalType type, Equipment equipment, int quantity, int quantityDay) {
         return type == RentalType.DAILY
-                ? racket.getRentalPricePerDay() * quantity * quantityDay
-                : racket.getRentalPricePerPlay() * quantity;
+                ? equipment.getRentalPricePerDay() * quantity * quantityDay
+                : equipment.getRentalPricePerPlay() * quantity;
     }
 }

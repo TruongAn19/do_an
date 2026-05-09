@@ -1,8 +1,8 @@
 package com.example.quanly.controller.admin;
 
-import com.example.quanly.domain.RacketStockByDate;
+import com.example.quanly.domain.EquipmentStockByDate;
 import com.example.quanly.domain.dto.CheckStockRequest;
-import com.example.quanly.service.RacketStockByDateService;
+import com.example.quanly.service.EquipmentStockByDateService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -11,18 +11,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/racket-stock")
+@RequestMapping("/api/v1/equipment-stock")
 @Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-public class RacketStockByDateController {
+public class EquipmentStockByDateController {
 
-    RacketStockByDateService racketStockService;
+    EquipmentStockByDateService equipmentStockService;
 
     @PostMapping("")
-    public ResponseEntity<RacketStockByDate> checkStock(@RequestBody CheckStockRequest request) {
+    public ResponseEntity<EquipmentStockByDate> checkStock(@RequestBody CheckStockRequest request) {
         log.info("--------+++++=");
-        RacketStockByDate stock = racketStockService.getStock(request);
+        EquipmentStockByDate stock = equipmentStockService.getStock(request);
         return ResponseEntity.ok(stock);
     }
 }

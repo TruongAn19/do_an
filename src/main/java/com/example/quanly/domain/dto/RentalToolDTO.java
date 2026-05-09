@@ -12,8 +12,8 @@ public class RentalToolDTO {
     private String type; //thue kem booking hoac ko
     private String bookingId;
     private String bookingCode;
-    private String racketId;
-    private String racketName;
+    private String equipmentId;
+    private String equipmentName;
     private String productId;
     private double price;
     private double rentalPrice;

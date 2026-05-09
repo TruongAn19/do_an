@@ -29,9 +29,9 @@ import java.util.List;
 public class RentalToolService {
 
     RentalToolRepository rentalToolRepository;
-    RacketRepository racketRepository;
+    EquipmentRepository equipmentRepository;
     BookingRepository bookingRepository;
-    RacketStockByDateRepository racketStockByDateRepository;
+    EquipmentStockByDateRepository equipmentStockByDateRepository;
     UserRepository userRepository;
     BookingDetailRepository bookingDetailRepository;
     RentalToolMapper rentalToolMapper;
@@ -60,7 +60,7 @@ public class RentalToolService {
     public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
         return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rt -> {
             RentalToolDTO dto = rentalToolMapper.toDTO(rt);
-            racketRepository.findById(rt.getRacketId()).ifPresent(r -> dto.setRacketName(r.getName()));
+            equipmentRepository.findById(rt.getEquipmentId()).ifPresent(r -> dto.setEquipmentName(r.getName()));
             if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
                 try {
                     bookingRepository.findById(Long.parseLong(rt.getBookingId()))
@@ -76,17 +76,17 @@ public class RentalToolService {
     // -------------------------------------------------------------------------
 
     /**
-     * Tạo mới đơn thuê vợt từ request DTO.
-     * Giá được tính hoàn toàn tại backend từ Racket entity — client không thể tự khai giá.
+     * Tạo mới đơn thuê thiết bị từ request DTO.
+     * Giá được tính hoàn toàn tại backend từ Equipment entity — client không thể tự khai giá.
      *  - ON_SITE : liên kết booking, lưu ngay.
      *  - DAILY   : kiểm tra tồn kho → lưu PENDING, client gọi POST /{id}/pay tiếp theo.
      */
     @Transactional
     public RentalToolDTO handleSubmitRental(CreateRentalRequest request, User user) {
-        Racket racket = racketRepository.findById(request.getRacketId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vợt id=" + request.getRacketId()));
+        Equipment equipment = equipmentRepository.findById(request.getEquipmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thiết bị id=" + request.getEquipmentId()));
 
-        RentalTool rentalTool = buildRentalTool(request, racket, user);
+        RentalTool rentalTool = buildRentalTool(request, equipment, user);
 
         if (request.getType() == RentalType.ON_SITE) {
             return handleOnSiteRental(rentalTool, request.getBookingCode());
@@ -99,22 +99,22 @@ public class RentalToolService {
     /**
      * Xây dựng entity từ request. Giá được tính qua RentalPricingService.
      */
-    private RentalTool buildRentalTool(CreateRentalRequest request, Racket racket, User user) {
+    private RentalTool buildRentalTool(CreateRentalRequest request, Equipment equipment, User user) {
         RentalTool rentalTool = new RentalTool();
         rentalTool.setFullName(request.getFullName());
         rentalTool.setEmail(request.getEmail());
         rentalTool.setPhone(request.getPhone());
         rentalTool.setType(request.getType());
-        rentalTool.setRacketId(request.getRacketId());
-        rentalTool.setProductId(racket.getProduct().getId());
+        rentalTool.setEquipmentId(request.getEquipmentId());
+        rentalTool.setProductId(equipment.getProduct().getId());
         rentalTool.setQuantity(request.getQuantity());
         rentalTool.setUserId(user.getId());
         rentalTool.setStatus(RentalToolStatus.PENDING);
         rentalTool.setCreateAt(LocalDateTime.now());
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalTool.setRentalPrice(rentalPricingService.totalPrice(
-                request.getType(), racket, request.getQuantity(), request.getQuantityDay()));
-        rentalTool.setPrice(racket.getPrice() * request.getQuantity());
+                request.getType(), equipment, request.getQuantity(), request.getQuantityDay()));
+        rentalTool.setPrice(equipment.getPrice() * request.getQuantity());
 
         if (request.getType() == RentalType.DAILY) {
             rentalTool.setQuantityDay(request.getQuantityDay());
@@ -177,15 +177,15 @@ public class RentalToolService {
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
-        Long racketId = rentalTool.getRacketId();
+        Long equipmentId = rentalTool.getEquipmentId();
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
-            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
+            EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
             stock.setAvailableStock(stock.getAvailableStock() - quantity);
             stock.setReservedStock(stock.getReservedStock() + quantity);
-            racketStockByDateRepository.save(stock);
+            equipmentStockByDateRepository.save(stock);
         }
 
         LocalDate today = LocalDate.now();
@@ -193,14 +193,14 @@ public class RentalToolService {
             for (int i = 0; i < quantityDay; i++) {
                 LocalDate date = rentalDate.plusDays(i);
                 if (date.equals(today)) {
-                    RacketStockByDate stock = racketStockByDateRepository
-                            .findByRacketIdAndDate(racketId, date)
+                    EquipmentStockByDate stock = equipmentStockByDateRepository
+                            .findByEquipmentIdAndDate(equipmentId, date)
                             .orElseThrow(() -> new ResourceNotFoundException(
                                     "Không tìm thấy tồn kho cho ngày " + date));
                     if (stock.getReservedStock() >= quantity) {
                         stock.setReservedStock(stock.getReservedStock() - quantity);
                         stock.setRentalStock(stock.getRentalStock() + quantity);
-                        racketStockByDateRepository.save(stock);
+                        equipmentStockByDateRepository.save(stock);
                     }
                 }
             }
@@ -219,18 +219,18 @@ public class RentalToolService {
             throw new IllegalStateException("Đơn thuê không ở trạng thái có thể hoàn thành");
         }
 
-        Long racketId = rentalTool.getRacketId();
+        Long equipmentId = rentalTool.getEquipmentId();
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
-            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
+            EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
             stock.setAvailableStock(stock.getAvailableStock() + quantity);
             stock.setReservedStock(stock.getReservedStock() - quantity);
-            racketStockByDateRepository.save(stock);
+            equipmentStockByDateRepository.save(stock);
         }
 
         rentalTool.setStatus(RentalToolStatus.COMPLETED);
@@ -246,21 +246,21 @@ public class RentalToolService {
                 .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID));
 
         for (RentalTool rental : rentals) {
-            Long racketId = rental.getRacketId();
+            Long equipmentId = rental.getEquipmentId();
             int quantity = rental.getQuantity();
             LocalDate rentalDate = rental.getRentalDate();
             int quantityDay = rental.getQuantityDay();
 
             if (!today.isBefore(rentalDate) && today.isBefore(rentalDate.plusDays(quantityDay))) {
-                RacketStockByDate stock = racketStockByDateRepository
-                        .findByRacketIdAndDate(racketId, today)
+                EquipmentStockByDate stock = equipmentStockByDateRepository
+                        .findByEquipmentIdAndDate(equipmentId, today)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Không tìm thấy tồn kho cho ngày " + today));
 
                 if (stock.getReservedStock() >= quantity) {
                     stock.setReservedStock(stock.getReservedStock() - quantity);
                     stock.setRentalStock(stock.getRentalStock() + quantity);
-                    racketStockByDateRepository.save(stock);
+                    equipmentStockByDateRepository.save(stock);
                 }
             }
         }
@@ -270,14 +270,14 @@ public class RentalToolService {
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
-        Long racketId = rentalTool.getRacketId();
+        Long equipmentId = rentalTool.getEquipmentId();
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
-            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
+            EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
                     .orElseThrow(() -> new ResourceNotFoundException("Không đủ tồn kho cho ngày " + date));
             if (stock.getAvailableStock() < quantity) {
-                throw new IllegalArgumentException("Không đủ vợt vào ngày " + date);
+                throw new IllegalArgumentException("Không đủ thiết bị vào ngày " + date);
             }
         }
     }

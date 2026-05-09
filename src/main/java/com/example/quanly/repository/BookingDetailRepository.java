@@ -3,7 +3,7 @@ package com.example.quanly.repository;
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.BookingDetail;
 import com.example.quanly.domain.BookingStatus;
-import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubPitch;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,10 +16,10 @@ import java.util.Optional;
 
 @Repository
 public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long> {
-  Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
+  Optional<BookingDetail> findBySubPitchAndAvailableTimeAndDate(SubPitch subPitch, AvailableTime time,
       LocalDate bookingDate);
 
-  List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
+  List<BookingDetail> findBySubPitchAndDate(SubPitch court, LocalDate date);
 
   @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
       "FROM BookingDetail bd " +

@@ -48,7 +48,7 @@ public class RentalController {
         RentalToolDTO saved = rentalToolService.handleSubmitRental(request, currentUser);
 
         String message = request.getType() == RentalType.ON_SITE
-                ? "Thuê vợt tại sân thành công"
+                ? "Thuê thiết bị tại sân thành công"
                 : "Đơn thuê đã được tạo, vui lòng tiến hành thanh toán";
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -95,7 +95,7 @@ public class RentalController {
         rentalTool.setStatus(RentalToolStatus.PAID);
         rentalToolService.handleDailyRental(rentalTool);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                .status(200).message("Thuê vợt thành công")
+                .status(200).message("Thuê thiết bị thành công")
                 .data(Map.of("rentalToolId", rentalTool.getId())).build());
     }
 }

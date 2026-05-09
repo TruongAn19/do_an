@@ -9,7 +9,7 @@ import org.mapstruct.Mapping;
 public interface RentalToolMapper {
 
     @Mapping(target = "bookingCode", ignore = true)
-    @Mapping(target = "racketName", ignore = true)
+    @Mapping(target = "equipmentName", ignore = true)
     RentalToolDTO toDTO(RentalTool rentalTool);
 
     @Mapping(target = "returnDate", ignore = true)

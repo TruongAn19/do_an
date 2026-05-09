@@ -94,13 +94,13 @@ public class SecurityConfiguration {
                                                 .requestMatchers(
                                                                 "/api/v1/auth/**",
                                                                 "/api/v1/products/**",
-                                                                "/api/v1/rackets/**",
+                                                                "/api/v1/equipments/**",
                                                                 "/api/v1/client/home",
-                                                                "/api/v1/racket-stock/**",
+                                                                "/api/v1/equipment-stock/**",
                                                                 "/api/v1/ntfy-sse/**",
                                                                 "/api/v1/payments/vnpay-callback",
                                                 "/api/v1/mock-payment/**",
-                                                                "/api/v1/rentals/*/rackets",
+                                                                "/api/v1/rentals/*/equipments",
                                                                 "/api/v1/ai/**",
                                                                 "/ws/**")
 

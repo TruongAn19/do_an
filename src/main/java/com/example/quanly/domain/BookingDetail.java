@@ -41,8 +41,8 @@ public class BookingDetail {
     private AvailableTime availableTime;
 
     @ManyToOne
-    @JoinColumn(name = "sub_court_id", nullable = true)
-    private SubCourt subCourt;
+    @JoinColumn(name = "sub_pitch_id", nullable = true)
+    private SubPitch subPitch;
 
     @Column(name = "date")
     private LocalDate date;

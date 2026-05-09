@@ -46,7 +46,7 @@ public class HomePageController {
         BookingService bookingService;
         RentalToolRepository rentalToolRepository;
         RentalToolService rentalToolService;
-        RacketService racketService;
+        EquipmentService equipmentService;
         BookingDetailRepository bookingDetailRepository;
 
         @GetMapping("/api/v1/client/home")
@@ -55,7 +55,7 @@ public class HomePageController {
 
                 Pageable pageable = PageRequest.of(page - 1, 4);
                 Page<ProductResponseDTO> mainProducts = productService.getAllProductClient(pageable);
-                Page<Racket> byProducts = racketService.getAllRacket(pageable);
+                Page<Equipment> byProducts = equipmentService.getAllEquipment(pageable);
 
                 YearMonth currentMonth = YearMonth.now();
                 YearMonth previousMonth = currentMonth.minusMonths(1);
@@ -73,14 +73,14 @@ public class HomePageController {
                                 .filter(p -> !"DELETED".equals(p.getStatus()))
                                 .collect(Collectors.toList());
 
-                List<Long> topRacketIds = rentalToolRepository.findTop4RacketIdsByMonth(
+                List<Long> topEquipmentIds = rentalToolRepository.findTop4EquipmentIdsByMonth(
                                 currentMonth.getYear(), currentMonth.getMonthValue(), PageRequest.of(0, 4));
-                if (topRacketIds.isEmpty()) {
-                        topRacketIds = rentalToolRepository.findTop4RacketIdsByMonth(
+                if (topEquipmentIds.isEmpty()) {
+                        topEquipmentIds = rentalToolRepository.findTop4EquipmentIdsByMonth(
                                         previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
                 }
-                List<Racket> topRackets = topRacketIds.stream()
-                                .map(id -> racketService.getRacketById(id))
+                List<Equipment> topEquipments = topEquipmentIds.stream()
+                                .map(id -> equipmentService.getEquipmentById(id))
                                 .filter(Optional::isPresent)
                                 .map(Optional::get)
                                 .filter(r -> !"DELETED".equals(r.getStatus()))
@@ -88,9 +88,9 @@ public class HomePageController {
 
                 Map<String, Object> data = Map.of(
                                 "products", mainProducts.getContent(),
-                                "rackets", byProducts.getContent(),
+                                "equipments", byProducts.getContent(),
                                 "topProducts", topProducts,
-                                "topRackets", topRackets,
+                                "topEquipments", topEquipments,
                                 "currentPage", page,
                                 "totalPages", mainProducts.getTotalPages());
 

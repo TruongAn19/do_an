@@ -1,7 +1,7 @@
 package com.example.quanly.service;
 
-import com.example.quanly.domain.Racket;
-import com.example.quanly.repository.RacketRepository;
+import com.example.quanly.domain.Equipment;
+import com.example.quanly.repository.EquipmentRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -20,41 +20,41 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-public class RacketService {
+public class EquipmentService {
 
-    RacketRepository racketRepository;
+    EquipmentRepository equipmentRepository;
 
-    public List<Racket> getAvailableRacketsByCourt(Long courtId) {
-        return racketRepository.findByProductAndAvailableTrue(courtId);
+    public List<Equipment> getAvailableEquipmentsByCourt(Long courtId) {
+        return equipmentRepository.findByProductAndAvailableTrue(courtId);
     }
 
-    public List<Racket> getRacketsByProductId(Long productId) {
-        return racketRepository.findByProductAndAvailableTrue(productId);
+    public List<Equipment> getEquipmentsByProductId(Long productId) {
+        return equipmentRepository.findByProductAndAvailableTrue(productId);
     }
 
-    public Page<Racket> getAllRacket(Pageable pageable) {
-        return racketRepository.findAll(pageable);
+    public Page<Equipment> getAllEquipment(Pageable pageable) {
+        return equipmentRepository.findAll(pageable);
     }
 
-    public Racket handSaveRacket(Racket racket) {
-        return this.racketRepository.save(racket);
+    public Equipment handSaveEquipment(Equipment equipment) {
+        return this.equipmentRepository.save(equipment);
     }
 
-    public void deleteRacket(long racketId) {
-        this.racketRepository.deleteById(racketId);
+    public void deleteEquipment(long equipmentId) {
+        this.equipmentRepository.deleteById(equipmentId);
     }
 
-    public Optional<Racket> getRacketById(long racketId) {
-        return this.racketRepository.findById(racketId);
+    public Optional<Equipment> getEquipmentById(long equipmentId) {
+        return this.equipmentRepository.findById(equipmentId);
     }
 
-    public Integer countRacket() {
-        Integer total = this.racketRepository.countRackeQuantity();
+    public Integer countEquipment() {
+        Integer total = this.equipmentRepository.countRackeQuantity();
         return total == null ? 0 : total;
     }
 
-    public Page<Racket> getRackets(List<String> factories, List<String> prices, String sort, Pageable pageable) {
-        Specification<Racket> spec = Specification.where(null);
+    public Page<Equipment> getEquipments(List<String> factories, List<String> prices, String sort, Pageable pageable) {
+        Specification<Equipment> spec = Specification.where(null);
 
         spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), "DELETED"));
 
@@ -98,7 +98,7 @@ public class RacketService {
             }
         }
 
-        return racketRepository.findAll(spec, pageable);
+        return equipmentRepository.findAll(spec, pageable);
     }
 
 }

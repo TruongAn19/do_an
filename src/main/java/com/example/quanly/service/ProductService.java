@@ -2,8 +2,8 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.Product;
-import com.example.quanly.domain.SubCourt;
-import com.example.quanly.domain.SubCourtAvailableTime;
+import com.example.quanly.domain.SubPitch;
+import com.example.quanly.domain.SubPitchAvailableTime;
 import com.example.quanly.domain.dto.ProductCriteriaDTO;
 import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.exception.ResourceNotFoundException;
@@ -29,8 +29,8 @@ public class ProductService {
 
     ProductRepository productRepository;
     TimeRepository timeRepository;
-    SubCourtRepository subCourtRepository;
-    SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
+    SubPitchRepository subPitchRepository;
+    SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
     ProductMapper productMapper;
 
     // Sân đấu
@@ -136,12 +136,12 @@ public class ProductService {
         Product savedProduct = productRepository.save(product);
 
         if (isNew) {
-            // Tạo sub-courts và subcourt_available_time chỉ khi tạo mới
+            // Tạo sub-courts và subpitch_available_time chỉ khi tạo mới
             List<AvailableTime> allTimes = timeRepository.findAll();
             
             String[] names = null;
-            if (product.getSubCourtNames() != null && !product.getSubCourtNames().trim().isEmpty()) {
-                names = product.getSubCourtNames().split(",");
+            if (product.getSubPitchNames() != null && !product.getSubPitchNames().trim().isEmpty()) {
+                names = product.getSubPitchNames().split(",");
             }
             
             int actualQuantity = (int) savedProduct.getQuantity();
@@ -152,20 +152,20 @@ public class ProductService {
             }
 
             for (int i = 1; i <= actualQuantity; i++) {
-                SubCourt subCourt = new SubCourt();
+                SubPitch subPitch = new SubPitch();
                 if (names != null && i <= names.length) {
-                    subCourt.setName(names[i - 1].trim());
+                    subPitch.setName(names[i - 1].trim());
                 } else {
-                    subCourt.setName("Sân " + i);
+                    subPitch.setName("Sân " + i);
                 }
-                subCourt.setProduct(savedProduct);
-                subCourt = subCourtRepository.save(subCourt);
+                subPitch.setProduct(savedProduct);
+                subPitch = subPitchRepository.save(subPitch);
 
                 for (AvailableTime availableTime : allTimes) {
-                    SubCourtAvailableTime sat = new SubCourtAvailableTime();
-                    sat.setSubCourt(subCourt);
+                    SubPitchAvailableTime sat = new SubPitchAvailableTime();
+                    sat.setSubPitch(subPitch);
                     sat.setAvailableTime(availableTime);
-                    subCourtAvailableTimeRepository.save(sat);
+                    subPitchAvailableTimeRepository.save(sat);
                 }
             }
         }
@@ -230,14 +230,14 @@ public class ProductService {
         return this.productRepository.findAll(spec, pageable).map(productMapper::toDTO);
     }
 
-    public List<SubCourt> getAllCourtsByProduct(long productId) {
+    public List<SubPitch> getAllCourtsByProduct(long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
-        List<SubCourt> allCourts = this.subCourtRepository.findByProduct(product);
+        List<SubPitch> allCourts = this.subPitchRepository.findByProduct(product);
 
-        // Giữ lại SubCourt đầu tiên theo tên
-        Map<String, SubCourt> distinctByName = new LinkedHashMap<>();
-        for (SubCourt court : allCourts) {
+        // Giữ lại SubPitch đầu tiên theo tên
+        Map<String, SubPitch> distinctByName = new LinkedHashMap<>();
+        for (SubPitch court : allCourts) {
             distinctByName.putIfAbsent(court.getName(), court);
         }
 

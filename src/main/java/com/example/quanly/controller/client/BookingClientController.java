@@ -16,7 +16,7 @@ import com.example.quanly.repository.*;
 import com.example.quanly.service.BookingService;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
-import com.example.quanly.service.RacketService;
+import com.example.quanly.service.EquipmentService;
 import com.example.quanly.service.RecommendationService;
 import com.example.quanly.util.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,8 +47,8 @@ import java.util.stream.Collectors;
 public class BookingClientController {
 
     ProductService productService;
-    RacketService racketService;
-    SubCourtRepository subCourtRepository;
+    EquipmentService equipmentService;
+    SubPitchRepository subPitchRepository;
     TimeRepository timeRepository;
     BookingDetailRepository bookingDetailRepository;
     BookingService bookingService;
@@ -73,7 +73,7 @@ public class BookingClientController {
 
         ProductResponseDTO product = productService.getProductByID(productId);
         List<AvailableTime> allTimes = productService.getAllTime();
-        List<SubCourt> courts = productService.getAllCourtsByProduct(productId);
+        List<SubPitch> courts = productService.getAllCourtsByProduct(productId);
 
         double price = product.getPrice();
         double totalPrice = price - (price * product.getSale() / 100.0);
@@ -94,16 +94,16 @@ public class BookingClientController {
             @RequestParam("courtId") Long courtId) {
 
         LocalDate date = LocalDate.parse(dateStr);
-        SubCourt court = subCourtRepository.findById(courtId)
+        SubPitch court = subPitchRepository.findById(courtId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + courtId));
 
-        List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
+        List<BookingDetail> bookings = bookingDetailRepository.findBySubPitchAndDate(court, date);
         Set<Long> bookedTimeIds = bookings.stream()
                 .map(b -> b.getAvailableTime().getId())
                 .collect(Collectors.toSet());
 
         // Lấy danh sách các khung giờ đang bị giữ tạm thời và chưa hết hạn
-        List<TemporaryBooking> temporaryBookings = temporaryBookingRepository.findBySubCourtAndBookingDate(court, date);
+        List<TemporaryBooking> temporaryBookings = temporaryBookingRepository.findBySubPitchAndBookingDate(court, date);
         Set<Long> heldTimeIds = temporaryBookings.stream()
                 .filter(tb -> !tb.isExpired())
                 .map(tb -> tb.getAvailableTime().getId())
@@ -139,13 +139,13 @@ public class BookingClientController {
         temporaryBookingRepository.deleteExpiredHolds(expiryTime);
         temporaryBookingRepository.flush();
 
-        SubCourt court = subCourtRepository.findById(holdRequest.getSubCourtId())
+        SubPitch court = subPitchRepository.findById(holdRequest.getSubPitchId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
         AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
 
         Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
-                .findBySubCourtAndAvailableTimeAndBookingDateWithLock(court, time, holdRequest.getBookingDate());
+                .findBySubPitchAndAvailableTimeAndBookingDateWithLock(court, time, holdRequest.getBookingDate());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -175,7 +175,7 @@ public class BookingClientController {
         }
 
         TemporaryBooking newHold = new TemporaryBooking();
-        newHold.setSubCourt(court);
+        newHold.setSubPitch(court);
         newHold.setAvailableTime(time);
         newHold.setBookingDate(holdRequest.getBookingDate());
         newHold.setUserId(userId);
@@ -215,14 +215,14 @@ public class BookingClientController {
                         .message("Vui lòng hoàn tất thanh toán để xác nhận đặt sân").data(data).build());
     }
 
-    @GetMapping("/{bookingCode}/{courtId}/rackets")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingRackets(
+    @GetMapping("/{bookingCode}/{courtId}/equipments")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingEquipments(
             @PathVariable String bookingCode,
             @PathVariable long courtId) {
 
-        List<Racket> racketList = racketService.getAvailableRacketsByCourt(courtId);
+        List<Equipment> equipmentList = equipmentService.getAvailableEquipmentsByCourt(courtId);
         Map<String, Object> data = Map.of(
-                "rackets", racketList,
+                "equipments", equipmentList,
                 "bookingCode", bookingCode);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thành công").data(data).build());

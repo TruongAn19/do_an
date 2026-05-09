@@ -22,8 +22,8 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     int countDailyRentalByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = 'DAILY' AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND r.productId = :courtId and r.id = :racketId")
-    int countRacketDailyRentalByCourtAndDateRange(@Param("racketId") Long racketId, @Param("courtId") Long courtId,
+    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = 'DAILY' AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND r.productId = :courtId and r.id = :equipmentId")
+    int countEquipmentDailyRentalByCourtAndDateRange(@Param("equipmentId") Long equipmentId, @Param("courtId") Long courtId,
             @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     // lay doanh thu trong khoảng thời gian
@@ -31,8 +31,8 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     double sumDailyRevenueByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT rkt, SUM(rt.quantity) FROM RentalTool rt JOIN Racket rkt ON rt.racketId = rkt.id WHERE rt.type = 'DAILY' AND rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = 'COMPLETED' AND rkt.product.id = :courtId GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
-    List<Object[]> findTopDailyRentedRackets(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
+    @Query("SELECT rkt, SUM(rt.quantity) FROM RentalTool rt JOIN Equipment rkt ON rt.equipmentId = rkt.id WHERE rt.type = 'DAILY' AND rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = 'COMPLETED' AND rkt.product.id = :courtId GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
+    List<Object[]> findTopDailyRentedEquipments(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate, Pageable pageable);
 
     @Query("SELECT COUNT(rt) FROM RentalTool rt WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = :status and rt.productId = :courtId")
@@ -58,13 +58,13 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     Page<RentalTool> findByRentalToolCodeContaining(String code, Pageable pageable);
 
     @Query("""
-                SELECT r.racketId
+                SELECT r.equipmentId
                 FROM RentalTool r
                 WHERE MONTH(r.rentalDate) = :month
                   AND YEAR(r.rentalDate) = :year
-                GROUP BY r.racketId
+                GROUP BY r.equipmentId
                 ORDER BY COUNT(r.id) DESC
             """)
-    List<Long> findTop4RacketIdsByMonth(@Param("year") int year, @Param("month") int month, Pageable pageable);
+    List<Long> findTop4EquipmentIdsByMonth(@Param("year") int year, @Param("month") int month, Pageable pageable);
 
 }

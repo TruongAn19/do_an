@@ -17,7 +17,7 @@ public class PendingBookingData {
     private String receiverPhone;
     private Product product;
     private AvailableTime availableTime;
-    private SubCourt subCourt;
+    private SubPitch subPitch;
     private LocalDate firstBookingDate;
     private BookingType bookingType;
     private LocalDate recurringEndDate;

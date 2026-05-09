@@ -16,22 +16,22 @@ import jakarta.persistence.Table;
 
 
 @Entity
-@Table(name = "sub_courts")
-public class SubCourt {
+@Table(name = "sub_pitches")
+public class SubPitch {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name; // VD: "Sân 1", "Sân 2", ...
+    private String name;
 
     @ManyToOne
     @JoinColumn(name = "product_id")
-    @JsonIgnoreProperties({"user", "rackets", "availableTimes"})
+    @JsonIgnoreProperties({"user", "equipments", "availableTimes"})
     private Product product;
 
-    @OneToMany(mappedBy = "subCourt", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties("subCourt")
-    private List<SubCourtAvailableTime> subCourtAvailableTimes = new ArrayList<>();
+    @OneToMany(mappedBy = "subPitch", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("subPitch")
+    private List<SubPitchAvailableTime> subPitchAvailableTimes = new ArrayList<>();
 
     public Long getId() {
         return id;
@@ -57,13 +57,11 @@ public class SubCourt {
         this.product = product;
     }
 
-    public List<SubCourtAvailableTime> getSubCourtAvailableTimes() {
-        return subCourtAvailableTimes;
+    public List<SubPitchAvailableTime> getSubPitchAvailableTimes() {
+        return subPitchAvailableTimes;
     }
 
-    public void setSubCourtAvailableTimes(List<SubCourtAvailableTime> subCourtAvailableTimes) {
-        this.subCourtAvailableTimes = subCourtAvailableTimes;
+    public void setSubPitchAvailableTimes(List<SubPitchAvailableTime> subPitchAvailableTimes) {
+        this.subPitchAvailableTimes = subPitchAvailableTimes;
     }
-
-    
 }

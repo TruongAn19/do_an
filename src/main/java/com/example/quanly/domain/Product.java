@@ -36,24 +36,24 @@ public class Product {
     private String status;
 
     @Transient
-    private String subCourtNames;
+    private String subPitchNames;
 
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({"matchPosts", "participations", "messages", "products", "password"})
+    @JsonIgnoreProperties({"products", "password"})
     private User user;
 
     @ManyToMany
     @JoinTable(
-        name = "court_time", // Bảng nối
-        joinColumns = @JoinColumn(name = "court_id"), // Khóa ngoại tham chiếu đến sân
-        inverseJoinColumns = @JoinColumn(name = "time_id") // Khóa ngoại tham chiếu đến thời gian
+        name = "pitch_time",
+        joinColumns = @JoinColumn(name = "product_id"),
+        inverseJoinColumns = @JoinColumn(name = "time_id")
     )
     private Set<AvailableTime> availableTimes;
 
     @OneToMany(mappedBy = "product")
-    private List<Racket> rackets;
+    private List<Equipment> equipments;
 
 
 

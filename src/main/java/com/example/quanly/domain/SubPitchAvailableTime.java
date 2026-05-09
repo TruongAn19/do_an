@@ -10,23 +10,21 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 
-
 @Entity
-@Table(name = "subcourt_available_time")
-public class SubCourtAvailableTime {
+@Table(name = "subpitch_available_time")
+public class SubPitchAvailableTime {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "sub_court_id")
-    @JsonIgnoreProperties("subCourtAvailableTimes")
-    private SubCourt subCourt;
+    @JoinColumn(name = "sub_pitch_id")
+    @JsonIgnoreProperties("subPitchAvailableTimes")
+    private SubPitch subPitch;
 
     @ManyToOne
     @JoinColumn(name = "available_time_id")
     private AvailableTime availableTime;
-
 
     public Long getId() {
         return id;
@@ -36,12 +34,12 @@ public class SubCourtAvailableTime {
         this.id = id;
     }
 
-    public SubCourt getSubCourt() {
-        return subCourt;
+    public SubPitch getSubPitch() {
+        return subPitch;
     }
 
-    public void setSubCourt(SubCourt subCourt) {
-        this.subCourt = subCourt;
+    public void setSubPitch(SubPitch subPitch) {
+        this.subPitch = subPitch;
     }
 
     public AvailableTime getAvailableTime() {
@@ -51,8 +49,4 @@ public class SubCourtAvailableTime {
     public void setAvailableTime(AvailableTime availableTime) {
         this.availableTime = availableTime;
     }
-
-    
-
-    
 }
