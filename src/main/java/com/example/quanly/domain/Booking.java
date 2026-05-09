@@ -23,6 +23,8 @@ public class Booking {
     private String bookingCode;
     private String receiverAddress;
     private String receiverPhone;
+    @Convert(converter = BookingStatusConverter.class)
+    @Column(name = "status", length = 255)
     private BookingStatus status;
     private LocalDate bookingDate;
     private double depositPrice;

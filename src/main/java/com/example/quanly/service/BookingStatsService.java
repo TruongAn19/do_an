@@ -2,7 +2,9 @@ package com.example.quanly.service;
 
 import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.repository.BookingDetailRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -11,9 +13,11 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingStatsService {
-    @Autowired
-    private BookingDetailRepository bookingDetailRepository;
+
+    BookingDetailRepository bookingDetailRepository;
 
     public Map<String, Double> getRevenueBetweenDates(LocalDate start, LocalDate end) {
         List<Object[]> results = bookingDetailRepository.getRevenuePerProductBetweenDates(start, end, BookingStatus.DA_THANH_TOAN);

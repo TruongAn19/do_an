@@ -2,6 +2,7 @@ package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.domain.dto.HoldBookingRequest;
 import com.example.quanly.domain.dto.PreparedBookingResult;
@@ -93,11 +94,19 @@ public class BookingClientController {
             @RequestParam("courtId") Long courtId) {
 
         LocalDate date = LocalDate.parse(dateStr);
-        SubCourt court = subCourtRepository.findById(courtId).orElse(null);
+        SubCourt court = subCourtRepository.findById(courtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + courtId));
 
         List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
         Set<Long> bookedTimeIds = bookings.stream()
                 .map(b -> b.getAvailableTime().getId())
+                .collect(Collectors.toSet());
+
+        // Lấy danh sách các khung giờ đang bị giữ tạm thời và chưa hết hạn
+        List<TemporaryBooking> temporaryBookings = temporaryBookingRepository.findBySubCourtAndBookingDate(court, date);
+        Set<Long> heldTimeIds = temporaryBookings.stream()
+                .filter(tb -> !tb.isExpired())
+                .map(tb -> tb.getAvailableTime().getId())
                 .collect(Collectors.toSet());
 
         LocalDate today = LocalDate.now();
@@ -106,8 +115,10 @@ public class BookingClientController {
 
         List<AvailableTimeDTO> result = timeRepository.findAll().stream()
                 .filter(time -> {
-                    if (date.equals(today) && time.getTime().isBefore(now)) return false;
-                    return !bookedTimeIds.contains(time.getId());
+                    if (date.equals(today) && time.getTime().isBefore(now))
+                        return false;
+                    // Không hiển thị nếu đã đặt chính thức HOẶC đang bị giữ chỗ
+                    return !bookedTimeIds.contains(time.getId()) && !heldTimeIds.contains(time.getId());
                 })
                 .map(AvailableTimeDTO::new)
                 .collect(Collectors.toList());

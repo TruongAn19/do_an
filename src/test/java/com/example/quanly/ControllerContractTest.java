@@ -1,8 +1,10 @@
 package com.example.quanly;
 
 import com.example.quanly.config.JwtTokenProvider;
+import com.example.quanly.config.SecurityConfiguration;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.PaymentService;
+import com.example.quanly.service.RateLimitService;
 import com.example.quanly.service.RentalToolService;
 import com.example.quanly.util.SecurityUtils;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Service/Repository được @MockBean — không cần giá trị trả về thật.
  */
 @WebMvcTest(RentalController.class)
+@Import(SecurityConfiguration.class)
 @ActiveProfiles("test")
 class ControllerContractTest {
 
@@ -38,6 +42,7 @@ class ControllerContractTest {
     @MockBean UserDetailsService userDetailsService;
     @MockBean JwtTokenProvider jwtTokenProvider;
     @MockBean PasswordEncoder passwordEncoder;
+    @MockBean RateLimitService rateLimitService;
 
     // --- Controller dependencies ---
     @MockBean RentalToolService rentalToolService;

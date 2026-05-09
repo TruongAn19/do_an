@@ -1,7 +1,10 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.service.NtfyService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -10,17 +13,14 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 
-import lombok.extern.slf4j.Slf4j;
-
 @RestController
 @Slf4j
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class NtfyController {
 
-    @Autowired
-    private WebClient webClient;
-
-    @Autowired
-    private NtfyService ntfyService;
+    WebClient webClient;
+    NtfyService ntfyService;
 
     @GetMapping(value = "/api/v1/ntfy-sse/{topic}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> proxyNtfyEvents(@PathVariable String topic) {
@@ -35,9 +35,6 @@ public class NtfyController {
                 .doOnError(e -> log.error("Lỗi khi nhận SSE từ NTFY: {}", e.getMessage()));
     }
 
-    /**
-     * Endpoint để gửi thông báo thủ công
-     */
     @PostMapping("/api/v1/notify")
     public String sendNotification(@RequestParam String topic,
             @RequestParam String message,
@@ -50,5 +47,4 @@ public class NtfyController {
             return "Không thể gửi thông báo đến topic: " + topic;
         }
     }
-
 }

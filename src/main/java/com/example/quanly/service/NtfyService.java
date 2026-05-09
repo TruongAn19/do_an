@@ -3,7 +3,10 @@ package com.example.quanly.service;
 import com.example.quanly.domain.Booking;
 import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.repository.BookingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,22 +20,17 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @EnableScheduling
 @Slf4j
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class NtfyService {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    RestTemplate restTemplate;
+    BookingRepository bookingRepository;
 
-    @Autowired
-    private BookingRepository bookingRepository;
-
-    /**
-     * Gửi thông báo đến một topic cụ thể
-     */
     public boolean sendNotification(String topic, String message, String title) {
         try {
             String url = "https://ntfy.sh/" + topic;
@@ -42,7 +40,6 @@ public class NtfyService {
             }
             headers.setContentType(MediaType.TEXT_PLAIN);
 
-            // In ra để kiểm tra giá trị message trước khi gửi
             log.info("Gửi thông báo: {}", message);
 
             HttpEntity<String> request = new HttpEntity<>(message, headers);
@@ -54,10 +51,7 @@ public class NtfyService {
         }
     }
 
-    /**
-     * Scheduled task để kiểm tra và gửi thông báo định kỳ
-     */
-    @Scheduled(cron = "0 */30 * * * *") // Mỗi 30 phút
+    @Scheduled(cron = "0 */30 * * * *")
     public void checkAndSendNotifications() {
         List<Booking> bookings = bookingRepository.findBookingsByStatusAndDate(BookingStatus.DA_DAT, LocalDate.now());
         LocalDateTime now = LocalDateTime.now();
@@ -65,7 +59,6 @@ public class NtfyService {
         for (Booking booking : bookings) {
             LocalTime startTime = booking.getAvailableTime().getTime();
             if (startTime != null) {
-                // Gắn LocalTime với ngày hôm nay
                 LocalDateTime bookingStartDateTime = LocalDateTime.of(LocalDate.now(), startTime);
 
                 long minutesUntilStart = Duration.between(now, bookingStartDateTime).toMinutes();
@@ -84,6 +77,5 @@ public class NtfyService {
                 }
             }
         }
-
     }
 }

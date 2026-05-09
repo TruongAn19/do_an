@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -24,6 +25,8 @@ public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooki
             @Param("subCourt") SubCourt subCourt,
             @Param("time") AvailableTime time,
             @Param("date") LocalDate date);
+
+    List<TemporaryBooking> findBySubCourtAndBookingDate(SubCourt subCourt, LocalDate bookingDate);
 
     @Modifying
     @Transactional

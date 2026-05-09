@@ -31,6 +31,7 @@ public class Product {
     private long quantity;
     private long sale;
     private String address;
+    private String addressDetail;
     private double depositPrice;
     private String status;
 

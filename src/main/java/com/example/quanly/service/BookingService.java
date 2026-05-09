@@ -8,6 +8,7 @@ import com.example.quanly.mapper.BookingMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.pricing.BookingContext;
 import com.example.quanly.service.pricing.PricingService;
+import com.example.quanly.exception.ResourceNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -136,9 +137,12 @@ public class BookingService {
         }
 
         // 4. Lấy thông tin sân, khung giờ
-        Product product = productRepository.findById(productId).orElse(null);
-        SubCourt subCourt = subCourtRepository.findById(subCourtId).orElse(null);
-        AvailableTime time = timeRepository.findById(timeId).orElse(null);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm ID: " + productId));
+        SubCourt subCourt = subCourtRepository.findById(subCourtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subCourtId));
+        AvailableTime time = timeRepository.findById(timeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
 
         // 5. Nếu đặt cho ngày hôm nay, kiểm tra khung giờ
         if (bookingDate.equals(today)) {

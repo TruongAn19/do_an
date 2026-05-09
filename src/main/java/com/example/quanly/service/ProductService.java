@@ -64,7 +64,11 @@ public class ProductService {
                 Specification<Product> addressSpec = (root, query, cb) -> {
                     List<Predicate> predicates = new ArrayList<>();
                     for (String addr : addresses) {
-                        predicates.add(cb.like(cb.lower(root.get("address")), "%" + addr.toLowerCase() + "%"));
+                        String searchStr = "%" + addr.toLowerCase() + "%";
+                        predicates.add(cb.or(
+                            cb.like(cb.lower(root.get("address")), searchStr),
+                            cb.like(cb.lower(root.get("addressDetail")), searchStr)
+                        ));
                     }
                     return cb.or(predicates.toArray(new Predicate[0]));
                 };
@@ -200,8 +204,13 @@ public class ProductService {
         }
 
         if (address != null && !address.trim().isEmpty()) {
+            String searchAddr = "%" + address.trim().toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> 
-                    cb.like(cb.lower(root.get("address")), "%" + address.trim().toLowerCase() + "%"));
+                    cb.or(
+                        cb.like(cb.lower(root.get("address")), searchAddr),
+                        cb.like(cb.lower(root.get("addressDetail")), searchAddr)
+                    )
+            );
         }
 
         if (maxPrice != null) {

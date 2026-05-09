@@ -13,6 +13,7 @@ public class ProductResponseDTO {
     private long quantity;
     private long sale;
     private String address;
+    private String addressDetail;
     private double depositPrice;
     private String status;
     private String ownerName;

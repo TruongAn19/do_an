@@ -3,7 +3,9 @@ package com.example.quanly.service;
 import com.example.quanly.domain.Racket;
 import com.example.quanly.repository.RacketRepository;
 import jakarta.persistence.criteria.Predicate;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,13 +17,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-// import org.springframework.data.jpa.domain.Specification;
-// import com.example.quanly.service.spectification.ProductSpec;
-
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class RacketService {
-    @Autowired
-    private RacketRepository racketRepository;
+
+    RacketRepository racketRepository;
 
     public List<Racket> getAvailableRacketsByCourt(Long courtId) {
         return racketRepository.findByProductAndAvailableTrue(courtId);
@@ -31,7 +32,6 @@ public class RacketService {
         return racketRepository.findByProductAndAvailableTrue(productId);
     }
 
-    // Phụ kiện
     public Page<Racket> getAllRacket(Pageable pageable) {
         return racketRepository.findAll(pageable);
     }
@@ -39,29 +39,29 @@ public class RacketService {
     public Racket handSaveRacket(Racket racket) {
         return this.racketRepository.save(racket);
     }
+
     public void deleteRacket(long racketId) {
         this.racketRepository.deleteById(racketId);
     }
+
     public Optional<Racket> getRacketById(long racketId) {
         return this.racketRepository.findById(racketId);
     }
+
     public Integer countRacket() {
         Integer total = this.racketRepository.countRackeQuantity();
         return total == null ? 0 : total;
     }
-
 
     public Page<Racket> getRackets(List<String> factories, List<String> prices, String sort, Pageable pageable) {
         Specification<Racket> spec = Specification.where(null);
 
         spec = spec.and((root, query, cb) -> cb.notEqual(root.get("status"), "DELETED"));
 
-        // Lọc theo hãng sản xuất
         if (factories != null && !factories.isEmpty()) {
             spec = spec.and((root, query, cb) -> root.get("factory").in(factories));
         }
 
-        // Lọc theo mức giá thuê (rentalPricePerDay)
         if (prices != null && !prices.isEmpty()) {
             spec = spec.and((root, query, cb) -> {
                 List<Predicate> predicates = new ArrayList<>();
@@ -85,7 +85,6 @@ public class RacketService {
             });
         }
 
-        // Sắp xếp
         if (sort != null) {
             switch (sort) {
                 case "gia-tang-dan":
