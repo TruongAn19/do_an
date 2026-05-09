@@ -87,7 +87,7 @@ class ControllerContractTest {
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.data.fullName").exists())
-                .andExpect(jsonPath("$.data.racketId").exists());
+                .andExpect(jsonPath("$.data.equipmentId").exists());
     }
 
     @Test
@@ -100,7 +100,7 @@ class ControllerContractTest {
                   "email": "not-an-email",
                   "phone": "0901234567",
                   "type": "DAILY",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1,
                   "quantityDay": 1,
                   "rentalDate": "2099-12-01"

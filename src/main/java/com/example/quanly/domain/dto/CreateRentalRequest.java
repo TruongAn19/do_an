@@ -25,8 +25,8 @@ public class CreateRentalRequest {
     @NotNull(message = "Loại thuê không được để trống")
     private RentalType type;
 
-    @NotNull(message = "Vui lòng chọn vợt")
-    private Long racketId;
+    @NotNull(message = "Vui lòng chọn thiết bị")
+    private Long equipmentId;
 
     @Min(value = 1, message = "Số lượng phải ít nhất là 1")
     private int quantity;

@@ -33,7 +33,7 @@ public class EmailService {
     public void sendRentalConfirmationEmail(String toEmail, String rentalToolCode) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
-        message.setText("Đặt vợt thành công, cảm ơn bạn đã đặt vợt. Mã đặt vợt của bạn là: " + rentalToolCode);
+        message.setText("Đặt thiết bị thành công, cảm ơn bạn đã đặt thiết bị. Mã đặt thiết bị của bạn là: " + rentalToolCode);
         mailSender.send(message);
     }
 }

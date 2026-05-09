@@ -39,7 +39,7 @@ class ContextValidationTest {
                   "email": "a@test.com",
                   "phone": "0901234567",
                   "type": "DAILY",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1,
                   "quantityDay": 2
                 }
@@ -66,7 +66,7 @@ class ContextValidationTest {
                   "email": "a@test.com",
                   "phone": "0901234567",
                   "type": "DAILY",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1,
                   "rentalDate": "2099-12-01"
                 }
@@ -93,7 +93,7 @@ class ContextValidationTest {
                   "email": "a@test.com",
                   "phone": "0901234567",
                   "type": "ON_SITE",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1
                 }
                 """;
@@ -119,7 +119,7 @@ class ContextValidationTest {
                   "email": "a@test.com",
                   "phone": "0901234567",
                   "type": "INVALID_TYPE",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1
                 }
                 """;

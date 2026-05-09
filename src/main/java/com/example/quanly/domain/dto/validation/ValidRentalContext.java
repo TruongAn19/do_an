@@ -15,7 +15,7 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidRentalContext {
-    String message() default "Thông tin thuê vợt không hợp lệ theo loại thuê";
+    String message() default "Thông tin thuê thiết bị không hợp lệ theo loại thuê";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

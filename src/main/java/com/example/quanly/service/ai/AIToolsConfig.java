@@ -1,11 +1,11 @@
 package com.example.quanly.service.ai;
 
 import com.example.quanly.domain.AvailableTime;
-import com.example.quanly.domain.SubCourt;
+import com.example.quanly.domain.SubPitch;
 import com.example.quanly.domain.BookingDetail;
 import com.example.quanly.domain.TemporaryBooking;
 import com.example.quanly.repository.BookingDetailRepository;
-import com.example.quanly.repository.SubCourtRepository;
+import com.example.quanly.repository.SubPitchRepository;
 import com.example.quanly.repository.TemporaryBookingRepository;
 import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.BookingStatsService;
@@ -23,64 +23,64 @@ import java.util.stream.Collectors;
 @Component
 public class AIToolsConfig {
 
-    private final SubCourtRepository subCourtRepository;
+    private final SubPitchRepository subPitchRepository;
     private final TimeRepository timeRepository;
     private final BookingDetailRepository bookingDetailRepository;
     private final TemporaryBookingRepository temporaryBookingRepository;
     private final BookingStatsService bookingStatsService;
 
-    public AIToolsConfig(SubCourtRepository subCourtRepository, TimeRepository timeRepository,
+    public AIToolsConfig(SubPitchRepository subPitchRepository, TimeRepository timeRepository,
             BookingDetailRepository bookingDetailRepository,
             TemporaryBookingRepository temporaryBookingRepository,
             BookingStatsService bookingStatsService) {
-        this.subCourtRepository = subCourtRepository;
+        this.subPitchRepository = subPitchRepository;
         this.timeRepository = timeRepository;
         this.bookingDetailRepository = bookingDetailRepository;
         this.temporaryBookingRepository = temporaryBookingRepository;
         this.bookingStatsService = bookingStatsService;
     }
 
-    public record CourtInfo(String clusterName, String courtName, String region, String addressDetail) {}
-    public record AllCourtsResponse(List<CourtInfo> courts) {}
+    public record PitchInfo(String clusterName, String pitchName, String region, String addressDetail) {}
+    public record AllPitchesResponse(List<PitchInfo> pitches) {}
 
-    @Tool(description = "Liệt kê danh sách tất cả các sân cầu lông, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
-    public AllCourtsResponse listAllCourts() {
-        List<SubCourt> courts = subCourtRepository.findAll();
-        List<CourtInfo> infoList = courts.stream().map(c -> {
-            String cluster = c.getProduct() != null ? c.getProduct().getName() : "Chưa xác định";
-            String region = c.getProduct() != null ? c.getProduct().getAddress() : "Chưa có khu vực";
-            String detail = c.getProduct() != null ? c.getProduct().getAddressDetail() : "Chưa có địa chỉ chi tiết";
-            return new CourtInfo(cluster, c.getName(), region, detail);
+    @Tool(description = "Liệt kê danh sách tất cả các sân bóng đá, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
+    public AllPitchesResponse listAllPitches() {
+        List<SubPitch> pitches = subPitchRepository.findAll();
+        List<PitchInfo> infoList = pitches.stream().map(p -> {
+            String cluster = p.getProduct() != null ? p.getProduct().getName() : "Chưa xác định";
+            String region = p.getProduct() != null ? p.getProduct().getAddress() : "Chưa có khu vực";
+            String detail = p.getProduct() != null ? p.getProduct().getAddressDetail() : "Chưa có địa chỉ chi tiết";
+            return new PitchInfo(cluster, p.getName(), region, detail);
         }).collect(Collectors.toList());
-        return new AllCourtsResponse(infoList);
+        return new AllPitchesResponse(infoList);
     }
 
-    public record CourtAvailabilityRequest(String date) {
+    public record PitchAvailabilityRequest(String date) {
     }
 
-    public record CourtAvailabilityResponse(String date, List<String> availableSlots) {
+    public record PitchAvailabilityResponse(String date, List<String> availableSlots) {
     }
 
-    @Tool(description = "Kiểm tra lịch trống của các sân cầu lông theo ngày. Tham số date phải có định dạng YYYY-MM-DD.")
-    public CourtAvailabilityResponse checkCourtAvailability(CourtAvailabilityRequest request) {
+    @Tool(description = "Kiểm tra lịch trống của các sân bóng đá theo ngày. Tham số date phải có định dạng YYYY-MM-DD.")
+    public PitchAvailabilityResponse checkPitchAvailability(PitchAvailabilityRequest request) {
         try {
             LocalDate date = LocalDate.parse(request.date());
             LocalDate today = LocalDate.now();
             LocalTime now = LocalTime.now();
 
-            List<SubCourt> allCourts = subCourtRepository.findAll();
+            List<SubPitch> allPitches = subPitchRepository.findAll();
             List<AvailableTime> allTimes = timeRepository.findAll();
 
             List<String> availableSlots = new ArrayList<>();
 
-            for (SubCourt court : allCourts) {
-                List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
+            for (SubPitch pitch : allPitches) {
+                List<BookingDetail> bookings = bookingDetailRepository.findBySubPitchAndDate(pitch, date);
                 Set<Long> bookedTimeIds = bookings.stream()
                         .map(b -> b.getAvailableTime().getId())
                         .collect(Collectors.toSet());
 
                 List<TemporaryBooking> temporaryBookings = temporaryBookingRepository
-                        .findBySubCourtAndBookingDate(court, date);
+                        .findBySubPitchAndBookingDate(pitch, date);
                 Set<Long> heldTimeIds = temporaryBookings.stream()
                         .filter(tb -> !tb.isExpired())
                         .map(tb -> tb.getAvailableTime().getId())
@@ -91,9 +91,9 @@ public class AIToolsConfig {
                         continue;
 
                     if (!bookedTimeIds.contains(time.getId()) && !heldTimeIds.contains(time.getId())) {
-                        String productName = court.getProduct() != null ? court.getProduct().getName()
+                        String productName = pitch.getProduct() != null ? pitch.getProduct().getName()
                                 : "Sân mặc định";
-                        availableSlots.add(productName + " (" + court.getName() + ") - Giờ: " + time.getTime());
+                        availableSlots.add(productName + " (" + pitch.getName() + ") - Giờ: " + time.getTime());
                     }
                 }
             }
@@ -103,12 +103,12 @@ public class AIToolsConfig {
             } else if (availableSlots.size() > 50) {
                 List<String> subList = new ArrayList<>(availableSlots.subList(0, 50));
                 subList.add("... (Và còn rất nhiều khung giờ khác)");
-                return new CourtAvailabilityResponse(request.date(), subList);
+                return new PitchAvailabilityResponse(request.date(), subList);
             }
 
-            return new CourtAvailabilityResponse(request.date(), availableSlots);
+            return new PitchAvailabilityResponse(request.date(), availableSlots);
         } catch (Exception e) {
-            return new CourtAvailabilityResponse(request.date(),
+            return new PitchAvailabilityResponse(request.date(),
                     List.of("Lỗi định dạng ngày. Vui lòng cung cấp ngày theo định dạng YYYY-MM-DD."));
         }
     }

@@ -108,7 +108,7 @@ public class PaymentController {
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                .status(200).message("Thanh toán vợt thuê thành công")
+                .status(200).message("Thanh toán thiết bị thuê thành công")
                 .data(Map.of(
                         "type", "RENTAL_TOOL",
                         "rentalToolId", rentalToolId,

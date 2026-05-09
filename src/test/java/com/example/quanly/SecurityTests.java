@@ -122,7 +122,7 @@ class SecurityTests {
                 .andExpect(jsonPath("$.message").value("Dữ liệu đầu vào không hợp lệ"))
                 .andExpect(jsonPath("$.data.fullName").exists())
                 .andExpect(jsonPath("$.data.email").exists())
-                .andExpect(jsonPath("$.data.racketId").exists());
+                .andExpect(jsonPath("$.data.equipmentId").exists());
     }
 
     @Test
@@ -135,7 +135,7 @@ class SecurityTests {
                   "email": "not-an-email",
                   "phone": "0901234567",
                   "type": "DAILY",
-                  "racketId": 1,
+                  "equipmentId": 1,
                   "quantity": 1,
                   "quantityDay": 1,
                   "rentalDate": "2026-05-01"
