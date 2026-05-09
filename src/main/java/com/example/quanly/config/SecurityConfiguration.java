@@ -105,8 +105,6 @@ public class SecurityConfiguration {
                                                                 "/ws/**")
 
                                                 .permitAll()
-                                                // Match-post cần đăng nhập
-                                                .requestMatchers("/api/v1/match-posts/**").authenticated()
                                                 // Staff xem booking & rental
                                                 .requestMatchers(
                                                                 "/api/v1/admin/bookings/**",
