@@ -1,8 +1,8 @@
 -- ============================================================
--- V1__init_schema.sql  --  Baseline schema (derived from Java entities)
+-- V1__init_schema.sql  --  Baseline schema (Football Pitch Management)
 -- ============================================================
 
--- 1. roles  (Role.java → @Table("roles"))
+-- 1. roles
 CREATE TABLE `roles` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT,
   `name`        VARCHAR(255),
@@ -10,7 +10,7 @@ CREATE TABLE `roles` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 2. user  (User.java → @Table("user"))
+-- 2. user
 CREATE TABLE `user` (
   `id`           BIGINT       NOT NULL AUTO_INCREMENT,
   `email`        VARCHAR(255) NOT NULL,
@@ -26,14 +26,14 @@ CREATE TABLE `user` (
   CONSTRAINT `fk_user_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 3. available_time  (AvailableTime.java → default table name)
+-- 3. available_time
 CREATE TABLE `available_time` (
   `id`   BIGINT NOT NULL AUTO_INCREMENT,
   `time` TIME,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 4. products  (Product.java → @Table("products"))
+-- 4. products  (cụm sân bóng đá)
 CREATE TABLE `products` (
   `id`           BIGINT        NOT NULL AUTO_INCREMENT,
   `name`         VARCHAR(255),
@@ -51,74 +51,73 @@ CREATE TABLE `products` (
   CONSTRAINT `fk_product_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 5. court_time  (explicit @JoinTable in Product.availableTimes)
-CREATE TABLE `court_time` (
-  `court_id` BIGINT NOT NULL,
-  `time_id`  BIGINT NOT NULL,
-  PRIMARY KEY (`court_id`, `time_id`),
-  CONSTRAINT `fk_ct_court` FOREIGN KEY (`court_id`) REFERENCES `products`      (`id`),
-  CONSTRAINT `fk_ct_time`  FOREIGN KEY (`time_id`)  REFERENCES `available_time` (`id`)
+-- 5. pitch_time  (M2M Product ↔ AvailableTime — khung giờ hoạt động của cụm sân)
+CREATE TABLE `pitch_time` (
+  `product_id` BIGINT NOT NULL,
+  `time_id`    BIGINT NOT NULL,
+  PRIMARY KEY (`product_id`, `time_id`),
+  CONSTRAINT `fk_pt_product` FOREIGN KEY (`product_id`) REFERENCES `products`       (`id`),
+  CONSTRAINT `fk_pt_time`    FOREIGN KEY (`time_id`)    REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 6. racket  (Racket.java → @Table("racket"))
-CREATE TABLE `racket` (
-  `id`                    BIGINT       NOT NULL AUTO_INCREMENT,
-  `name`                  VARCHAR(100) NOT NULL,
-  `price`                 DOUBLE,
-  `available`             BIT(1)       NOT NULL DEFAULT b'1',
-  `factory`               VARCHAR(255),
-  `image`                 VARCHAR(500),
-  `rental_price_per_day`  DOUBLE,
-  `rental_price_per_play` DOUBLE,
+-- 6. equipment  (thiết bị cho thuê: bóng, giày, áo bib...)
+CREATE TABLE `equipment` (
+  `id`                     BIGINT       NOT NULL AUTO_INCREMENT,
+  `name`                   VARCHAR(100) NOT NULL,
+  `price`                  DOUBLE,
+  `available`              BIT(1)       NOT NULL DEFAULT b'1',
+  `factory`                VARCHAR(255),
+  `image`                  VARCHAR(500),
+  `rental_price_per_day`   DOUBLE,
+  `rental_price_per_play`  DOUBLE,
   `booking_stock_quantity` INT,
-  `quantity`              INT,
-  `status`                VARCHAR(50),
-  `product_id`            BIGINT,
+  `quantity`               INT,
+  `status`                 VARCHAR(50),
+  `product_id`             BIGINT,
   PRIMARY KEY (`id`),
-  CONSTRAINT `fk_racket_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+  CONSTRAINT `fk_equipment_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 8. sub_courts  (SubCourt.java → @Table("sub_courts"))
-CREATE TABLE `sub_courts` (
+-- 7. sub_pitches  (sân con trong cụm sân)
+CREATE TABLE `sub_pitches` (
   `id`         BIGINT       NOT NULL AUTO_INCREMENT,
   `name`       VARCHAR(255),
   `product_id` BIGINT,
   PRIMARY KEY (`id`),
-  CONSTRAINT `fk_subcourt_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+  CONSTRAINT `fk_subpitch_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 9. subcourt_available_time  (SubCourtAvailableTime.java → @Table("subcourt_available_time"))
-CREATE TABLE `subcourt_available_time` (
+-- 8. subpitch_available_time  (M2M sân con ↔ khung giờ)
+CREATE TABLE `subpitch_available_time` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
-  `sub_court_id`      BIGINT,
+  `sub_pitch_id`      BIGINT,
   `available_time_id` BIGINT,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_sat` (`sub_court_id`, `available_time_id`),
-  CONSTRAINT `fk_sat_subcourt` FOREIGN KEY (`sub_court_id`)      REFERENCES `sub_courts`    (`id`),
-  CONSTRAINT `fk_sat_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
+  UNIQUE KEY `uk_spat` (`sub_pitch_id`, `available_time_id`),
+  CONSTRAINT `fk_spat_subpitch` FOREIGN KEY (`sub_pitch_id`)      REFERENCES `sub_pitches`    (`id`),
+  CONSTRAINT `fk_spat_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 10. booking  (Booking.java → @Table("booking"))
---     booking_type & recurring_end_date are added by V3
+-- 9. booking
 CREATE TABLE `booking` (
-  `id`               BIGINT       NOT NULL AUTO_INCREMENT,
-  `total_price`      DOUBLE,
-  `receiver_name`    VARCHAR(255),
-  `booking_code`     VARCHAR(255),
-  `receiver_address` VARCHAR(500),
-  `receiver_phone`   VARCHAR(20),
-  `status`           VARCHAR(100),
-  `booking_date`     DATE,
-  `deposit_price`    DOUBLE,
-  `user_id`          BIGINT,
+  `id`                BIGINT       NOT NULL AUTO_INCREMENT,
+  `total_price`       DOUBLE,
+  `receiver_name`     VARCHAR(255),
+  `booking_code`      VARCHAR(255),
+  `receiver_address`  VARCHAR(500),
+  `receiver_phone`    VARCHAR(20),
+  `status`            VARCHAR(100),
+  `booking_date`      DATE,
+  `deposit_price`     DOUBLE,
+  `user_id`           BIGINT,
   `available_time_id` BIGINT,
-  `rental_tool_code` VARCHAR(255) DEFAULT 'KHONG_THUE',
+  `rental_tool_code`  VARCHAR(255) DEFAULT 'KHONG_THUE',
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_booking_user` FOREIGN KEY (`user_id`)           REFERENCES `user`          (`id`),
   CONSTRAINT `fk_booking_time` FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 11. booking_detail  (BookingDetail.java → @Table("booking_detail"))
+-- 10. booking_detail
 CREATE TABLE `booking_detail` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
   `price`             DOUBLE,
@@ -126,59 +125,19 @@ CREATE TABLE `booking_detail` (
   `booking_id`        BIGINT,
   `product_id`        BIGINT,
   `available_time_id` BIGINT,
-  `sub_court_id`      BIGINT,
+  `sub_pitch_id`      BIGINT,
   `date`              DATE,
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_bd_booking`  FOREIGN KEY (`booking_id`)        REFERENCES `booking`       (`id`),
   CONSTRAINT `fk_bd_product`  FOREIGN KEY (`product_id`)        REFERENCES `products`      (`id`),
   CONSTRAINT `fk_bd_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`),
-  CONSTRAINT `fk_bd_subcourt` FOREIGN KEY (`sub_court_id`)      REFERENCES `sub_courts`    (`id`)
+  CONSTRAINT `fk_bd_subpitch` FOREIGN KEY (`sub_pitch_id`)      REFERENCES `sub_pitches`   (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 12. match_posts  (MatchPost.java → @Table("match_posts"))
-CREATE TABLE `match_posts` (
-  `id`                  BIGINT       NOT NULL AUTO_INCREMENT,
-  `user_id`             BIGINT       NOT NULL,
-  `play_date`           DATE         NOT NULL,
-  `area`                VARCHAR(255) NOT NULL,
-  `time_slot`           VARCHAR(255) NOT NULL,
-  `skill_level`         VARCHAR(255),
-  `description`         TEXT,
-  `status`              VARCHAR(50)  DEFAULT 'open',
-  `created_at`          DATETIME,
-  `max_participants`    INT,
-  `current_participants` INT,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_mp_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 13. match_participants  (MatchParticipant.java → @Table("match_participants"))
-CREATE TABLE `match_participants` (
-  `id`            BIGINT NOT NULL AUTO_INCREMENT,
-  `match_post_id` BIGINT NOT NULL,
-  `user_id`       BIGINT NOT NULL,
-  `joined_at`     DATETIME,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_mpart_post` FOREIGN KEY (`match_post_id`) REFERENCES `match_posts` (`id`),
-  CONSTRAINT `fk_mpart_user` FOREIGN KEY (`user_id`)       REFERENCES `user`        (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 14. chat_messages  (ChatMessage.java → @Table("chat_messages"))
-CREATE TABLE `chat_messages` (
-  `id`            BIGINT NOT NULL AUTO_INCREMENT,
-  `match_post_id` BIGINT NOT NULL,
-  `sender_id`     BIGINT NOT NULL,
-  `content`       TEXT   NOT NULL,
-  `sent_at`       DATETIME,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_cm_post`   FOREIGN KEY (`match_post_id`) REFERENCES `match_posts` (`id`),
-  CONSTRAINT `fk_cm_sender` FOREIGN KEY (`sender_id`)     REFERENCES `user`        (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 15. racket_stock_by_date  (RacketStockByDate.java → default table name)
-CREATE TABLE `racket_stock_by_date` (
+-- 11. equipment_stock_by_date
+CREATE TABLE `equipment_stock_by_date` (
   `id`              BIGINT NOT NULL AUTO_INCREMENT,
-  `racket_id`       BIGINT,
+  `equipment_id`    BIGINT,
   `date`            DATE,
   `available_stock` INT,
   `reserved_stock`  INT,
@@ -187,10 +146,10 @@ CREATE TABLE `racket_stock_by_date` (
   `created_at`      DATETIME,
   `updated_at`      DATETIME,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_racket_date` (`racket_id`, `date`)
+  UNIQUE KEY `uk_equipment_date` (`equipment_id`, `date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 16. rental_tool  (RentalTool.java → default table name)
+-- 12. rental_tool
 CREATE TABLE `rental_tool` (
   `id`               BIGINT       NOT NULL AUTO_INCREMENT,
   `full_name`        VARCHAR(255),
@@ -198,7 +157,7 @@ CREATE TABLE `rental_tool` (
   `phone`            VARCHAR(20),
   `type`             VARCHAR(20),
   `booking_id`       VARCHAR(255),
-  `racket_id`        BIGINT,
+  `equipment_id`     BIGINT,
   `product_id`       BIGINT,
   `price`            DOUBLE,
   `rental_price`     DOUBLE,
@@ -214,20 +173,20 @@ CREATE TABLE `rental_tool` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 17. temporary_booking  (TemporaryBooking.java → @Table("temporary_booking"))
+-- 13. temporary_booking
 CREATE TABLE `temporary_booking` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
   `user_id`           BIGINT,
-  `sub_court_id`      BIGINT,
+  `sub_pitch_id`      BIGINT,
   `available_time_id` BIGINT,
   `booking_date`      DATE,
   `hold_start_time`   DATETIME,
   PRIMARY KEY (`id`),
-  CONSTRAINT `fk_tb_subcourt` FOREIGN KEY (`sub_court_id`)      REFERENCES `sub_courts`    (`id`),
+  CONSTRAINT `fk_tb_subpitch` FOREIGN KEY (`sub_pitch_id`)      REFERENCES `sub_pitches`    (`id`),
   CONSTRAINT `fk_tb_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 18. password_reset_token  (PasswordResetToken.java → default table name)
+-- 14. password_reset_token
 CREATE TABLE `password_reset_token` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT,
   `token`       VARCHAR(255),
