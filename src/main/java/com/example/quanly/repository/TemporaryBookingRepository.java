@@ -22,7 +22,7 @@ public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooki
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TemporaryBooking t WHERE t.subPitch = :subPitch AND t.availableTime = :time AND t.bookingDate = :date")
     Optional<TemporaryBooking> findBySubPitchAndAvailableTimeAndBookingDateWithLock(
-            @Param("SubPitch") SubPitch subPitch,
+            @Param("subPitch") SubPitch subPitch,
             @Param("time") AvailableTime time,
             @Param("date") LocalDate date);
 
