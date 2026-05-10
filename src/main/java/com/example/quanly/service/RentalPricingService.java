@@ -13,9 +13,12 @@ public class RentalPricingService {
                 : equipment.getRentalPricePerPlay();
     }
 
-    public double totalPrice(RentalType type, Equipment equipment, int quantity, int quantityDay) {
-        return type == RentalType.DAILY
-                ? equipment.getRentalPricePerDay() * quantity * quantityDay
-                : equipment.getRentalPricePerPlay() * quantity;
+    public double totalPrice(RentalType type, Equipment equipment, int quantity, Integer quantityDay) {
+        if (type == RentalType.DAILY) {
+            int days = (quantityDay != null) ? quantityDay : 1;
+            return equipment.getRentalPricePerDay() * quantity * days;
+        } else {
+            return equipment.getRentalPricePerPlay() * quantity;
+        }
     }
 }

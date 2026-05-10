@@ -82,7 +82,7 @@ public class RentalController {
         if (paymentReq.getPaymentMethod() == PaymentMethod.VNPAY) {
             PaymentRequest payReq = PaymentRequest.builder()
                     .id(rentalTool.getId())
-                    .amount(rentalTool.getPrice())
+                    .amount(rentalTool.getRentalPrice())
                     .type(PaymentType.RENTAL_TOOL)
                     .redirectUrl("")
                     .build();

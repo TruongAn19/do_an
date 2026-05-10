@@ -16,10 +16,19 @@ public enum BookingStatus {
         return label;
     }
 
-    public static BookingStatus fromLabel(String label) {
+    public static BookingStatus fromLabel(String input) {
+        if (input == null || input.isEmpty()) return CHO_THANH_TOAN;
+
+        // Try matching by label first
         for (BookingStatus s : values()) {
-            if (s.label.equals(label)) return s;
+            if (s.label.equalsIgnoreCase(input)) return s;
         }
-        throw new IllegalArgumentException("Trạng thái booking không hợp lệ: " + label);
+
+        // Try matching by enum name
+        try {
+            return BookingStatus.valueOf(input.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Trạng thái booking không hợp lệ: " + input);
+        }
     }
 }

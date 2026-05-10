@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.BookingService;
+import com.example.quanly.service.NtfyService;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.EquipmentService;
@@ -56,6 +57,7 @@ public class BookingClientController {
     TemporaryBookingRepository temporaryBookingRepository;
     RecommendationService recommendationService;
     SecurityUtils securityUtils;
+    NtfyService ntfyService;
 
     @GetMapping("/recommend/{productId}")
     public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
@@ -182,9 +184,85 @@ public class BookingClientController {
         newHold.setHoldStartTime(now);
         temporaryBookingRepository.save(newHold);
 
+        broadcastSlotHeld(holdRequest.getSubPitchId(), holdRequest.getAvailableTimeId(),
+                holdRequest.getBookingDate(), userId, currentUser.getEmail());
+
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Giữ sân tạm thời thành công")
                 .data(Map.of("remainingTime", 180)).build());
+    }
+
+    private void broadcastSlotHeld(Long subPitchId, Long availableTimeId, LocalDate bookingDate,
+            Long holderUserId, String holderEmail) {
+        try {
+            String topic = "slot-" + subPitchId + "-" + bookingDate;
+            String payload = String.format(
+                    "{\"action\":\"HELD\",\"subPitchId\":%d,\"availableTimeId\":%d,\"bookingDate\":\"%s\",\"holderUserId\":%d,\"holderEmail\":\"%s\"}",
+                    subPitchId, availableTimeId, bookingDate, holderUserId,
+                    holderEmail == null ? "" : holderEmail.replace("\"", "\\\""));
+            ntfyService.sendNotification(topic, payload, null);
+        } catch (Exception e) {
+            log.warn("Không thể phát thông báo realtime cho slot held: {}", e.getMessage());
+        }
+    }
+
+    @PostMapping("/estimate")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> estimatePrice(
+            @RequestBody Map<String, Object> body) {
+
+        try {
+            long productId = Long.parseLong(body.get("productId").toString());
+            long timeId = Long.parseLong(body.get("availableTimeId").toString());
+            String dateStr = body.get("bookingDate").toString();
+            String bookingType = body.getOrDefault("bookingType", "ONE_TIME").toString();
+            LocalDate bookingDate = LocalDate.parse(dateStr);
+
+            com.example.quanly.domain.Product product = productService.getRawProductById(productId);
+            com.example.quanly.domain.AvailableTime time = timeRepository.findById(timeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ"));
+
+            double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
+
+            boolean isWeekend = bookingDate.getDayOfWeek().getValue() >= 6;
+            boolean isPeakTime = time.getTime().isAfter(LocalTime.of(16, 59))
+                    && time.getTime().isBefore(LocalTime.of(22, 1));
+            boolean hasSurcharge = isWeekend || isPeakTime;
+            double surchargeRate = hasSurcharge ? 0.3 : 0.0;
+            double finalPrice = hasSurcharge ? basePrice * 1.3 : basePrice;
+
+            // Tính số buổi nếu đặt định kỳ
+            int sessions = 1;
+            if ("WEEKLY_RECURRING".equals(bookingType) && body.containsKey("recurringEndDate")) {
+                LocalDate endDate = LocalDate.parse(body.get("recurringEndDate").toString());
+                LocalDate cur = bookingDate;
+                while (!cur.isAfter(endDate)) { sessions++; cur = cur.plusWeeks(1); }
+            }
+
+            double totalPrice = finalPrice * sessions;
+            double depositPrice = product.getDepositPrice() * sessions;
+
+            String surchargeReason = hasSurcharge
+                    ? (isWeekend && isPeakTime ? "Cuối tuần & Giờ cao điểm (17h-22h)" :
+                       isWeekend ? "Ngày cuối tuần" : "Giờ cao điểm (17h-22h)")
+                    : null;
+
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("basePrice", basePrice);
+            data.put("hasSurcharge", hasSurcharge);
+            data.put("surchargeRate", surchargeRate);
+            data.put("surchargeReason", surchargeReason);
+            data.put("pricePerSession", finalPrice);
+            data.put("sessions", sessions);
+            data.put("totalPrice", totalPrice);
+            data.put("depositPrice", depositPrice);
+            data.put("remainingPrice", totalPrice - depositPrice);
+
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                    .status(200).message("Ước tính giá thành công").data(data).build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
+                    .status(400).message("Không thể tính giá: " + e.getMessage()).data(null).build());
+        }
     }
 
     @PostMapping("/place")

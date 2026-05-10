@@ -98,6 +98,8 @@ public class PaymentController {
 
         if (!success) {
             log.info("Thanh toán RENTAL_TOOL id={} thất bại", rentalToolId);
+            rentalTool.setStatus(RentalToolStatus.CANCELLED);
+            rentalToolRepository.save(rentalTool);
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán thất bại")
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());

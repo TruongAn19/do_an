@@ -13,6 +13,7 @@ public interface BookingMapper {
     @Mapping(source = "user", target = "user")
     @Mapping(target = "time", expression = "java(booking.getAvailableTime() != null ? booking.getAvailableTime().getTime().toString() : \"\")")
     @Mapping(target = "courtName", expression = "java(booking.getBookingDetails() != null && !booking.getBookingDetails().isEmpty() ? booking.getBookingDetails().get(0).getProduct().getName() : \"\")")
+    @Mapping(target = "status", expression = "java(booking.getStatus() != null ? booking.getStatus().getLabel() : \"\")")
     BookingResponseDTO toDTO(Booking booking);
 
     @Mapping(source = "product.id", target = "productId")

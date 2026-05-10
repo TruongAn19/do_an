@@ -96,12 +96,13 @@ public class ProductController {
         existing.setName(product.getName());
         existing.setDetailDesc(product.getDetailDesc());
         existing.setAddress(product.getAddress());
+        existing.setAddressDetail(product.getAddressDetail());
         existing.setSale(product.getSale());
         existing.setPrice(product.getPrice());
         existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
         existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
-        existing.setDepositPrice(existingDTO.getDepositPrice());
-        existing.setShortDesc(existingDTO.getShortDesc());
+        existing.setDepositPrice(product.getDepositPrice());
+        existing.setShortDesc(product.getShortDesc());
 
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "product"));

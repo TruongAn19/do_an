@@ -105,6 +105,7 @@ public class HomePageController {
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
                 long userId = userService.getUserByEmail(principal.getName()).getId();
+                // Sắp xếp mới nhất lên đầu (theo ID giảm dần)
                 Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
                 Page<BookingResponseDTO> bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
 
@@ -137,7 +138,8 @@ public class HomePageController {
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
                 User user = userService.getUserByEmail(principal.getName());
-                Pageable pageable = PageRequest.of(page, size);
+                // Sắp xếp đơn thuê mới nhất lên đầu (theo ID giảm dần)
+                Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
                 Page<RentalToolDTO> rentals = rentalToolService.fetchRentalByUser(user, pageable);
 
                 Map<String, Object> data = Map.of(

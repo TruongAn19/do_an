@@ -43,32 +43,45 @@ public class RentalToolService {
 
     public Page<RentalToolDTO> getRentalByTypeDAILY(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("rentalDate").descending());
-        return rentalToolRepository.findByType(RentalType.DAILY, pageable).map(rentalToolMapper::toDTO);
+        return rentalToolRepository.findByType(RentalType.DAILY, pageable).map(this::enrichDTO);
     }
 
     public RentalToolDTO getRentalToolById(Long id) {
         RentalTool rentalTool = rentalToolRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
-        return rentalToolMapper.toDTO(rentalTool);
+        return enrichDTO(rentalTool);
     }
 
     public Page<RentalToolDTO> fetchRentalToolCode(String searchTerm, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable).map(rentalToolMapper::toDTO);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable).map(this::enrichDTO);
     }
 
     public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
-        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rt -> {
-            RentalToolDTO dto = rentalToolMapper.toDTO(rt);
-            equipmentRepository.findById(rt.getEquipmentId()).ifPresent(r -> dto.setEquipmentName(r.getName()));
-            if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
-                try {
-                    bookingRepository.findById(Long.parseLong(rt.getBookingId()))
-                            .ifPresent(b -> dto.setBookingCode(b.getBookingCode()));
-                } catch (NumberFormatException ignored) {}
-            }
-            return dto;
-        });
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(this::enrichDTO);
+    }
+
+    private RentalToolDTO enrichDTO(RentalTool rt) {
+        RentalToolDTO dto = rentalToolMapper.toDTO(rt);
+        if (rt.getStatus() != null) {
+            dto.setStatus(rt.getStatus().getLabel());
+        }
+        equipmentRepository.findById(rt.getEquipmentId()).ifPresent(e -> dto.setEquipmentName(e.getName()));
+        if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
+            try {
+                bookingRepository.findById(Long.parseLong(rt.getBookingId()))
+                        .ifPresent(b -> {
+                            dto.setBookingCode(b.getBookingCode());
+                            if (b.getBookingDate() != null) {
+                                dto.setBookingDate(b.getBookingDate().toString());
+                            }
+                            if (b.getAvailableTime() != null) {
+                                dto.setBookingTime(b.getAvailableTime().getTime().toString());
+                            }
+                        });
+            } catch (NumberFormatException ignored) {}
+        }
+        return dto;
     }
 
     // -------------------------------------------------------------------------
@@ -174,9 +187,15 @@ public class RentalToolService {
      */
     @Transactional
     public void handleDailyRental(RentalTool rentalTool) {
+        if (rentalTool.getType() != RentalType.DAILY) {
+            rentalTool.setUpdateAt(LocalDateTime.now());
+            rentalToolRepository.save(rentalTool);
+            return;
+        }
+
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
+        int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
         Long equipmentId = rentalTool.getEquipmentId();
 
         for (int i = 0; i < quantityDay; i++) {
@@ -219,18 +238,20 @@ public class RentalToolService {
             throw new IllegalStateException("Đơn thuê không ở trạng thái có thể hoàn thành");
         }
 
-        Long equipmentId = rentalTool.getEquipmentId();
-        int quantity = rentalTool.getQuantity();
-        LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
+        if (rentalTool.getType() == RentalType.DAILY) {
+            Long equipmentId = rentalTool.getEquipmentId();
+            int quantity = rentalTool.getQuantity();
+            LocalDate rentalDate = rentalTool.getRentalDate();
+            int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
 
-        for (int i = 0; i < quantityDay; i++) {
-            LocalDate date = rentalDate.plusDays(i);
-            EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
-            stock.setAvailableStock(stock.getAvailableStock() + quantity);
-            stock.setReservedStock(stock.getReservedStock() - quantity);
-            equipmentStockByDateRepository.save(stock);
+            for (int i = 0; i < quantityDay; i++) {
+                LocalDate date = rentalDate.plusDays(i);
+                EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
+                stock.setAvailableStock(stock.getAvailableStock() + quantity);
+                stock.setReservedStock(stock.getReservedStock() - quantity);
+                equipmentStockByDateRepository.save(stock);
+            }
         }
 
         rentalTool.setStatus(RentalToolStatus.COMPLETED);
@@ -246,10 +267,12 @@ public class RentalToolService {
                 .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID));
 
         for (RentalTool rental : rentals) {
+            if (rental.getType() != RentalType.DAILY) continue;
+
             Long equipmentId = rental.getEquipmentId();
             int quantity = rental.getQuantity();
             LocalDate rentalDate = rental.getRentalDate();
-            int quantityDay = rental.getQuantityDay();
+            int quantityDay = (rental.getQuantityDay() != null) ? rental.getQuantityDay() : 1;
 
             if (!today.isBefore(rentalDate) && today.isBefore(rentalDate.plusDays(quantityDay))) {
                 EquipmentStockByDate stock = equipmentStockByDateRepository
@@ -267,9 +290,11 @@ public class RentalToolService {
     }
 
     private void validateDailyRentalAvailable(RentalTool rentalTool) {
+        if (rentalTool.getType() != RentalType.DAILY) return;
+
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
+        int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
         Long equipmentId = rentalTool.getEquipmentId();
 
         for (int i = 0; i < quantityDay; i++) {

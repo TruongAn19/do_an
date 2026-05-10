@@ -100,8 +100,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponse<Void>> handleRuntimeException(
+    public ResponseEntity<?> handleRuntimeException(
             RuntimeException ex, HttpServletRequest request) {
+        if (isSseRequest(request)) {
+            log.warn("SSE Runtime error (client likely disconnected): {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         log.error("Runtime error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Void>builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -113,8 +117,19 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleAllExceptions(
+    public ResponseEntity<?> handleAllExceptions(
             Exception ex, HttpServletRequest request) {
+        if (ex instanceof java.io.IOException && ex.getMessage() != null && 
+            (ex.getMessage().contains("Broken pipe") || ex.getMessage().contains("connection was aborted"))) {
+            log.debug("SSE client connection closed: {}", ex.getMessage());
+            return null; // Ignore these common SSE disconnect errors
+        }
+
+        if (isSseRequest(request)) {
+            log.warn("SSE Unexpected error: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
         log.error("Unexpected error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Void>builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -123,5 +138,10 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .timestamp(Instant.now().toString())
                 .build());
+    }
+
+    private boolean isSseRequest(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return accept != null && accept.contains("text/event-stream");
     }
 }

@@ -179,6 +179,11 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
     }
 
+    public Product getRawProductById(long productId) {
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
+    }
+
     public Optional<ProductResponseDTO> fetchProductById(long productId) {
         return productRepository.findById(productId).map(productMapper::toDTO);
     }

@@ -58,7 +58,7 @@ public class RentalToolController {
                         @RequestBody Map<String, String> body) {
 
                 RentalToolDTO updated = rentalToolService.changeStatus(id,
-                                com.example.quanly.domain.RentalToolStatus.valueOf(body.get("status")));
+                                com.example.quanly.domain.RentalToolStatus.fromLabel(body.get("status")));
 
                 return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
                                 .status(200).message("Cập nhật trạng thái thành công").data(updated).build());
