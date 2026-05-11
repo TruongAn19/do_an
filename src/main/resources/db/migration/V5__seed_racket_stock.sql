@@ -1,6 +1,6 @@
 -- ============================================================
 -- V5__seed_racket_stock.sql
--- Khởi tạo kho vợt cho 7 ngày (hôm nay → hôm nay + 6).
+-- Khởi tạo kho paddle pickleball cho 7 ngày (hôm nay → hôm nay + 6).
 -- Window này đồng bộ với generateStockByDate() trong
 -- RacketStockByDateService (targetDate = today.plusDays(6)).
 -- Scheduler chạy hàng đêm lúc 00:00 sẽ tự sinh thêm ngày mới.
@@ -13,7 +13,7 @@ INSERT IGNORE INTO `racket_stock_by_date`
 VALUES
 
 -- ================================================================
--- Racket 1: Yonex Astrox 99 Play  (qty = 10, product_id = 1)
+-- Racket 1: Selkirk Vanguard Power Air  (qty = 10, product_id = 1)
 -- ================================================================
 (1, CURDATE(),                    10, 0, 0, 10, NOW(), NOW()),
 (1, CURDATE() + INTERVAL 1 DAY,   10, 0, 0, 10, NOW(), NOW()),
@@ -24,7 +24,7 @@ VALUES
 (1, CURDATE() + INTERVAL 6 DAY,   10, 0, 0, 10, NOW(), NOW()),
 
 -- ================================================================
--- Racket 2: Victor Thruster K 9900  (qty = 8, product_id = 1)
+-- Racket 2: Joola Ben Johns Hyperion CFS 16  (qty = 8, product_id = 1)
 -- ================================================================
 (2, CURDATE(),                     8, 0, 0,  8, NOW(), NOW()),
 (2, CURDATE() + INTERVAL 1 DAY,    8, 0, 0,  8, NOW(), NOW()),
@@ -35,7 +35,7 @@ VALUES
 (2, CURDATE() + INTERVAL 6 DAY,    8, 0, 0,  8, NOW(), NOW()),
 
 -- ================================================================
--- Racket 3: Li-Ning N9 II  (qty = 6, product_id = 1)
+-- Racket 3: Franklin Signature Pro  (qty = 6, product_id = 1)
 -- ================================================================
 (3, CURDATE(),                     6, 0, 0,  6, NOW(), NOW()),
 (3, CURDATE() + INTERVAL 1 DAY,    6, 0, 0,  6, NOW(), NOW()),
@@ -46,7 +46,7 @@ VALUES
 (3, CURDATE() + INTERVAL 6 DAY,    6, 0, 0,  6, NOW(), NOW()),
 
 -- ================================================================
--- Racket 4: Yonex Nanoflare 800 Pro  (qty = 8, product_id = 2)
+-- Racket 4: Paddletek Bantam EX-L Pro  (qty = 8, product_id = 2)
 -- ================================================================
 (4, CURDATE(),                     8, 0, 0,  8, NOW(), NOW()),
 (4, CURDATE() + INTERVAL 1 DAY,    8, 0, 0,  8, NOW(), NOW()),
@@ -57,7 +57,7 @@ VALUES
 (4, CURDATE() + INTERVAL 6 DAY,    8, 0, 0,  8, NOW(), NOW()),
 
 -- ================================================================
--- Racket 5: Victor Jetspeed S 12  (qty = 6, product_id = 2)
+-- Racket 5: ONIX Z5 Graphite  (qty = 6, product_id = 2)
 -- ================================================================
 (5, CURDATE(),                     6, 0, 0,  6, NOW(), NOW()),
 (5, CURDATE() + INTERVAL 1 DAY,    6, 0, 0,  6, NOW(), NOW()),
@@ -68,7 +68,7 @@ VALUES
 (5, CURDATE() + INTERVAL 6 DAY,    6, 0, 0,  6, NOW(), NOW()),
 
 -- ================================================================
--- Racket 6: Yonex Voltric Z Force II  (qty = 5, product_id = 3)
+-- Racket 6: Selkirk LUXX Control Air Invikta  (qty = 5, product_id = 3)
 -- ================================================================
 (6, CURDATE(),                     5, 0, 0,  5, NOW(), NOW()),
 (6, CURDATE() + INTERVAL 1 DAY,    5, 0, 0,  5, NOW(), NOW()),
@@ -79,7 +79,7 @@ VALUES
 (6, CURDATE() + INTERVAL 6 DAY,    5, 0, 0,  5, NOW(), NOW()),
 
 -- ================================================================
--- Racket 7: Li-Ning 3D Calibar 900B  (qty = 4, product_id = 3)
+-- Racket 7: Engage Encore Pro EX  (qty = 4, product_id = 3)
 -- ================================================================
 (7, CURDATE(),                     4, 0, 0,  4, NOW(), NOW()),
 (7, CURDATE() + INTERVAL 1 DAY,    4, 0, 0,  4, NOW(), NOW()),
@@ -90,7 +90,7 @@ VALUES
 (7, CURDATE() + INTERVAL 6 DAY,    4, 0, 0,  4, NOW(), NOW()),
 
 -- ================================================================
--- Racket 8: Apacs Feather Weight 55  (qty = 8, product_id = 3)
+-- Racket 8: Gamma Compass NeuCore  (qty = 8, product_id = 3)
 -- ================================================================
 (8, CURDATE(),                     8, 0, 0,  8, NOW(), NOW()),
 (8, CURDATE() + INTERVAL 1 DAY,    8, 0, 0,  8, NOW(), NOW()),

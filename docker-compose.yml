@@ -1,4 +1,7 @@
 services:
+  # ================================================================
+  # LEGACY stack (cầu lông) — chỉ giữ làm backup, không dùng nữa
+  # ================================================================
   mysql:
     image: mysql:8.0
     container_name: badminton-db
@@ -32,5 +35,81 @@ services:
       - mysql
       - redis
 
+  # ================================================================
+  # NEW stack (sân bóng đá)
+  # ================================================================
+  football-mysql:
+    image: mysql:8.0
+    container_name: football-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sanbongda
+    ports:
+      - "3308:3306"
+    volumes:
+      - football_mysql_data:/var/lib/mysql
+
+  football-redis:
+    image: redis:alpine
+    container_name: football-redis
+    ports:
+      - "6380:6379"
+
+  football-backend:
+    build: .
+    container_name: football-api
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://football-mysql:3306/sanbongda?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_REDIS_HOST=football-redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_AI_OPENAI_API_KEY=${OPENAI_API_KEY:-dummy_local_dev}
+    depends_on:
+      - football-mysql
+      - football-redis
+
+  # ================================================================
+  # NEW stack (sân pickleball) 
+  # ================================================================
+  pickleball-mysql:
+    image: mysql:8.0
+    container_name: pickleball-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: pickleball
+    ports:
+      - "3309:3306"
+    volumes:
+      - pickleball_mysql_data:/var/lib/mysql
+
+  pickleball-redis:
+    image: redis:alpine
+    container_name: pickleball-redis
+    ports:
+      - "6381:6379"
+
+  pickleball-backend:
+    build: .
+    container_name: pickleball-api
+    ports:
+      - "8082:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://pickleball-mysql:3306/pickleball?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_REDIS_HOST=pickleball-redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_AI_OPENAI_API_KEY=${OPENAI_API_KEY:-dummy_local_dev}
+    depends_on:
+      - pickleball-mysql
+      - pickleball-redis
 volumes:
   mysql_data:
+  badminton_mysql_data:
+  football_mysql_data:
+  pickleball_mysql_data:

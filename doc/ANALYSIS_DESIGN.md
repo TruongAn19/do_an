@@ -1,6 +1,6 @@
-# Tài liệu Phân tích Thiết kế Hệ thống Badminton Booking
+# Tài liệu Phân tích Thiết kế Hệ thống Pickleball Booking
 
-Tài liệu này mô tả chi tiết kiến trúc, logic nghiệp vụ và các luồng xử lý (Sequence Diagrams) của dự án Badminton Booking System dựa trên mã nguồn hiện tại.
+Tài liệu này mô tả chi tiết kiến trúc, logic nghiệp vụ và các luồng xử lý (Sequence Diagrams) của dự án Pickleball Booking System dựa trên mã nguồn hiện tại.
 
 ---
 
@@ -17,7 +17,7 @@ Hệ thống được xây dựng theo mô hình **Client-Server**:
 ## 2. Sơ đồ Thực thể (Entity Analysis)
 Dựa trên mã nguồn tại gói `domain`, các thực thể chính bao gồm:
 - **User:** Lưu thông tin người dùng, phân quyền (ADMIN, STAFF, USER).
-- **Product:** Thông tin sân cầu lông chính (ví dụ: Sân cầu lông Quận 1).
+- **Product:** Thông tin sân pickleball chính (ví dụ: Sân pickleball Quận 1).
 - **SubCourt:** Các sân con thuộc một Product (Sân 1, Sân 2...).
 - **AvailableTime:** Các khung giờ có thể đặt (5:00 - 6:00, 6:00 - 7:00...).
 - **Booking:** Đơn đặt sân, lưu thông tin tổng tiền, trạng thái thanh toán.

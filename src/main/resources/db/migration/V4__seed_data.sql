@@ -58,33 +58,33 @@ INSERT IGNORE INTO `products`
 VALUES
 (
   1,
-  'Sân Cầu Lông Antigravity',
-  50000,
-  'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
-  'Cụm 5 sân cầu lông tiêu chuẩn BWF. Thảm PVC chuyên dụng chống trơn trượt, hệ thống đèn LED 800 lux đảm bảo không bị chói mắt. Phòng thay đồ, tủ khóa và bãi đỗ xe miễn phí. Cho thuê vợt và cầu ngay tại sân.',
-  'Cụm 5 sân chuẩn BWF — trung tâm Quận 1',
+  'Sân Pickleball Antigravity',
+  120000,
+  'https://images.unsplash.com/photo-1687204209293-4fbf7e9d8c63?w=800',
+  'Cụm 5 sân pickleball tiêu chuẩn USAPA/IFP. Mặt sân acrylic chuyên dụng chống trơn trượt, hệ thống đèn LED 800 lux đảm bảo không bị chói mắt. Phòng thay đồ, tủ khóa và bãi đỗ xe miễn phí. Cho thuê paddle và bóng pickleball ngay tại sân.',
+  'Cụm 5 sân chuẩn USAPA — trung tâm Quận 1',
   5, 0,
   '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM',
   20000, 'ACTIVE', 1
 ),
 (
   2,
-  'Elite Arena Badminton',
-  65000,
-  'https://sieuthicaulong.vn/userfiles/files/top%205%20%C4%91%E1%BB%8Ba%20%C4%91i%E1%BB%83m%20d%E1%BA%A1y%20c%E1%BA%A7u%20l%C3%B4ng%20q4/san-cau-long-t12.png',
-  'Cụm 4 sân cao cấp với sàn gỗ Taraflex nhập khẩu từ Pháp. Hệ thống điều hoà trung tâm, ghế khán giả 50 chỗ, camera an ninh 24/7. Phù hợp tổ chức giải đấu cấp câu lạc bộ và thi đấu giao lưu.',
-  'Cụm 4 sân sàn gỗ cao cấp — Quận 3',
+  'Elite Arena Pickleball',
+  150000,
+  'https://images.unsplash.com/photo-1709025237833-8aa3a3a3e1d7?w=800',
+  'Cụm 4 sân pickleball cao cấp với mặt sân acrylic cushion nhập khẩu từ Mỹ. Hệ thống điều hoà trung tâm, ghế khán giả 50 chỗ, camera an ninh 24/7. Phù hợp tổ chức giải đấu cấp câu lạc bộ và thi đấu giao lưu.',
+  'Cụm 4 sân acrylic cushion cao cấp — Quận 3',
   4, 0,
   '456 Võ Văn Tần, Phường 5, Quận 3, TP.HCM',
   25000, 'ACTIVE', 1
 ),
 (
   3,
-  'Pro Center Badminton',
-  80000,
-  'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800',
-  'Cụm 3 sân thi đấu chuyên nghiệp theo tiêu chuẩn quốc tế, nơi thường xuyên tổ chức các giải đấu cấp thành phố. Sàn Taraflex Pro, đèn LED chuyên biệt 1000 lux, hệ thống tính điểm điện tử và phát sóng trực tiếp.',
-  'Cụm 3 sân chuyên nghiệp chuẩn thi đấu — Quận 7',
+  'Pro Center Pickleball',
+  180000,
+  'https://images.unsplash.com/photo-1710573264437-44a3b0a37e76?w=800',
+  'Cụm 3 sân thi đấu chuyên nghiệp theo tiêu chuẩn quốc tế PPA, nơi thường xuyên tổ chức các giải đấu cấp thành phố. Mặt sân DecoTurf Pro, đèn LED chuyên biệt 1000 lux, hệ thống tính điểm điện tử và phát sóng trực tiếp.',
+  'Cụm 3 sân chuyên nghiệp chuẩn thi đấu PPA — Quận 7',
   3, 0,
   '789 Lê Văn Lương, Phường Tân Hưng, Quận 7, TP.HCM',
   35000, 'ACTIVE', 1
@@ -164,11 +164,11 @@ INSERT IGNORE INTO `subcourt_available_time` (`sub_court_id`, `available_time_id
 (12,3),(12,4),(12,5),(12,6),(12,7),(12,8),(12,9),(12,10),(12,11),(12,12),(12,13),(12,14),(12,15),(12,16),(12,17),(12,18);
 
 -- ----------------------------------------------------------------
--- 8. RACKETS  (vợt cho thuê — mỗi cụm sân có bộ vợt riêng)
---    quantity             = tổng số vợt
---    booking_stock_quantity = số vợt đưa vào pool cho thuê theo booking
---    rental_price_per_day = thuê mang về (tính theo ngày)
---    rental_price_per_play= thuê đánh tại sân (tính theo buổi)
+-- 8. RACKETS  (paddle pickleball cho thuê — mỗi cụm sân có bộ paddle riêng)
+--    quantity              = tổng số paddle
+--    booking_stock_quantity = số paddle đưa vào pool cho thuê theo booking
+--    rental_price_per_day  = thuê mang về (tính theo ngày)
+--    rental_price_per_play = thuê đánh tại sân (tính theo buổi)
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `racket`
   (`id`, `name`, `price`, `available`, `factory`, `image`,
@@ -176,31 +176,31 @@ INSERT IGNORE INTO `racket`
    `booking_stock_quantity`, `quantity`, `status`, `product_id`)
 VALUES
 -- ── Antigravity (product_id = 1) ──
-(1, 'Yonex Astrox 99 Play',    1500000, 1, 'Yonex',
-    'https://racketsports.hk/wp-content/uploads/2021/12/Yonex-ax99-play.png',
-    50000, 20000, 10, 10, 'ACTIVE', 1),
-(2, 'Victor Thruster K 9900',  1200000, 1, 'Victor',
-    'https://www.tennisnuts.com/images/product/full/13799_06-17.jpg',
-    40000, 15000,  8,  8, 'ACTIVE', 1),
-(3, 'Li-Ning N9 II',            800000, 1, 'Li-Ning',
-    'https://tse2.mm.bing.net/th/id/OIP.OOj1pdpSB9DnCa-byQUEFAHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-    30000, 12000,  6,  6, 'ACTIVE', 1),
+(1, 'Selkirk Vanguard Power Air',  4500000, 1, 'Selkirk',
+    'https://images.unsplash.com/photo-1687204209293-4fbf7e9d8c63?w=400',
+    80000, 30000, 10, 10, 'ACTIVE', 1),
+(2, 'Joola Ben Johns Hyperion CFS 16', 5500000, 1, 'Joola',
+    'https://images.unsplash.com/photo-1709025237833-8aa3a3a3e1d7?w=400',
+    90000, 35000,  8,  8, 'ACTIVE', 1),
+(3, 'Franklin Signature Pro',       1800000, 1, 'Franklin',
+    'https://images.unsplash.com/photo-1710573264437-44a3b0a37e76?w=400',
+    50000, 20000,  6,  6, 'ACTIVE', 1),
 
 -- ── Elite Arena (product_id = 2) ──
-(4, 'Yonex Nanoflare 800 Pro', 2000000, 1, 'Yonex',
-    'https://tse3.mm.bing.net/th/id/OIP.PpsgfaEYuXGbXktMP2o2iQHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-    60000, 25000,  8,  8, 'ACTIVE', 2),
-(5, 'Victor Jetspeed S 12',    1500000, 1, 'Victor',
-    'https://th.bing.com/th/id/R.ab02edfcc6bf4ad1b194c167aab20b14?rik=tfrLZsLkVotX9w&pid=ImgRaw&r=0',
-    50000, 20000,  6,  6, 'ACTIVE', 2),
+(4, 'Paddletek Bantam EX-L Pro',    3200000, 1, 'Paddletek',
+    'https://images.unsplash.com/photo-1687204209293-4fbf7e9d8c63?w=400',
+    70000, 25000,  8,  8, 'ACTIVE', 2),
+(5, 'ONIX Z5 Graphite',             2500000, 1, 'ONIX',
+    'https://images.unsplash.com/photo-1709025237833-8aa3a3a3e1d7?w=400',
+    60000, 22000,  6,  6, 'ACTIVE', 2),
 
 -- ── Pro Center (product_id = 3) ──
-(6, 'Yonex Voltric Z Force II', 3500000, 1, 'Yonex',
-    'https://tse1.mm.bing.net/th/id/OIP.Dxv5JsDYjHBZaxt_DdkBaQHaO0?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-    80000, 35000,  5,  5, 'ACTIVE', 3),
-(7, 'Li-Ning 3D Calibar 900B',  2500000, 1, 'Li-Ning',
-    'https://tse3.mm.bing.net/th/id/OIP.7rVFG1WIMChPp6jXwVbFWwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-    70000, 30000,  4,  4, 'ACTIVE', 3),
-(8, 'Apacs Feather Weight 55',   900000, 1, 'Apacs',
-    'https://tse2.mm.bing.net/th/id/OIP.5__CB6rvLNeHTbuEPz_73gHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-    35000, 15000,  8,  8, 'ACTIVE', 3);
+(6, 'Selkirk LUXX Control Air Invikta', 6500000, 1, 'Selkirk',
+    'https://images.unsplash.com/photo-1710573264437-44a3b0a37e76?w=400',
+    100000, 40000,  5,  5, 'ACTIVE', 3),
+(7, 'Engage Encore Pro EX',         4800000, 1, 'Engage',
+    'https://images.unsplash.com/photo-1687204209293-4fbf7e9d8c63?w=400',
+    90000, 35000,  4,  4, 'ACTIVE', 3),
+(8, 'Gamma Compass NeuCore',        2200000, 1, 'Gamma',
+    'https://images.unsplash.com/photo-1709025237833-8aa3a3a3e1d7?w=400',
+    55000, 20000,  8,  8, 'ACTIVE', 3);

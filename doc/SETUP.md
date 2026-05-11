@@ -1,6 +1,6 @@
-# Hướng dẫn cài đặt dự án Badminton Booking System
+# Hướng dẫn cài đặt dự án Pickleball Booking System
 
-Tài liệu này hướng dẫn cách cài đặt và chạy dự án Badminton Booking System (Hệ thống đặt sân cầu lông) trên máy tính cá nhân.
+Tài liệu này hướng dẫn cách cài đặt và chạy dự án Pickleball Booking System (Hệ thống đặt sân pickleball) trên máy tính cá nhân.
 
 ## 1. Yêu cầu hệ thống
 Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đặt các công cụ sau:
@@ -21,10 +21,10 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
 ## 3. Cài đặt Cơ sở dữ liệu (MySQL)
 Dự án sử dụng MySQL để lưu trữ dữ liệu.
 1. Khởi chạy MySQL Server.
-2. Tạo một database mới có tên là `sancaulong1`.
+2. Tạo một database mới có tên là `sanpickleball1`.
 3. Kiểm tra cấu hình kết nối trong file `refactor_do_an/src/main/resources/application.properties`:
    ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3307/sancaulong1?createDatabaseIfNotExist=true
+   spring.datasource.url=jdbc:mysql://localhost:3307/sanpickleball1?createDatabaseIfNotExist=true
    spring.datasource.username=root
    spring.datasource.password=root
    ```

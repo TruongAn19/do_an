@@ -101,12 +101,9 @@ public class SecurityConfiguration {
                                                                 "/api/v1/payments/vnpay-callback",
                                                 "/api/v1/mock-payment/**",
                                                                 "/api/v1/rentals/*/rackets",
-                                                                "/api/v1/ai/**",
-                                                                "/ws/**")
+                                                                "/api/v1/ai/**")
 
                                                 .permitAll()
-                                                // Match-post cần đăng nhập
-                                                .requestMatchers("/api/v1/match-posts/**").authenticated()
                                                 // Staff xem booking & rental
                                                 .requestMatchers(
                                                                 "/api/v1/admin/bookings/**",

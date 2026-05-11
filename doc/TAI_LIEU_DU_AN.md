@@ -1,10 +1,10 @@
-# Tai lieu du an Quan Ly San Cau Long
+# Tai lieu du an Quan Ly San Pickleball
 
 ## 1. Gioi thieu tong quan
 
 ### 1.1. Ten du an
 
-`quanly` - He thong quan ly san cau long, dat san, thue vot, ket noi tran dau va quan tri van hanh.
+`quanly` - He thong quan ly San Pickleball, dat san, thue vot, ket noi tran dau va quan tri van hanh.
 
 ### 1.2. Muc tieu
 
@@ -211,7 +211,7 @@ flowchart LR
     Admin[Quan tri vien]
     VNPAY[VNPay]
 
-    subgraph System[He thong Quan Ly San Cau Long]
+    subgraph System[He thong Quan Ly San Pickleball]
         UC1([Xem danh sach san va vot])
         UC2([Dang ky / Dang nhap])
         UC3([Cap nhat ho so ca nhan])
@@ -285,7 +285,7 @@ API chinh:
 - `PUT /api/v1/client/profile`
 - `PUT /api/v1/client/change-password`
 
-### 6.2. San pham va san cau long
+### 6.2. San pham va San Pickleball
 
 Controller:
 
@@ -664,7 +664,7 @@ Cau hinh hien tai:
 
 - host: `localhost`
 - port: `3307`
-- db: `sancaulong1`
+- db: `sanpickleball1`
 
 ### 12.2. Flyway
 
@@ -756,7 +756,7 @@ Nen bo sung:
 1. Tao database MySQL:
 
 ```sql
-CREATE DATABASE sancaulong1;
+CREATE DATABASE sanpickleball1;
 ```
 
 2. Chinh lai `application.properties` neu can:
@@ -841,6 +841,6 @@ CREATE DATABASE sancaulong1;
 
 ## 19. Ket luan
 
-Du an `quanly` la backend REST API phuc vu quan ly san cau long va cac nghiep vu lien quan nhu dat san, thue vot, thanh toan, tim tran va quan tri he thong. Kien truc hien tai phu hop de tiep tuc mo rong thanh mot backend cho web frontend, mobile app hoac he thong van hanh noi bo.
+Du an `quanly` la backend REST API phuc vu quan ly San Pickleball va cac nghiep vu lien quan nhu dat san, thue vot, thanh toan, tim tran va quan tri he thong. Kien truc hien tai phu hop de tiep tuc mo rong thanh mot backend cho web frontend, mobile app hoac he thong van hanh noi bo.
 
 Tai lieu nay duoc tong hop tu ma nguon hien tai trong repository. Neu co thay doi lon o API, schema hoac business flow, can cap nhat lai tai lieu de dong bo voi code.

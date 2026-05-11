@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -49,18 +48,6 @@ public class User {
 
     @JoinColumn(name = "role_id")
     private Role role;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties("user")
-    private List<MatchPost> matchPosts = new ArrayList<>();
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties({ "user", "matchPost" })
-    private List<MatchParticipant> participations = new ArrayList<>();
-
-    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnoreProperties({ "sender", "matchPost" })
-    private List<ChatMessage> messages = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
     @JsonIgnoreProperties("user")

@@ -14,7 +14,7 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:quanlysancaulong_super_secret_key_256bit_minimum_length_required_here}")
+    @Value("${jwt.secret:quanlypickleball_super_secret_key_256bit_minimum_length_required_here}")
     private String jwtSecret;
 
     @Value("${jwt.expiration:86400000}")

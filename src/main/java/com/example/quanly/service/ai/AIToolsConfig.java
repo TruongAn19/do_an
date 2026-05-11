@@ -43,7 +43,7 @@ public class AIToolsConfig {
     public record CourtInfo(String clusterName, String courtName, String region, String addressDetail) {}
     public record AllCourtsResponse(List<CourtInfo> courts) {}
 
-    @Tool(description = "Liệt kê danh sách tất cả các sân cầu lông, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
+    @Tool(description = "Liệt kê danh sách tất cả các sân pickleball, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
     public AllCourtsResponse listAllCourts() {
         List<SubCourt> courts = subCourtRepository.findAll();
         List<CourtInfo> infoList = courts.stream().map(c -> {
@@ -61,7 +61,7 @@ public class AIToolsConfig {
     public record CourtAvailabilityResponse(String date, List<String> availableSlots) {
     }
 
-    @Tool(description = "Kiểm tra lịch trống của các sân cầu lông theo ngày. Tham số date phải có định dạng YYYY-MM-DD.")
+    @Tool(description = "Kiểm tra lịch trống của các sân pickleball theo ngày. Tham số date phải có định dạng YYYY-MM-DD.")
     public CourtAvailabilityResponse checkCourtAvailability(CourtAvailabilityRequest request) {
         try {
             LocalDate date = LocalDate.parse(request.date());

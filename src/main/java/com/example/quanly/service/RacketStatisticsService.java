@@ -28,7 +28,7 @@ public class RacketStatisticsService {
     private final RentalToolRepository rentalToolRepository;
 
     /**
-     * 1. Tổng số vợt hiện có trong kho của một sân
+     * 1. Tổng số vợt/paddle hiện có trong kho của một sân
      */
     public Integer getTotalRackets(Long courtId) {
         Integer total = racketRepository.countRacketByProductId(courtId);
@@ -36,7 +36,7 @@ public class RacketStatisticsService {
     }
 
     /**
-     * 2. Số vợt đang cho thuê hiện tại tại một sân
+     * 2. Số vợt/paddle đang cho thuê hiện tại tại một sân
      */
     public int getCurrentlyRentedRackets(Long courtId) {
         LocalDate today = LocalDate.now();
@@ -48,21 +48,21 @@ public class RacketStatisticsService {
     }
 
     /**
-     * 3. Số lượt thuê vợt trong tháng (theo DAILY rental)
+     * 3. Số lượt thuê vợt/paddle trong tháng (theo DAILY rental)
      */
     public int getRentalCountInRange(Long courtId, LocalDate startDate, LocalDate endDate) {
         return rentalToolRepository.countDailyRentalByCourtAndDateRange(courtId, startDate, endDate);
     }
 
     /**
-     * 4. Doanh thu từ thuê vợt trong tháng (theo DAILY rental)
+     * 4. Doanh thu từ thuê vợt/paddle trong tháng (theo DAILY rental)
      */
     public Double getRevenueInRange(Long courtId, LocalDate startDate, LocalDate endDate) {
         return rentalToolRepository.sumDailyRevenueByCourtAndDateRange(courtId, startDate, endDate);
     }
 
     /**
-     * 5. Top vợt được thuê nhiều nhất trong tháng (theo DAILY rental)
+     * 5. Top vợt/paddle được thuê nhiều nhất trong tháng (theo DAILY rental)
      */
     public List<TopRacketDto> getTopRentedRacketsInRange(Long courtId, LocalDate startDate, LocalDate endDate,
             int limit) {

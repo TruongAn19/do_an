@@ -64,7 +64,7 @@ public class NtfyService {
                 long minutesUntilStart = Duration.between(now, bookingStartDateTime).toMinutes();
 
                 if (minutesUntilStart <= 60 && minutesUntilStart > 0) {
-                    String message = "You have a badminton match coming up.";
+                    String message = "You have a pickleball match coming up.";
                     String topic = "user-" + booking.getUser().getId();
                     String title = "Appointment Notification";
 
