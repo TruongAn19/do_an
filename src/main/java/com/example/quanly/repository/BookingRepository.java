@@ -40,6 +40,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query(value = "SELECT available_time_id FROM booking WHERE user_id = :userId GROUP BY available_time_id ORDER BY COUNT(*) DESC LIMIT 1", nativeQuery = true)
     Long findMostFrequentTimeSlotByUserId(@Param("userId") Long userId);
 
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.bookingDate = :date")
+    long countByBookingDate(@Param("date") LocalDate date);
+
+    @Query("SELECT SUM(b.totalPrice) FROM Booking b WHERE b.status = :status AND b.bookingDate >= :startDate AND b.bookingDate <= :endDate")
+    Double sumTotalPriceByStatusAndDateBetween(@Param("status") BookingStatus status, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT bd.product.name, COUNT(bd) as count, SUM(bd.price) as revenue FROM BookingDetail bd GROUP BY bd.product.name ORDER BY count DESC")
+    List<Object[]> findTopProducts(Pageable pageable);
+
+    @Query("SELECT b FROM Booking b ORDER BY b.id DESC")
+    List<Booking> findRecentBookings(Pageable pageable);
+
     List<Booking> findAllByStatus(BookingStatus status);
 
 }

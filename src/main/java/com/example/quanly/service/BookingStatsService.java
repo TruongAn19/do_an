@@ -20,12 +20,13 @@ public class BookingStatsService {
     BookingDetailRepository bookingDetailRepository;
 
     public Map<String, Double> getRevenueBetweenDates(LocalDate start, LocalDate end) {
-        List<Object[]> results = bookingDetailRepository.getRevenuePerProductBetweenDates(start, end, BookingStatus.DA_THANH_TOAN);
+        List<BookingStatus> statuses = List.of(BookingStatus.DA_THANH_TOAN, BookingStatus.DA_DAT);
+        List<Object[]> results = bookingDetailRepository.getDailyRevenueBetweenDates(start, end, statuses);
         Map<String, Double> data = new LinkedHashMap<>();
         for (Object[] result : results) {
-            String productName = (String) result[0];
+            String date = result[0].toString();
             Double revenue = (Double) result[1];
-            data.put(productName, revenue);
+            data.put(date, revenue);
         }
         return data;
     }

@@ -69,19 +69,20 @@ public class EquipmentStatisticsService {
         // Tạo một đối tượng Pageable với số lượng giới hạn (limit)
         Pageable pageable = (Pageable) PageRequest.of(0, limit);
 
-        // Truy vấn để lấy các thiết bị thuê nhiều nhất
         List<Object[]> results = rentalToolRepository.findTopDailyRentedEquipments(courtId, startDate, endDate, pageable);
 
         List<TopEquipmentDto> topEquipments = new ArrayList<>();
         for (Object[] result : results) {
             Equipment equipment = (Equipment) result[0];
-            Long rentalCount = (Long) result[1];
+            Long totalQuantity = (Long) result[1];
+            Double totalRevenue = (Double) result[2];
 
             TopEquipmentDto dto = new TopEquipmentDto();
             dto.setId(equipment.getId());
             dto.setFactory(equipment.getFactory());
             dto.setName(equipment.getName());
-            dto.setRentalStock(rentalCount.intValue());
+            dto.setRentCount(totalQuantity != null ? totalQuantity.intValue() : 0);
+            dto.setRevenue(totalRevenue != null ? totalRevenue : 0.0);
 
             topEquipments.add(dto);
         }

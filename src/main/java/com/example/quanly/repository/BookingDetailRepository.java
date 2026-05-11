@@ -21,16 +21,27 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
 
   List<BookingDetail> findBySubPitchAndDate(SubPitch court, LocalDate date);
 
+  @Query("SELECT bd.date, SUM(bd.price) " +
+      "FROM BookingDetail bd " +
+      "JOIN bd.booking b " +
+      "WHERE bd.date BETWEEN :start AND :end " +
+      "AND b.status IN :statuses " +
+      "GROUP BY bd.date")
+  List<Object[]> getDailyRevenueBetweenDates(
+      @Param("start") LocalDate start,
+      @Param("end") LocalDate end,
+      @Param("statuses") java.util.Collection<BookingStatus> statuses);
+
   @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
       "FROM BookingDetail bd " +
       "JOIN bd.booking b " +
       "WHERE bd.date BETWEEN :start AND :end " +
-      "AND b.status = :status " +
+      "AND b.status IN :statuses " +
       "GROUP BY bd.product.name")
-  List<Object[]> getRevenuePerProductBetweenDates(
+  List<Object[]> getProductRevenueBetweenDates(
       @Param("start") LocalDate start,
       @Param("end") LocalDate end,
-      @Param("status") BookingStatus status);
+      @Param("statuses") java.util.Collection<BookingStatus> statuses);
 
   List<BookingDetail> findByBookingId(long id);
 

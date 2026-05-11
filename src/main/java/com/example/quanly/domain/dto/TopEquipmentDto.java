@@ -10,4 +10,6 @@ public class TopEquipmentDto {
     private String factory;
     private String image;
     private int rentalStock;
+    private int rentCount;
+    private double revenue;
 }
