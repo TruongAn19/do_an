@@ -103,7 +103,7 @@ public class PaymentController {
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.PAID);
+        rentalTool.setStatus(RentalToolStatus.RENTING);
         rentalToolService.handleDailyRental(rentalTool);
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);

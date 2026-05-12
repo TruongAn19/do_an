@@ -43,32 +43,53 @@ public class RentalToolService {
 
     public Page<RentalToolDTO> getRentalByTypeDAILY(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("rentalDate").descending());
-        return rentalToolRepository.findByType(RentalType.DAILY, pageable).map(rentalToolMapper::toDTO);
+        return rentalToolRepository.findByType(RentalType.DAILY, pageable).map(this::enrichDTO);
     }
 
     public RentalToolDTO getRentalToolById(Long id) {
         RentalTool rentalTool = rentalToolRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
-        return rentalToolMapper.toDTO(rentalTool);
+        return enrichDTO(rentalTool);
     }
 
     public Page<RentalToolDTO> fetchRentalToolCode(String searchTerm, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable).map(rentalToolMapper::toDTO);
+        return rentalToolRepository.findByRentalToolCodeContaining(searchTerm, pageable).map(this::enrichDTO);
     }
 
     public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
-        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rt -> {
-            RentalToolDTO dto = rentalToolMapper.toDTO(rt);
-            racketRepository.findById(rt.getRacketId()).ifPresent(r -> dto.setRacketName(r.getName()));
-            if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
-                try {
-                    bookingRepository.findById(Long.parseLong(rt.getBookingId()))
-                            .ifPresent(b -> dto.setBookingCode(b.getBookingCode()));
-                } catch (NumberFormatException ignored) {}
-            }
-            return dto;
-        });
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(this::enrichDTO);
+    }
+
+    private RentalToolDTO enrichDTO(RentalTool rt) {
+        RentalToolDTO dto = rentalToolMapper.toDTO(rt);
+        
+        // 1. Lấy tên vợt
+        racketRepository.findById(rt.getRacketId()).ifPresent(r -> dto.setRacketName(r.getName()));
+        
+        // 2. Lấy tên tài khoản (Account Name)
+        if (rt.getUserId() != null) {
+            userRepository.findById(rt.getUserId()).ifPresent(u -> dto.setAccountName(u.getFullName()));
+        }
+
+        // 3. Lấy thông tin từ Booking nếu có
+        if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
+            try {
+                bookingRepository.findById(Long.parseLong(rt.getBookingId()))
+                        .ifPresent(b -> {
+                            dto.setBookingCode(b.getBookingCode());
+                            if (b.getAvailableTime() != null) {
+                                dto.setBookingTime(b.getAvailableTime().getTime().toString());
+                            } else if (b.getBookingDetails() != null && !b.getBookingDetails().isEmpty()) {
+                                AvailableTime at = b.getBookingDetails().get(0).getAvailableTime();
+                                if (at != null) {
+                                    dto.setBookingTime(at.getTime().toString());
+                                }
+                            }
+                        });
+            } catch (NumberFormatException ignored) {}
+        }
+        return dto;
     }
 
     // -------------------------------------------------------------------------
@@ -112,12 +133,16 @@ public class RentalToolService {
         rentalTool.setStatus(RentalToolStatus.PENDING);
         rentalTool.setCreateAt(LocalDateTime.now());
         rentalTool.setUpdateAt(LocalDateTime.now());
+        
+        // Ensure quantityDay is at least 1 for unboxing and stock calculation
+        int qtyDay = (request.getType() == RentalType.DAILY) ? request.getQuantityDay() : 1;
+        rentalTool.setQuantityDay(qtyDay);
+
         rentalTool.setRentalPrice(rentalPricingService.totalPrice(
-                request.getType(), racket, request.getQuantity(), request.getQuantityDay()));
+                request.getType(), racket, request.getQuantity(), qtyDay));
         rentalTool.setPrice(racket.getPrice() * request.getQuantity());
 
         if (request.getType() == RentalType.DAILY) {
-            rentalTool.setQuantityDay(request.getQuantityDay());
             rentalTool.setRentalDate(request.getRentalDate());
         }
         return rentalTool;
@@ -176,7 +201,7 @@ public class RentalToolService {
     public void handleDailyRental(RentalTool rentalTool) {
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
+        int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
         Long racketId = rentalTool.getRacketId();
 
         for (int i = 0; i < quantityDay; i++) {
@@ -222,7 +247,7 @@ public class RentalToolService {
         Long racketId = rentalTool.getRacketId();
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
+        int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
@@ -249,7 +274,7 @@ public class RentalToolService {
             Long racketId = rental.getRacketId();
             int quantity = rental.getQuantity();
             LocalDate rentalDate = rental.getRentalDate();
-            int quantityDay = rental.getQuantityDay();
+            int quantityDay = (rental.getQuantityDay() != null) ? rental.getQuantityDay() : 1;
 
             if (!today.isBefore(rentalDate) && today.isBefore(rentalDate.plusDays(quantityDay))) {
                 RacketStockByDate stock = racketStockByDateRepository

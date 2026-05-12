@@ -243,7 +243,7 @@ public class BookingService {
         booking.setRecurringEndDate(data.getRecurringEndDate());
         booking.setDepositPrice(data.getDepositPrice());
         booking.setTotalPrice(data.getTotalBookingPrice());
-        booking.setStatus(BookingStatus.DA_THANH_TOAN);
+        booking.setStatus(BookingStatus.DA_DAT_COC);
 
         Booking savedBooking = bookingRepository.save(booking);
 
