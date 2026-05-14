@@ -119,6 +119,11 @@ public class BookingService {
             if (recurringEndDate.isBefore(bookingDate)) {
                 throw new IllegalArgumentException("Ngày kết thúc chu kỳ không thể trước ngày bắt đầu.");
             }
+            // Giới hạn đặt định kỳ tối đa 12 tuần (khoảng 3 tháng) để đảm bảo tính chặt chẽ
+            if (bookingDate.plusWeeks(12).isBefore(recurringEndDate)) {
+                throw new IllegalArgumentException("Chỉ có thể đặt định kỳ tối đa trong vòng 12 tuần.");
+            }
+
             LocalDate nextDate = bookingDate;
             while (!nextDate.isAfter(recurringEndDate)) {
                 datesToBook.add(nextDate);
@@ -128,11 +133,15 @@ public class BookingService {
             datesToBook.add(bookingDate);
         }
 
-        // 3. Kiểm tra ngày đặt có hợp lệ (không ở quá khứ)
+        // 3. Kiểm tra ngày đặt có hợp lệ
         LocalDate today = LocalDate.now();
+        LocalDate maxFutureDate = today.plusDays(90); // Giới hạn đặt trong vòng 3 tháng tới
         for (LocalDate date : datesToBook) {
             if (date.isBefore(today)) {
                 throw new IllegalArgumentException("Không thể đặt sân cho ngày trong quá khứ (" + date + ").");
+            }
+            if (date.isAfter(maxFutureDate)) {
+                throw new IllegalArgumentException("Chỉ có thể đặt sân trong phạm vi 90 ngày tới.");
             }
         }
 
@@ -152,14 +161,18 @@ public class BookingService {
             }
         }
 
-        // 6. Kiểm tra va chạm (Collision Check) cho TẤT CẢ các ngày
+        // 6. Kiểm tra va chạm (Collision Check) cho TẤT CẢ các ngày - Trả về lỗi chi tiết các ngày bị trùng
+        List<String> conflictedDates = new ArrayList<>();
         for (LocalDate date : datesToBook) {
             Optional<BookingDetail> existingBooking = bookingDetailRepository
                     .findBySubPitchAndAvailableTimeAndDate(subPitch, time, date);
             if (existingBooking.isPresent()) {
-                throw new IllegalArgumentException("Sân này đã bị trùng lịch vào ngày "
-                        + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+                conflictedDates.add(date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             }
+        }
+        
+        if (!conflictedDates.isEmpty()) {
+            throw new IllegalArgumentException("Sân này đã bị trùng lịch vào các ngày: " + String.join(", ", conflictedDates));
         }
 
         // 7. Kiểm tra giữ chỗ (Hold Court) cho ngày đầu tiên

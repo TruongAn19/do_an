@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class NtfyService {
     RestTemplate restTemplate;
     BookingRepository bookingRepository;
 
+    @Async
     public boolean sendNotification(String topic, String message, String title) {
         try {
             String url = "https://ntfy.sh/" + topic;
