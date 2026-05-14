@@ -1,6 +1,17 @@
 package com.example.quanly.controller.client;
 
-import com.example.quanly.domain.*;
+import com.example.quanly.domain.Booking;
+import com.example.quanly.domain.BookingDetail;
+import com.example.quanly.domain.BookingStatus;
+import com.example.quanly.domain.BookingType;
+import com.example.quanly.domain.RentalTool;
+import com.example.quanly.domain.RentalToolStatus;
+import com.example.quanly.domain.SubPitch;
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.AvailableTime;
+import com.example.quanly.domain.TemporaryBooking;
+import com.example.quanly.domain.User;
+import com.example.quanly.domain.Equipment;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
@@ -35,6 +46,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -229,63 +241,74 @@ public class BookingClientController {
 
                         double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
 
-                        // Sử dụng PricingService để tính giá đồng nhất cho mỗi buổi
-                        com.example.quanly.service.pricing.BookingContext context = com.example.quanly.service.pricing.BookingContext
-                                        .builder()
-                                        .user(getCurrentUser())
-                                        .time(time)
-                                        .bookingDate(bookingDate)
-                                        .build();
+                        // 1. Tính toán danh sách ngày
+                        List<LocalDate> datesToBook = new ArrayList<>();
+                        Integer durationMonths = body.containsKey("durationMonths")
+                                        ? Integer.parseInt(body.get("durationMonths").toString())
+                                        : null;
+                        List<Integer> daysOfWeek = body.containsKey("daysOfWeek")
+                                        ? (List<Integer>) body.get("daysOfWeek")
+                                        : null;
 
-                        double finalPricePerSession = pricingService.calculateFinalPrice(basePrice, context);
-
-                        // Tính số buổi nếu đặt định kỳ
-                        int sessions = 1;
-                        if ("WEEKLY_RECURRING".equals(bookingType) && body.containsKey("recurringEndDate")) {
-                                LocalDate endDate = LocalDate.parse(body.get("recurringEndDate").toString());
-                                if (endDate.isBefore(bookingDate))
-                                        throw new IllegalArgumentException("Ngày kết thúc không hợp lệ");
-
-                                // Giới hạn 12 tuần cho estimation luôn đồng bộ với Service
-                                if (bookingDate.plusWeeks(12).isBefore(endDate))
-                                        endDate = bookingDate.plusWeeks(12);
-
-                                LocalDate cur = bookingDate;
-                                while (!cur.isAfter(endDate)) {
-                                        if (cur != bookingDate) {
-                                                // Tính tổng tiền cho các buổi sau (vì giá có thể khác nếu rơi vào ngày
-                                                // khác,
-                                                // nhưng đặt tuần cùng khung giờ thì thường giống nhau, tuy nhiên logic
-                                                // vẫn nên chính xác)
-                                                com.example.quanly.service.pricing.BookingContext nextCtx = com.example.quanly.service.pricing.BookingContext
-                                                                .builder()
-                                                                .user(getCurrentUser())
-                                                                .time(time)
-                                                                .bookingDate(cur)
-                                                                .build();
-                                                // total cộng dồn ở đây nếu muốn chi tiết, nhưng estimate nhanh thì dùng
-                                                // giá buổi đầu
+                        if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                if (durationMonths != null && durationMonths > 0 && daysOfWeek != null) {
+                                        LocalDate endDate = bookingDate.plusMonths(durationMonths);
+                                        LocalDate current = bookingDate;
+                                        while (!current.isAfter(endDate)) {
+                                                if (daysOfWeek.contains(current.getDayOfWeek().getValue())) {
+                                                        datesToBook.add(current);
+                                                }
+                                                current = current.plusDays(1);
                                         }
-                                        sessions++;
-                                        cur = cur.plusWeeks(1);
                                 }
-                                sessions--; // Giảm 1 vì vòng lặp trên chạy thừa 1 lần khi cur == bookingDate lần đầu
+                        } else {
+                                datesToBook.add(bookingDate);
                         }
 
-                        double totalPrice = finalPricePerSession * sessions;
-                        double depositPrice = product.getDepositPrice() * sessions;
+                        if (datesToBook.isEmpty()) {
+                                throw new IllegalArgumentException("Vui lòng chọn Thứ và thời hạn hợp lệ.");
+                        }
+
+                        // 2. Tính toán giá với chiết khấu
+                        double totalBookingPrice = 0;
+                        double discountRate = pricingService.calculateRecurringDiscountRate(durationMonths);
+
+                        for (LocalDate date : datesToBook) {
+                                com.example.quanly.service.pricing.BookingContext context = com.example.quanly.service.pricing.BookingContext
+                                                .builder()
+                                                .user(getCurrentUser())
+                                                .time(time)
+                                                .bookingDate(date)
+                                                .build();
+
+                                double finalPricePerSession = pricingService.calculateFinalPrice(basePrice, context);
+
+                                if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                        finalPricePerSession = finalPricePerSession * (1 - discountRate);
+                                }
+                                totalBookingPrice += finalPricePerSession;
+                        }
+
+                        double totalDeposit = product.getDepositPrice() * datesToBook.size();
+                        if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                totalDeposit = totalDeposit * (1 - discountRate);
+                        }
+
+                        double originalTotalPrice = basePrice * datesToBook.size();
+                        double savings = originalTotalPrice - totalBookingPrice;
 
                         Map<String, Object> data = new java.util.LinkedHashMap<>();
                         data.put("basePrice", basePrice);
-                        data.put("pricePerSession", finalPricePerSession);
-                        data.put("sessions", sessions);
-                        data.put("totalPrice", totalPrice);
-                        data.put("depositPrice", depositPrice);
-                        data.put("remainingPrice", totalPrice - depositPrice);
+                        data.put("sessions", datesToBook.size());
+                        data.put("totalPrice", totalBookingPrice);
+                        data.put("depositPrice", totalDeposit);
+                        data.put("savings", savings);
+                        data.put("discountRate", discountRate * 100);
 
                         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                         .status(200).message("Ước tính giá thành công").data(data).build());
                 } catch (Exception e) {
+                        log.error("Lỗi estimate: ", e);
                         return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
                                         .status(400).message("Không thể tính giá: " + e.getMessage()).data(null)
                                         .build());
@@ -302,7 +325,8 @@ public class BookingClientController {
                 PreparedBookingResult prepared = bookingService.preparePendingBooking(currentUser,
                                 req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
                                 req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
-                                req.getBookingType(), req.getRecurringEndDate());
+                                req.getBookingType(), req.getRecurringEndDate(),
+                                req.getDaysOfWeek(), req.getDurationMonths());
 
                 PaymentRequest paymentRequest = new PaymentRequest();
                 paymentRequest.setId(prepared.pendingId());
@@ -332,6 +356,14 @@ public class BookingClientController {
                                 "bookingCode", bookingCode);
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                 .status(200).message("Thành công").data(data).build());
+        }
+
+        @DeleteMapping("/{bookingId}")
+        public ResponseEntity<ApiResponse<Void>> cancelBooking(@PathVariable long bookingId) {
+                User currentUser = getCurrentUser();
+                bookingService.cancelBooking(bookingId, currentUser);
+                return ResponseEntity.ok(ApiResponse.<Void>builder()
+                                .status(200).message("Hủy lịch đặt sân thành công").build());
         }
 
         private User getCurrentUser() {

@@ -43,4 +43,8 @@ public class PlaceBookingRequest {
     @FutureOrPresent(message = "Ngày kết thúc chu kỳ không thể ở quá khứ")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate recurringEndDate;
+
+    // Các trường mới cho đặt sân cố định (sân tháng)
+    private java.util.List<Integer> daysOfWeek; // 1: Thứ 2, ..., 7: Chủ nhật
+    private Integer durationMonths; // 1, 2, hoặc 3 tháng
 }

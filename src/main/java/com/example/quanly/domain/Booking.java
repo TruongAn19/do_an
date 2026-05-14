@@ -32,6 +32,8 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     private BookingType bookingType = BookingType.ONE_TIME;
     private LocalDate recurringEndDate;
+    private String daysOfWeek; // Lưu dạng "2,4,6"
+    private Integer durationMonths;
 
     @ManyToOne
 

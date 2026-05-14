@@ -21,6 +21,8 @@ public class PendingBookingData {
     private LocalDate firstBookingDate;
     private BookingType bookingType;
     private LocalDate recurringEndDate;
+    private List<Integer> daysOfWeek;
+    private Integer durationMonths;
     private double totalBookingPrice;
     private double depositPrice;
     private List<SlotData> slots;

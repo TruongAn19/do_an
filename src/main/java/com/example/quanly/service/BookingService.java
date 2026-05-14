@@ -1,6 +1,16 @@
 package com.example.quanly.service;
 
-import com.example.quanly.domain.*;
+import com.example.quanly.domain.Booking;
+import com.example.quanly.domain.BookingDetail;
+import com.example.quanly.domain.BookingStatus;
+import com.example.quanly.domain.BookingType;
+import com.example.quanly.domain.RentalTool;
+import com.example.quanly.domain.RentalToolStatus;
+import com.example.quanly.domain.SubPitch;
+import com.example.quanly.domain.Product;
+import com.example.quanly.domain.AvailableTime;
+import com.example.quanly.domain.TemporaryBooking;
+import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.domain.dto.PendingBookingData;
 import com.example.quanly.domain.dto.PreparedBookingResult;
@@ -104,7 +114,8 @@ public class BookingService {
     public PreparedBookingResult preparePendingBooking(User user,
             String receiverName, String receiverAddress, String receiverPhone,
             long productId, long timeId, long subPitchId, LocalDate bookingDate,
-            String bookingType, LocalDate recurringEndDate) {
+            String bookingType, LocalDate recurringEndDate,
+            List<Integer> daysOfWeek, Integer durationMonths) {
 
         // 1. Kiểm tra người dùng
         user = userRepository.findUserById(user.getId());
@@ -115,33 +126,51 @@ public class BookingService {
         // 2. Tính toán danh sách ngày cần đặt
         BookingType type = (bookingType != null) ? BookingType.valueOf(bookingType) : BookingType.ONE_TIME;
         List<LocalDate> datesToBook = new ArrayList<>();
-        if (type == BookingType.WEEKLY_RECURRING && recurringEndDate != null) {
-            if (recurringEndDate.isBefore(bookingDate)) {
-                throw new IllegalArgumentException("Ngày kết thúc chu kỳ không thể trước ngày bắt đầu.");
-            }
-            // Giới hạn đặt định kỳ tối đa 12 tuần (khoảng 3 tháng) để đảm bảo tính chặt chẽ
-            if (bookingDate.plusWeeks(12).isBefore(recurringEndDate)) {
-                throw new IllegalArgumentException("Chỉ có thể đặt định kỳ tối đa trong vòng 12 tuần.");
+        LocalDate finalEndDate = recurringEndDate;
+
+        if (type == BookingType.WEEKLY_RECURRING) {
+            if (durationMonths != null && durationMonths > 0) {
+                finalEndDate = bookingDate.plusMonths(durationMonths);
             }
 
-            LocalDate nextDate = bookingDate;
-            while (!nextDate.isAfter(recurringEndDate)) {
-                datesToBook.add(nextDate);
-                nextDate = nextDate.plusWeeks(1);
+            if (finalEndDate == null) {
+                throw new IllegalArgumentException("Thiếu thông tin thời hạn đặt sân cố định.");
+            }
+
+            if (finalEndDate.isBefore(bookingDate)) {
+                throw new IllegalArgumentException("Ngày kết thúc chu kỳ không thể trước ngày bắt đầu.");
+            }
+
+            if (daysOfWeek == null || daysOfWeek.isEmpty()) {
+                throw new IllegalArgumentException("Vui lòng chọn ít nhất một thứ trong tuần.");
+            }
+
+            // Duyệt từng ngày từ bookingDate đến finalEndDate
+            LocalDate current = bookingDate;
+            while (!current.isAfter(finalEndDate)) {
+                // getValue() trả về 1 (Thứ 2) -> 7 (Chủ nhật)
+                if (daysOfWeek.contains(current.getDayOfWeek().getValue())) {
+                    datesToBook.add(current);
+                }
+                current = current.plusDays(1);
             }
         } else {
             datesToBook.add(bookingDate);
         }
 
-        // 3. Kiểm tra ngày đặt có hợp lệ
+        if (datesToBook.isEmpty()) {
+            throw new IllegalArgumentException("Không có ngày nào hợp lệ trong khoảng thời gian đã chọn.");
+        }
+
+        // 3. Kiểm tra ngày đặt có hợp lệ (Tối đa 90 ngày)
         LocalDate today = LocalDate.now();
-        LocalDate maxFutureDate = today.plusDays(90); // Giới hạn đặt trong vòng 3 tháng tới
+        LocalDate maxFutureDate = today.plusDays(100); // Mở rộng một chút cho gói 3 tháng
         for (LocalDate date : datesToBook) {
             if (date.isBefore(today)) {
                 throw new IllegalArgumentException("Không thể đặt sân cho ngày trong quá khứ (" + date + ").");
             }
             if (date.isAfter(maxFutureDate)) {
-                throw new IllegalArgumentException("Chỉ có thể đặt sân trong phạm vi 90 ngày tới.");
+                throw new IllegalArgumentException("Chỉ có thể đặt sân trong phạm vi 100 ngày tới.");
             }
         }
 
@@ -153,15 +182,7 @@ public class BookingService {
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
 
-        // 5. Nếu đặt cho ngày hôm nay, kiểm tra khung giờ
-        if (bookingDate.equals(today)) {
-            LocalTime currentTime = LocalTime.now();
-            if (time.getTime().isBefore(currentTime)) {
-                throw new IllegalArgumentException("Khung giờ đã qua, vui lòng chọn giờ khác.");
-            }
-        }
-
-        // 6. Kiểm tra va chạm (Collision Check) cho TẤT CẢ các ngày - Trả về lỗi chi tiết các ngày bị trùng
+        // 5. Kiểm tra va chạm (Collision Check) cho TẤT CẢ các ngày
         List<String> conflictedDates = new ArrayList<>();
         for (LocalDate date : datesToBook) {
             Optional<BookingDetail> existingBooking = bookingDetailRepository
@@ -170,17 +191,18 @@ public class BookingService {
                 conflictedDates.add(date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
             }
         }
-        
+
         if (!conflictedDates.isEmpty()) {
-            throw new IllegalArgumentException("Sân này đã bị trùng lịch vào các ngày: " + String.join(", ", conflictedDates));
+            throw new IllegalArgumentException(
+                    "Sân này đã bị trùng lịch vào các ngày: " + String.join(", ", conflictedDates));
         }
 
-        // 7. Kiểm tra giữ chỗ (Hold Court) cho ngày đầu tiên
+        // 6. Kiểm tra giữ chỗ (Hold Court) cho ngày bắt đầu (anchor date)
         Optional<TemporaryBooking> tempHold = temporaryBookingRepository
                 .findBySubPitchAndAvailableTimeAndBookingDateWithLock(subPitch, time, bookingDate);
 
         if (tempHold.isEmpty()) {
-            throw new IllegalArgumentException("Bạn cần giữ chỗ cho ngày đầu tiên trước khi xác nhận đặt.");
+            throw new IllegalArgumentException("Bạn cần giữ chỗ cho ngày bắt đầu trước khi xác nhận đặt.");
         }
 
         TemporaryBooking hold = tempHold.get();
@@ -189,13 +211,10 @@ public class BookingService {
             throw new IllegalArgumentException("Phiên giữ chỗ đã hết hạn.");
         }
 
-        if (!hold.getUserId().equals(user.getId())) {
-            throw new IllegalArgumentException("Sân đang được giữ bởi người khác.");
-        }
-
-        // 8. Tính toán giá linh hoạt cho từng slot
+        // 7. Tính toán giá và áp dụng chiết khấu
         double totalBookingPrice = 0;
         List<PendingBookingData.SlotData> slots = new ArrayList<>();
+        double discountRate = pricingService.calculateRecurringDiscountRate(durationMonths);
 
         for (LocalDate date : datesToBook) {
             double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
@@ -205,22 +224,33 @@ public class BookingService {
                     .bookingDate(date)
                     .build();
             double finalPriceForSlot = pricingService.calculateFinalPrice(basePrice, context);
+
+            // Áp dụng chiết khấu thêm nếu là đặt định kỳ
+            if (type == BookingType.WEEKLY_RECURRING) {
+                finalPriceForSlot = finalPriceForSlot * (1 - discountRate);
+            }
+
             totalBookingPrice += finalPriceForSlot;
             slots.add(new PendingBookingData.SlotData(date, finalPriceForSlot, (long) product.getSale()));
         }
 
         double depositPrice = product.getDepositPrice() * datesToBook.size();
+        // Cọc cũng được giảm tương ứng để hỗ trợ khách
+        if (type == BookingType.WEEKLY_RECURRING) {
+            depositPrice = depositPrice * (1 - discountRate);
+        }
 
-        // 9. Mở rộng thời gian giữ chỗ để đủ thời gian thanh toán VNPay (~18 phút từ lúc này)
+        // 8. Gia hạn giữ chỗ
         hold.setHoldStartTime(LocalDateTime.now().plusMinutes(15));
         temporaryBookingRepository.save(hold);
 
-        // 10. Lưu vào cache — KHÔNG ghi DB
+        // 9. Lưu vào cache
         PendingBookingData data = new PendingBookingData(
                 hold.getId(), user,
                 receiverName, receiverAddress, receiverPhone,
                 product, time, subPitch,
-                bookingDate, type, recurringEndDate,
+                bookingDate, type, finalEndDate,
+                daysOfWeek, durationMonths,
                 totalBookingPrice, depositPrice, slots);
 
         long pendingId = pendingBookingCache.store(data);
@@ -254,6 +284,8 @@ public class BookingService {
         booking.setBookingDate(data.getFirstBookingDate());
         booking.setBookingType(data.getBookingType());
         booking.setRecurringEndDate(data.getRecurringEndDate());
+        booking.setDaysOfWeek(data.getDaysOfWeek() != null ? data.getDaysOfWeek().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")) : null);
+        booking.setDurationMonths(data.getDurationMonths());
         booking.setDepositPrice(data.getDepositPrice());
         booking.setTotalPrice(data.getTotalBookingPrice());
         booking.setStatus(BookingStatus.DA_DAT);
@@ -295,5 +327,39 @@ public class BookingService {
     @Transactional
     public Page<BookingResponseDTO> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
         return bookingRepository.findByUserId(userId, pageable).map(bookingMapper::toDTO);
+    }
+
+    @Transactional
+    public void cancelBooking(long bookingId, User user) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn đặt sân ID: " + bookingId));
+
+        if (booking.getUser().getId() != user.getId()) {
+            throw new IllegalArgumentException("Bạn không có quyền hủy đơn đặt sân này.");
+        }
+
+        if (booking.getStatus() == BookingStatus.DA_HUY) {
+            throw new IllegalArgumentException("Đơn đặt sân này đã được hủy trước đó.");
+        }
+
+        if (booking.getStatus() == BookingStatus.DA_THANH_TOAN) {
+            throw new IllegalArgumentException("Đơn đặt sân đã hoàn tất thanh toán, không thể tự hủy qua hệ thống. Vui lòng liên hệ quản lý.");
+        }
+
+        if (booking.getBookingDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Không thể hủy đơn đặt sân đã qua hoặc đang trong ngày thi đấu.");
+        }
+
+        // 1. Giải phóng các slot (xóa BookingDetail để người khác có thể đặt)
+        List<BookingDetail> details = booking.getBookingDetails();
+        if (details != null && !details.isEmpty()) {
+            bookingDetailRepository.deleteAllInBatch(details);
+        }
+
+        // 2. Cập nhật trạng thái
+        booking.setStatus(BookingStatus.DA_HUY);
+        bookingRepository.save(booking);
+
+        log.info("Client {} cancelled booking ID: {}", user.getEmail(), bookingId);
     }
 }
