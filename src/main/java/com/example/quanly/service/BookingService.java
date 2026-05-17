@@ -180,12 +180,27 @@ public class BookingService {
             throw new IllegalArgumentException("Sân đang được giữ bởi người khác.");
         }
 
-        // 8. Tính toán giá linh hoạt cho từng slot
+        // 8. Tính toán giá linh hoạt cho từng slot + chiết khấu đặt sân tháng
         double totalBookingPrice = 0;
         List<PendingBookingData.SlotData> slots = new ArrayList<>();
 
+        // Xác định chiết khấu dựa trên số tháng (nếu là đặt định kỳ)
+        double recurringDiscountRate = 0;
+        if (type == BookingType.WEEKLY_RECURRING && recurringEndDate != null) {
+            long months = java.time.temporal.ChronoUnit.MONTHS.between(bookingDate.withDayOfMonth(1), recurringEndDate.withDayOfMonth(1));
+            if (months <= 1) recurringDiscountRate = 5;
+            else if (months == 2) recurringDiscountRate = 8;
+            else recurringDiscountRate = 10;
+        }
+
         for (LocalDate date : datesToBook) {
             double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
+            
+            // Áp dụng thêm chiết khấu đặt sân tháng
+            if (recurringDiscountRate > 0) {
+                basePrice = basePrice - (basePrice * recurringDiscountRate / 100);
+            }
+
             BookingContext context = BookingContext.builder()
                     .user(user)
                     .time(time)
@@ -193,10 +208,14 @@ public class BookingService {
                     .build();
             double finalPriceForSlot = pricingService.calculateFinalPrice(basePrice, context);
             totalBookingPrice += finalPriceForSlot;
-            slots.add(new PendingBookingData.SlotData(date, finalPriceForSlot, (long) product.getSale()));
+            slots.add(new PendingBookingData.SlotData(date, finalPriceForSlot, (long) (product.getSale() + recurringDiscountRate)));
         }
 
         double depositPrice = product.getDepositPrice() * datesToBook.size();
+        // Áp dụng chiết khấu cả vào tiền cọc (tùy chọn, nhưng thường là cọc theo % tổng)
+        if (recurringDiscountRate > 0) {
+            depositPrice = depositPrice - (depositPrice * recurringDiscountRate / 100);
+        }
 
         // 9. Mở rộng thời gian giữ chỗ để đủ thời gian thanh toán VNPay (~18 phút từ lúc này)
         hold.setHoldStartTime(LocalDateTime.now().plusMinutes(15));
