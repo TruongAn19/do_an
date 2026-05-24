@@ -10,6 +10,8 @@ import com.example.quanly.repository.TemporaryBookingRepository;
 import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.BookingStatsService;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -119,8 +121,14 @@ public class AIToolsConfig {
     public record RevenueResponse(String report) {
     }
 
-    @Tool(description = "Lấy báo cáo doanh thu theo khoảng thời gian. Truyền startDate và endDate theo định dạng YYYY-MM-DD.")
+    @Tool(description = "Lấy báo cáo doanh thu theo khoảng thời gian. Truyền startDate và endDate theo định dạng YYYY-MM-DD. CHỈ DÀNH CHO ADMIN.")
     public RevenueResponse getRevenueReport(RevenueRequest request) {
+        // Endpoint /api/v1/ai/** là permitAll nhưng JWT filter vẫn populate auth nếu token có
+        // → check role tại đây để chặn user thường gõ tay "doanh thu tuần này".
+        if (!hasAdminRole()) {
+            return new RevenueResponse(
+                    "Báo cáo doanh thu chỉ dành cho quản trị viên. Vui lòng đăng nhập với tài khoản admin để xem.");
+        }
         try {
             LocalDate start = LocalDate.parse(request.startDate());
             LocalDate end = LocalDate.parse(request.endDate());
@@ -144,5 +152,15 @@ public class AIToolsConfig {
         } catch (Exception e) {
             return new RevenueResponse("Lỗi định dạng ngày. Vui lòng cung cấp ngày theo định dạng YYYY-MM-DD.");
         }
+    }
+
+    /** True nếu request hiện tại đến từ user có ROLE_ADMIN (hoặc tương đương). */
+    private boolean hasAdminRole() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return false;
+        }
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
     }
 }
