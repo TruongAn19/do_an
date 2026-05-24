@@ -18,6 +18,7 @@ import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RecommendationService;
+import com.example.quanly.service.SlotEventPublisher;
 import com.example.quanly.util.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -56,6 +57,7 @@ public class BookingClientController {
     TemporaryBookingRepository temporaryBookingRepository;
     RecommendationService recommendationService;
     SecurityUtils securityUtils;
+    SlotEventPublisher slotEventPublisher;
 
     @GetMapping("/recommend/{productId}")
     public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
@@ -167,6 +169,8 @@ public class BookingClientController {
                 } else {
                     existing.setHoldStartTime(now);
                     temporaryBookingRepository.save(existing);
+                    slotEventPublisher.publishHeld(court.getId(), time.getId(),
+                            holdRequest.getBookingDate(), userId, now.plusMinutes(3));
                     return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                             .status(200).message("Tiếp tục giữ sân tạm thời")
                             .data(Map.of("remainingTime", 180)).build());
@@ -181,6 +185,9 @@ public class BookingClientController {
         newHold.setUserId(userId);
         newHold.setHoldStartTime(now);
         temporaryBookingRepository.save(newHold);
+
+        slotEventPublisher.publishHeld(court.getId(), time.getId(),
+                holdRequest.getBookingDate(), userId, now.plusMinutes(3));
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Giữ sân tạm thời thành công")
@@ -197,7 +204,7 @@ public class BookingClientController {
         PreparedBookingResult prepared = bookingService.preparePendingBooking(currentUser,
                 req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
                 req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
-                req.getBookingType(), req.getRecurringEndDate());
+                req.getBookingType(), req.getRecurringEndDate(), req.getRackets(), req.getWeekdays());
 
         PaymentRequest paymentRequest = new PaymentRequest();
         paymentRequest.setId(prepared.pendingId());
@@ -213,6 +220,49 @@ public class BookingClientController {
                 .body(ApiResponse.<Map<String, Object>>builder()
                         .status(HttpStatus.CREATED.value())
                         .message("Vui lòng hoàn tất thanh toán để xác nhận đặt sân").data(data).build());
+    }
+
+    @GetMapping("/products/{productId}/rackets")
+    public ResponseEntity<ApiResponse<List<Racket>>> getRacketsByProduct(@PathVariable Long productId) {
+        List<Racket> rackets = racketService.getRacketsByProductId(productId);
+        return ResponseEntity.ok(ApiResponse.<List<Racket>>builder()
+                .status(200).message("Thành công").data(rackets).build());
+    }
+
+    @lombok.experimental.NonFinal
+    @org.springframework.beans.factory.annotation.Value("${app.contact.hotline:0123456789}")
+    private String contactHotline;
+    @lombok.experimental.NonFinal
+    @org.springframework.beans.factory.annotation.Value("${app.contact.email:admin@badmintonhub.vn}")
+    private String contactEmail;
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<com.example.quanly.domain.dto.CancelBookingResponse>> cancelBooking(
+            @PathVariable long id,
+            @org.springframework.web.bind.annotation.RequestBody(required = false)
+                    com.example.quanly.domain.dto.CancelBookingRequest req) {
+        User currentUser = getCurrentUser();
+        String reason = req != null ? req.getReason() : null;
+        BookingService.CancelResult result = bookingService.cancelByUser(id, currentUser.getId(), reason);
+
+        com.example.quanly.domain.dto.CancelBookingResponse body =
+                com.example.quanly.domain.dto.CancelBookingResponse.builder()
+                        .bookingId(result.bookingId)
+                        .bookingCode(result.bookingCode)
+                        .status("DA_HUY")
+                        .refundStatus(result.refundStatus != null ? result.refundStatus.name() : null)
+                        .refundAmount(result.refundAmount)
+                        .usedSessions(result.usedSessions)
+                        .totalSessions(result.totalSessions)
+                        .contactHotline(contactHotline)
+                        .contactEmail(contactEmail)
+                        .message(result.refundAmount > 0
+                                ? String.format("Bạn sẽ được hoàn %,.0f VNĐ tiền cọc. Nếu chưa nhận được, vui lòng liên hệ admin.", result.refundAmount)
+                                : "Đơn đã huỷ. Không có khoản cọc nào được hoàn lại.")
+                        .build();
+
+        return ResponseEntity.ok(ApiResponse.<com.example.quanly.domain.dto.CancelBookingResponse>builder()
+                .status(200).message("Huỷ đặt sân thành công").data(body).build());
     }
 
     @GetMapping("/{bookingCode}/{courtId}/rackets")

@@ -1,6 +1,7 @@
 package com.example.quanly.domain.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class PlaceBookingRequest {
@@ -43,4 +45,18 @@ public class PlaceBookingRequest {
     @FutureOrPresent(message = "Ngày kết thúc chu kỳ không thể ở quá khứ")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate recurringEndDate;
+
+    /**
+     * Optional list of rackets to rent together with the court booking (bundled flow).
+     * Only allowed when bookingType=ONE_TIME. Each item references a Racket of the selected Product.
+     */
+    @Valid
+    private List<RentalItem> rackets;
+
+    /**
+     * Days of the week to book within the recurring range (ISO day-of-week: 1=Mon ... 7=Sun).
+     * Only used when bookingType=WEEKLY_RECURRING.
+     * Empty/null → fallback to the day-of-week of bookingDate (weekly on the same weekday).
+     */
+    private List<Integer> weekdays;
 }

@@ -20,5 +20,14 @@ public class BookingResponseDTO {
     private UserResponseDTO user;
     private String courtName;
     private String time;
+    private String bookingType;
+    private LocalDate recurringEndDate;
+    // Refund info (chỉ có giá trị khi booking đã huỷ)
+    private String refundStatus;
+    private Double refundAmount;
+    private java.time.LocalDateTime cancelledAt;
+    private Integer usedSessionsAtCancel;
+    private Integer totalSessionsAtCancel;
+    private String cancelReason;
     private List<BookingDetailResponseDTO> bookingDetails;
 }

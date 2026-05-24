@@ -10,7 +10,11 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 public class PendingBookingData {
-    private Long temporaryBookingId;
+    /**
+     * Tất cả TemporaryBooking holds liên quan tới phiên đặt này. ONE_TIME có 1 phần tử;
+     * WEEKLY_RECURRING có N phần tử (mỗi ngày trong chu kỳ một hold để chống race).
+     */
+    private List<Long> temporaryBookingIds;
     private User user;
     private String receiverName;
     private String receiverAddress;
@@ -24,6 +28,8 @@ public class PendingBookingData {
     private double totalBookingPrice;
     private double depositPrice;
     private List<SlotData> slots;
+    /** Rackets bundled with this booking (resolved Racket entity + quantity). Empty if no rackets. */
+    private List<RentalSlot> rentals;
 
     @Data
     @AllArgsConstructor
@@ -31,5 +37,14 @@ public class PendingBookingData {
         private LocalDate date;
         private double price;
         private long sale;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class RentalSlot {
+        private Racket racket;
+        private int quantity;
+        private double unitPrice;
+        private double subtotal;
     }
 }

@@ -156,16 +156,7 @@ public class MatchPostService {
     @Transactional
     public void updateExpiredPostsDaily() {
         LocalDate today = LocalDate.now();
-        List<MatchPost> posts = matchPostRepository.findAll();
-
-        for (MatchPost post : posts) {
-            if (("closed".equals(post.getStatus()) || "open".equals(post.getStatus()))
-                    && post.getPlayDate() != null
-                    && post.getPlayDate().isBefore(today)) {
-                post.setStatus("expired");
-                matchPostRepository.save(post);
-            }
-        }
-        log.info("Updated expired posts at {}", LocalDateTime.now());
+        int updated = matchPostRepository.updateExpiredPosts(List.of("open", "closed"), today);
+        log.info("Updated {} expired posts at {}", updated, LocalDateTime.now());
     }
 }

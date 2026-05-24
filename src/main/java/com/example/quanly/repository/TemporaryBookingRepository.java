@@ -37,6 +37,16 @@ public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooki
         deleteExpiredHolds(LocalDateTime.now().minusMinutes(3));
     }
 
+    /**
+     * Trả về CHỈ các hold đã hết hạn, JOIN FETCH subCourt + availableTime để cleaner publish
+     * SLOT_RELEASED event mà không trigger N+1. Tránh load toàn bảng như findAll() cũ.
+     */
+    @Query("SELECT t FROM TemporaryBooking t " +
+           "LEFT JOIN FETCH t.subCourt " +
+           "LEFT JOIN FETCH t.availableTime " +
+           "WHERE t.holdStartTime < :cutoff")
+    List<TemporaryBooking> findExpiredHoldsForCleanup(@Param("cutoff") LocalDateTime cutoff);
+
     @Modifying
     void deleteBySubCourtAndAvailableTimeAndBookingDate(SubCourt subCourt, AvailableTime time, LocalDate date);
 }

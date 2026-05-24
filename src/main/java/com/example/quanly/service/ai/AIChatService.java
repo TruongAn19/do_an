@@ -6,10 +6,12 @@ import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 @Service
+@ConditionalOnProperty(name = "ai.chat.enabled", havingValue = "true")
 public class AIChatService {
 
     private final ChatClient aiClient;

@@ -1,7 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\refactor_do_an\" -Directory | Select-Object -First 20 | ForEach-Object { Write-Output \"[$\\($_.Name\\)]\" })"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\refactor_do_an\" -Directory | Select-Object -First 20 | ForEach-Object { Write-Output \"[$\\($_.Name\\)]\" })",
+      "Bash(npm install *)",
+      "Bash(mvn compile *)",
+      "Bash(npx ng *)",
+      "Bash(./mvnw -q -DskipTests compile)",
+      "Bash(./mvnw -DskipTests compile)",
+      "Bash(npx --no-install tsc --noEmit -p tsconfig.json)",
+      "Bash(npx --prefix \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an\" --no-install tsc --noEmit -p \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an/tsconfig.json\")",
+      "Bash(npx --prefix \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an\" tsc --noEmit -p \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an/tsconfig.json\")",
+      "PowerShell($feRoot = \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\"; Push-Location $feRoot; try { & npx tsc --noEmit -p \"$feRoot\\\\tsconfig.json\" 2>&1 | Select-Object -Last 40 } finally { Pop-Location })",
+      "PowerShell($feRoot = \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\"; Push-Location $feRoot; try { & npx tsc --noEmit -p \"$feRoot\\\\tsconfig.json\"; \"ExitCode=$LASTEXITCODE\" } finally { Pop-Location })"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\rackets",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\rental-history",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\admin\\bookings",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\booking",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src"
     ]
   }
 }

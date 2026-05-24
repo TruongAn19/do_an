@@ -12,11 +12,12 @@ public interface RacketStockByDateRepository extends JpaRepository<RacketStockBy
 
     Optional<RacketStockByDate> findByRacketIdAndDate(Long racketId, LocalDate date);
 
+    // courtId nullable: null = sum trên tất cả sân.
     @Query("SELECT SUM(rsbd.rentalStock)\n" +
             "FROM RacketStockByDate rsbd\n" +
             "JOIN Racket r ON rsbd.racketId = r.id\n" +
             "WHERE rsbd.date = :today\n" +
-            " AND r.product.id = :courtId")
+            " AND (:courtId IS NULL OR r.product.id = :courtId)")
     Integer sumRentalStockByCourtAndDate(Long courtId, LocalDate today);
 
     @Query("Select rs from RacketStockByDate  rs where rs.racketId =:racketId and rs.date=:date")

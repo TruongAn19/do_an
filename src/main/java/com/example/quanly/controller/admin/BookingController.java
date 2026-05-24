@@ -99,4 +99,13 @@ public class BookingController {
                                 .data(updatedBooking)
                                 .build());
         }
+
+        @PutMapping("/{id}/refund")
+        public ResponseEntity<ApiResponse<BookingResponseDTO>> confirmRefund(@PathVariable long id) {
+                bookingService.confirmRefund(id);
+                BookingResponseDTO updated = bookingService.fetchBookingById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking sau khi hoàn cọc"));
+                return ResponseEntity.ok(ApiResponse.<BookingResponseDTO>builder()
+                                .status(200).message("Đã đánh dấu hoàn cọc thành công").data(updated).build());
+        }
 }

@@ -46,6 +46,12 @@ public class RentalToolService {
         return rentalToolRepository.findByType(RentalType.DAILY, pageable).map(rentalToolMapper::toDTO);
     }
 
+    /** Admin page: trả về toàn bộ rentals (cả DAILY và ON_SITE), enriched với racketName + bookingCode. */
+    public Page<RentalToolDTO> getAllRentals(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return rentalToolRepository.findAll(pageable).map(this::toEnrichedDTO);
+    }
+
     public RentalToolDTO getRentalToolById(Long id) {
         RentalTool rentalTool = rentalToolRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
@@ -58,17 +64,34 @@ public class RentalToolService {
     }
 
     public Page<RentalToolDTO> fetchRentalByUser(User user, Pageable pageable) {
-        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(rt -> {
-            RentalToolDTO dto = rentalToolMapper.toDTO(rt);
+        return rentalToolRepository.findRentalByUserId(user.getId(), pageable).map(this::toEnrichedDTO);
+    }
+
+    public List<RentalToolDTO> findRentalsByBookingId(Long bookingId) {
+        return rentalToolRepository.findRentalToolsByBookingId(String.valueOf(bookingId))
+                .stream()
+                .map(this::toEnrichedDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public RentalToolDTO findRentalDtoById(Long id) {
+        RentalTool rt = rentalToolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
+        return toEnrichedDTO(rt);
+    }
+
+    private RentalToolDTO toEnrichedDTO(RentalTool rt) {
+        RentalToolDTO dto = rentalToolMapper.toDTO(rt);
+        if (rt.getRacketId() != null) {
             racketRepository.findById(rt.getRacketId()).ifPresent(r -> dto.setRacketName(r.getName()));
-            if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
-                try {
-                    bookingRepository.findById(Long.parseLong(rt.getBookingId()))
-                            .ifPresent(b -> dto.setBookingCode(b.getBookingCode()));
-                } catch (NumberFormatException ignored) {}
-            }
-            return dto;
-        });
+        }
+        if (rt.getBookingId() != null && !rt.getBookingId().isEmpty()) {
+            try {
+                bookingRepository.findById(Long.parseLong(rt.getBookingId()))
+                        .ifPresent(b -> dto.setBookingCode(b.getBookingCode()));
+            } catch (NumberFormatException ignored) {}
+        }
+        return dto;
     }
 
     // -------------------------------------------------------------------------
@@ -133,6 +156,8 @@ public class RentalToolService {
         if (booking == null) {
             throw new ResourceNotFoundException("Không tìm thấy booking với mã: " + bookingCode);
         }
+
+        validateBookingActiveForRental(booking);
 
         rentalTool.setRentalDate(booking.getBookingDate());
         rentalTool.setBookingId(String.valueOf(booking.getId()));
@@ -215,7 +240,7 @@ public class RentalToolService {
         RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
 
-        if (rentalTool.getStatus() != RentalToolStatus.PENDING && rentalTool.getStatus() != RentalToolStatus.PAID) {
+        if (rentalTool.getStatus() != RentalToolStatus.PENDING && rentalTool.getStatus() != RentalToolStatus.IN_USE) {
             throw new IllegalStateException("Đơn thuê không ở trạng thái có thể hoàn thành");
         }
 
@@ -243,7 +268,7 @@ public class RentalToolService {
     public void updateRentalStockForToday() {
         LocalDate today = LocalDate.now();
         List<RentalTool> rentals = rentalToolRepository
-                .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID));
+                .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.IN_USE));
 
         for (RentalTool rental : rentals) {
             Long racketId = rental.getRacketId();
@@ -263,6 +288,32 @@ public class RentalToolService {
                     racketStockByDateRepository.save(stock);
                 }
             }
+        }
+    }
+
+    /**
+     * Đảm bảo booking đủ điều kiện để thuê thêm vợt theo sân (ON_SITE):
+     *  - Status phải là DA_DAT (đã đặt cọc) hoặc DA_THANH_TOAN (đã thanh toán),
+     *    không phải CHO_THANH_TOAN hay DA_HUY.
+     *  - Khung giờ chơi chưa kết thúc — ước lượng end = bookingDate + availableTime + 1h.
+     *    Sau thời điểm này coi như sân đã hết hạn, không cho thuê thêm vợt nữa.
+     */
+    private void validateBookingActiveForRental(Booking booking) {
+        BookingStatus status = booking.getStatus();
+        if (status != BookingStatus.DA_DAT && status != BookingStatus.DA_THANH_TOAN) {
+            throw new IllegalArgumentException(
+                    "Booking không ở trạng thái cho phép thuê thêm vợt (trạng thái hiện tại: "
+                            + (status != null ? status.getLabel() : "không xác định") + ").");
+        }
+
+        AvailableTime time = booking.getAvailableTime();
+        if (time == null || time.getTime() == null || booking.getBookingDate() == null) {
+            return;
+        }
+        LocalDateTime playEnd = LocalDateTime.of(booking.getBookingDate(), time.getTime()).plusHours(1);
+        if (LocalDateTime.now().isAfter(playEnd)) {
+            throw new IllegalArgumentException(
+                    "Booking đã hết giờ chơi (" + playEnd + "), không thể thuê thêm vợt cho mã này.");
         }
     }
 

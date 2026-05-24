@@ -102,11 +102,25 @@ public class HomePageController {
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingHistory(
                         Principal principal,
                         @RequestParam(value = "page", defaultValue = "0") int page,
-                        @RequestParam(value = "size", defaultValue = "5") int size) {
+                        @RequestParam(value = "size", defaultValue = "5") int size,
+                        @RequestParam(value = "type", required = false) String type) {
 
                 long userId = userService.getUserByEmail(principal.getName()).getId();
                 Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-                Page<BookingResponseDTO> bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
+
+                Page<BookingResponseDTO> bookingsPage;
+                if (type != null && !type.isBlank()) {
+                        BookingType bookingType;
+                        try {
+                                bookingType = BookingType.valueOf(type.toUpperCase());
+                        } catch (IllegalArgumentException ex) {
+                                return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
+                                                .status(400).message("Loại đặt sân không hợp lệ: " + type).build());
+                        }
+                        bookingsPage = bookingService.fetchBookingByUserAndTypeWithPaging(userId, bookingType, pageable);
+                } else {
+                        bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
+                }
 
                 Map<String, Object> data = Map.of(
                                 "bookings", bookingsPage.getContent(),
@@ -121,11 +135,29 @@ public class HomePageController {
                         @PathVariable Long id) {
                 BookingResponseDTO booking = bookingService.fetchBookingById(id)
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking id=" + id));
-                List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
+                List<com.example.quanly.domain.dto.RentalToolDTO> rentalTools =
+                                rentalToolService.findRentalsByBookingId(id);
                 Map<String, Object> data = Map.of(
                                 "booking", booking,
                                 "bookingDetails", booking.getBookingDetails(),
                                 "rentalTools", rentalTools);
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(data).build());
+        }
+
+        @GetMapping("/api/v1/client/rental-history/{id}")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getRentalHistoryDetail(
+                        @PathVariable Long id) {
+                com.example.quanly.domain.dto.RentalToolDTO rental = rentalToolService.findRentalDtoById(id);
+                Map<String, Object> data = new java.util.HashMap<>();
+                data.put("rental", rental);
+                // Nếu rental gắn với 1 booking (ON_SITE), kèm booking đó để FE hiển thị thông tin sân
+                if (rental.getBookingId() != null && !rental.getBookingId().isEmpty()) {
+                        try {
+                                Long bookingId = Long.parseLong(rental.getBookingId());
+                                bookingService.fetchBookingById(bookingId).ifPresent(b -> data.put("booking", b));
+                        } catch (NumberFormatException ignored) {}
+                }
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                 .status(200).message("Thành công").data(data).build());
         }

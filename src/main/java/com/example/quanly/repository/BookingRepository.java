@@ -2,6 +2,7 @@ package com.example.quanly.repository;
 
 import com.example.quanly.domain.Booking;
 import com.example.quanly.domain.BookingStatus;
+import com.example.quanly.domain.BookingType;
 import com.example.quanly.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
     Page<Booking> findByUserId(Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
+    Page<Booking> findByUserIdAndBookingType(Long userId, BookingType bookingType, Pageable pageable);
 
     @Query(value = "SELECT available_time_id FROM booking WHERE user_id = :userId GROUP BY available_time_id ORDER BY COUNT(*) DESC LIMIT 1", nativeQuery = true)
     Long findMostFrequentTimeSlotByUserId(@Param("userId") Long userId);

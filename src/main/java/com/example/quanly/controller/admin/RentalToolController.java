@@ -28,7 +28,7 @@ public class RentalToolController {
 
                 Page<RentalToolDTO> rentals = (searchTerm != null && !searchTerm.isEmpty())
                                 ? rentalToolService.fetchRentalToolCode(searchTerm, page, size)
-                                : rentalToolService.getRentalByTypeDAILY(page, size);
+                                : rentalToolService.getAllRentals(page, size);
 
                 Map<String, Object> result = Map.of(
                                 "rentals", rentals.getContent(),
@@ -58,7 +58,7 @@ public class RentalToolController {
                         @RequestBody Map<String, String> body) {
 
                 RentalToolDTO updated = rentalToolService.changeStatus(id,
-                                com.example.quanly.domain.RentalToolStatus.valueOf(body.get("status")));
+                                com.example.quanly.domain.RentalToolStatus.from(body.get("status")));
 
                 return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
                                 .status(200).message("Cập nhật trạng thái thành công").data(updated).build());

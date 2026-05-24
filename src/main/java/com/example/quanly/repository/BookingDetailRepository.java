@@ -19,6 +19,16 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
   Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
       LocalDate bookingDate);
 
+  /**
+   * Collision check: chỉ trả về BookingDetail thuộc booking ĐANG ACTIVE (chưa bị huỷ).
+   * Dùng khi user đặt sân mới — slot của booking đã huỷ phải được free.
+   */
+  @Query("SELECT bd FROM BookingDetail bd WHERE bd.subCourt = :subCourt AND bd.availableTime = :time AND bd.date = :date AND bd.booking.status <> com.example.quanly.domain.BookingStatus.DA_HUY")
+  Optional<BookingDetail> findActiveBySubCourtAndAvailableTimeAndDate(
+      @Param("subCourt") SubCourt subCourt,
+      @Param("time") AvailableTime time,
+      @Param("date") LocalDate date);
+
   List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
 
   @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
