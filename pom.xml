@@ -9,11 +9,11 @@
 		<relativePath/>
 		<!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.example</groupId>
-	<artifactId>quanly</artifactId>
+	<groupId>com.pitchbooking</groupId>
+	<artifactId>app</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>quanly</name>
-	<description>Demo project for Spring Boot</description>
+	<name>pitchbooking</name>
+	<description>Pitch booking management application</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -176,6 +176,13 @@
 		<dependency>
 			<groupId>com.bucket4j</groupId>
 			<artifactId>bucket4j-core</artifactId>
+			<version>8.10.1</version>
+		</dependency>
+
+		<!-- Bucket4j Redis (Lettuce) — distributed rate-limiting across instances -->
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-redis</artifactId>
 			<version>8.10.1</version>
 		</dependency>
 

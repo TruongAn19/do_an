@@ -1,0 +1,372 @@
+package com.pitchbooking.app.controller.client;
+
+import com.pitchbooking.app.domain.Booking;
+import com.pitchbooking.app.domain.BookingDetail;
+import com.pitchbooking.app.domain.BookingStatus;
+import com.pitchbooking.app.domain.BookingType;
+import com.pitchbooking.app.domain.RentalTool;
+import com.pitchbooking.app.domain.RentalToolStatus;
+import com.pitchbooking.app.domain.SubPitch;
+import com.pitchbooking.app.domain.Product;
+import com.pitchbooking.app.domain.AvailableTime;
+import com.pitchbooking.app.domain.TemporaryBooking;
+import com.pitchbooking.app.domain.User;
+import com.pitchbooking.app.domain.Equipment;
+import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.exception.ResourceNotFoundException;
+import com.pitchbooking.app.domain.dto.AvailableTimeDTO;
+import com.pitchbooking.app.domain.dto.HoldBookingRequest;
+import com.pitchbooking.app.domain.dto.PreparedBookingResult;
+import com.pitchbooking.app.domain.PaymentType;
+import com.pitchbooking.app.domain.dto.PaymentRequest;
+import com.pitchbooking.app.domain.dto.PlaceBookingRequest;
+import com.pitchbooking.app.domain.dto.ProductResponseDTO;
+import jakarta.validation.Valid;
+import com.pitchbooking.app.domain.dto.VnpayResponse;
+import com.pitchbooking.app.repository.*;
+import com.pitchbooking.app.service.BookingService;
+import com.pitchbooking.app.service.NtfyService;
+import com.pitchbooking.app.service.PaymentService;
+import com.pitchbooking.app.service.ProductService;
+import com.pitchbooking.app.service.EquipmentService;
+import com.pitchbooking.app.service.RecommendationService;
+import com.pitchbooking.app.service.pricing.PricingService;
+import com.pitchbooking.app.util.SecurityUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/v1/client/bookings")
+@Slf4j
+@RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
+public class BookingClientController {
+
+        ProductService productService;
+        EquipmentService equipmentService;
+        SubPitchRepository subPitchRepository;
+        TimeRepository timeRepository;
+        BookingDetailRepository bookingDetailRepository;
+        BookingService bookingService;
+        PaymentService paymentService;
+        TemporaryBookingRepository temporaryBookingRepository;
+        RecommendationService recommendationService;
+        SecurityUtils securityUtils;
+        NtfyService ntfyService;
+        PricingService pricingService;
+
+        @GetMapping("/recommend/{productId}")
+        public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
+                        @PathVariable Long productId) {
+
+                User user = getCurrentUser();
+                List<AvailableTimeDTO> recs = recommendationService.recommendSlots(user.getId(), productId);
+                return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
+                                .status(200).message("Gợi ý cho bạn").data(recs).build());
+        }
+
+        @GetMapping("/{productId}/info")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingInfo(
+                        @PathVariable long productId) {
+
+                ProductResponseDTO product = productService.getProductByID(productId);
+                List<AvailableTime> allTimes = productService.getAllTime();
+                List<SubPitch> courts = productService.getAllCourtsByProduct(productId);
+
+                double price = product.getPrice();
+                double totalPrice = price - (price * product.getSale() / 100.0);
+
+                Map<String, Object> data = Map.of(
+                                "product", product,
+                                "courts", courts,
+                                "availableTimes", allTimes,
+                                "totalPrice", totalPrice);
+
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(data).build());
+        }
+
+        @GetMapping("/available-times")
+        public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getAvailableTimes(
+                        @RequestParam("date") String dateStr,
+                        @RequestParam("courtId") Long courtId) {
+
+                LocalDate date = LocalDate.parse(dateStr);
+                SubPitch court = subPitchRepository.findById(courtId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân phụ ID: " + courtId));
+
+                List<BookingDetail> bookings = bookingDetailRepository.findBySubPitchAndDate(court, date);
+                Set<Long> bookedTimeIds = bookings.stream()
+                                .map(b -> b.getAvailableTime().getId())
+                                .collect(Collectors.toSet());
+
+                // Lấy danh sách các khung giờ đang bị giữ tạm thời và chưa hết hạn
+                List<TemporaryBooking> temporaryBookings = temporaryBookingRepository
+                                .findBySubPitchAndBookingDate(court, date);
+                Set<Long> heldTimeIds = temporaryBookings.stream()
+                                .filter(tb -> !tb.isExpired())
+                                .map(tb -> tb.getAvailableTime().getId())
+                                .collect(Collectors.toSet());
+
+                LocalDate today = LocalDate.now();
+                LocalTime now = LocalTime.now();
+                log.info("Date: {}, CourtId: {}", date, courtId);
+
+                List<AvailableTimeDTO> result = timeRepository.findAll().stream()
+                                .filter(time -> {
+                                        if (date.equals(today) && time.getTime().isBefore(now))
+                                                return false;
+                                        // Không hiển thị nếu đã đặt chính thức HOẶC đang bị giữ chỗ
+                                        return !bookedTimeIds.contains(time.getId())
+                                                        && !heldTimeIds.contains(time.getId());
+                                })
+                                .map(AvailableTimeDTO::new)
+                                .collect(Collectors.toList());
+
+                return ResponseEntity.ok(ApiResponse.<List<AvailableTimeDTO>>builder()
+                                .status(200).message("Thành công").data(result).build());
+        }
+
+        @PostMapping("/hold")
+        @Transactional
+        public ResponseEntity<ApiResponse<Map<String, Object>>> holdCourt(
+                        @Valid @RequestBody HoldBookingRequest holdRequest) {
+
+                User currentUser = getCurrentUser();
+                Long userId = currentUser.getId();
+
+                LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
+                temporaryBookingRepository.deleteExpiredHolds(expiryTime);
+                temporaryBookingRepository.flush();
+
+                SubPitch court = subPitchRepository.findById(holdRequest.getSubPitchId())
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
+                AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
+                                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
+
+                Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
+                                .findBySubPitchAndAvailableTimeAndBookingDateWithLock(court, time,
+                                                holdRequest.getBookingDate());
+
+                LocalDateTime now = LocalDateTime.now();
+
+                if (existingOpt.isPresent()) {
+                        TemporaryBooking existing = existingOpt.get();
+                        if (existing.isExpired()) {
+                                temporaryBookingRepository.delete(existing);
+                                temporaryBookingRepository.flush();
+                        } else {
+                                if (!existing.getUserId().equals(userId)) {
+                                        long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
+                                        long remaining = Math.max(180 - elapsed, 0);
+                                        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
+                                                        .<Map<String, Object>>builder()
+                                                        .status(409)
+                                                        .message("Khung giờ này đang được giữ. Vui lòng thử lại sau.")
+                                                        .data(Map.of("remainingTime", remaining))
+                                                        .build());
+                                } else {
+                                        existing.setHoldStartTime(now);
+                                        temporaryBookingRepository.save(existing);
+                                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                                        .status(200).message("Tiếp tục giữ sân tạm thời")
+                                                        .data(Map.of("remainingTime", 180)).build());
+                                }
+                        }
+                }
+
+                TemporaryBooking newHold = new TemporaryBooking();
+                newHold.setSubPitch(court);
+                newHold.setAvailableTime(time);
+                newHold.setBookingDate(holdRequest.getBookingDate());
+                newHold.setUserId(userId);
+                newHold.setHoldStartTime(now);
+                temporaryBookingRepository.save(newHold);
+
+                broadcastSlotHeld(holdRequest.getSubPitchId(), holdRequest.getAvailableTimeId(),
+                                holdRequest.getBookingDate(), userId, currentUser.getEmail());
+
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Giữ sân tạm thời thành công")
+                                .data(Map.of("remainingTime", 180)).build());
+        }
+
+        private void broadcastSlotHeld(Long subPitchId, Long availableTimeId, LocalDate bookingDate,
+                        Long holderUserId, String holderEmail) {
+                try {
+                        String topic = "slot-" + subPitchId + "-" + bookingDate;
+                        String payload = String.format(
+                                        "{\"action\":\"HELD\",\"subPitchId\":%d,\"availableTimeId\":%d,\"bookingDate\":\"%s\",\"holderUserId\":%d,\"holderEmail\":\"%s\"}",
+                                        subPitchId, availableTimeId, bookingDate, holderUserId,
+                                        holderEmail == null ? "" : holderEmail.replace("\"", "\\\""));
+                        ntfyService.sendNotification(topic, payload, null);
+                } catch (Exception e) {
+                        log.warn("Không thể phát thông báo realtime cho slot held: {}", e.getMessage());
+                }
+        }
+
+        @PostMapping("/estimate")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> estimatePrice(
+                        @RequestBody Map<String, Object> body) {
+
+                try {
+                        long productId = Long.parseLong(body.get("productId").toString());
+                        long timeId = Long.parseLong(body.get("availableTimeId").toString());
+                        String dateStr = body.get("bookingDate").toString();
+                        String bookingType = body.getOrDefault("bookingType", "ONE_TIME").toString();
+                        LocalDate bookingDate = LocalDate.parse(dateStr);
+
+                        com.pitchbooking.app.domain.Product product = productService.getRawProductById(productId);
+                        com.pitchbooking.app.domain.AvailableTime time = timeRepository.findById(timeId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ"));
+
+                        double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
+
+                        // 1. Tính toán danh sách ngày
+                        List<LocalDate> datesToBook = new ArrayList<>();
+                        Integer durationMonths = body.containsKey("durationMonths")
+                                        ? Integer.parseInt(body.get("durationMonths").toString())
+                                        : null;
+                        List<Integer> daysOfWeek = body.containsKey("daysOfWeek")
+                                        ? (List<Integer>) body.get("daysOfWeek")
+                                        : null;
+
+                        if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                if (durationMonths != null && durationMonths > 0 && daysOfWeek != null) {
+                                        LocalDate endDate = bookingDate.plusMonths(durationMonths);
+                                        LocalDate current = bookingDate;
+                                        while (!current.isAfter(endDate)) {
+                                                if (daysOfWeek.contains(current.getDayOfWeek().getValue())) {
+                                                        datesToBook.add(current);
+                                                }
+                                                current = current.plusDays(1);
+                                        }
+                                }
+                        } else {
+                                datesToBook.add(bookingDate);
+                        }
+
+                        if (datesToBook.isEmpty()) {
+                                throw new IllegalArgumentException("Vui lòng chọn Thứ và thời hạn hợp lệ.");
+                        }
+
+                        // 2. Tính toán giá với chiết khấu
+                        double totalBookingPrice = 0;
+                        double discountRate = pricingService.calculateRecurringDiscountRate(durationMonths);
+
+                        for (LocalDate date : datesToBook) {
+                                com.pitchbooking.app.service.pricing.BookingContext context = com.pitchbooking.app.service.pricing.BookingContext
+                                                .builder()
+                                                .user(getCurrentUser())
+                                                .time(time)
+                                                .bookingDate(date)
+                                                .build();
+
+                                double finalPricePerSession = pricingService.calculateFinalPrice(basePrice, context);
+
+                                if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                        finalPricePerSession = finalPricePerSession * (1 - discountRate);
+                                }
+                                totalBookingPrice += finalPricePerSession;
+                        }
+
+                        double totalDeposit = product.getDepositPrice() * datesToBook.size();
+                        if ("WEEKLY_RECURRING".equals(bookingType)) {
+                                totalDeposit = totalDeposit * (1 - discountRate);
+                        }
+
+                        double originalTotalPrice = basePrice * datesToBook.size();
+                        double savings = originalTotalPrice - totalBookingPrice;
+
+                        Map<String, Object> data = new java.util.LinkedHashMap<>();
+                        data.put("basePrice", basePrice);
+                        data.put("sessions", datesToBook.size());
+                        data.put("totalPrice", totalBookingPrice);
+                        data.put("depositPrice", totalDeposit);
+                        data.put("savings", savings);
+                        data.put("discountRate", discountRate * 100);
+
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                        .status(200).message("Ước tính giá thành công").data(data).build());
+                } catch (Exception e) {
+                        log.error("Lỗi estimate: ", e);
+                        return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
+                                        .status(400).message("Không thể tính giá: " + e.getMessage()).data(null)
+                                        .build());
+                }
+        }
+
+        @PostMapping("/place")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> placeBooking(
+                        @Valid @RequestBody PlaceBookingRequest req,
+                        HttpServletRequest request) {
+
+                User currentUser = getCurrentUser();
+
+                PreparedBookingResult prepared = bookingService.preparePendingBooking(currentUser,
+                                req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
+                                req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
+                                req.getBookingType(), req.getRecurringEndDate(),
+                                req.getDaysOfWeek(), req.getDurationMonths());
+
+                PaymentRequest paymentRequest = new PaymentRequest();
+                paymentRequest.setId(prepared.pendingId());
+                paymentRequest.setAmount(prepared.depositPrice());
+                paymentRequest.setType(PaymentType.PENDING_BOOKING);
+                paymentRequest.setRedirectUrl("");
+
+                VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
+
+                Map<String, Object> data = Map.of("paymentUrl", vnpayResponse.getPaymentUrl());
+
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(ApiResponse.<Map<String, Object>>builder()
+                                                .status(HttpStatus.CREATED.value())
+                                                .message("Vui lòng hoàn tất thanh toán để xác nhận đặt sân").data(data)
+                                                .build());
+        }
+
+        @GetMapping("/{bookingCode}/{courtId}/equipments")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingEquipments(
+                        @PathVariable String bookingCode,
+                        @PathVariable long courtId) {
+
+                List<Equipment> equipmentList = equipmentService.getAvailableEquipmentsByCourt(courtId);
+                Map<String, Object> data = Map.of(
+                                "equipments", equipmentList,
+                                "bookingCode", bookingCode);
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(data).build());
+        }
+
+        @DeleteMapping("/{bookingId}")
+        public ResponseEntity<ApiResponse<Void>> cancelBooking(@PathVariable long bookingId) {
+                User currentUser = getCurrentUser();
+                bookingService.cancelBooking(bookingId, currentUser);
+                return ResponseEntity.ok(ApiResponse.<Void>builder()
+                                .status(200).message("Hủy lịch đặt sân thành công").build());
+        }
+
+        private User getCurrentUser() {
+                return securityUtils.getCurrentUser();
+        }
+}

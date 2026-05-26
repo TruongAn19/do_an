@@ -1,0 +1,62 @@
+package com.pitchbooking.app.domain;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Entity
+@Table(name = "user")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
+    @Email(message = "Email is not valid", regexp = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$")
+    @NotEmpty(message = "Email cannot be empty")
+    private String email;
+
+    @NotBlank(message = "Password không được để trống")
+    @Size(min = 3, message = "Password ít nhất có 3 ký tự")
+    private String password;
+
+    @NotEmpty(message = "Full Name cannot be empty")
+    private String fullName;
+
+    // @NotEmpty(message = "Address cannot be empty")
+    private String address;
+
+    @NotEmpty(message = "PhoneNumber cannot be empty")
+    private String phone;
+
+    private String avatar;
+
+    private String memberLevel = "NORMAL"; // NORMAL, SILVER, GOLD
+
+    @ManyToOne
+
+    @JoinColumn(name = "role_id")
+    private Role role;
+
+    @OneToMany(mappedBy = "user")
+    @JsonIgnoreProperties("user")
+    private List<Product> products;
+
+    @Override
+    public String toString() {
+        return "User [id=" + id + ", email=" + email + ", password=" + password + ", fullName=" + fullName
+                + ", address=" + address + ", phone=" + phone + ", avatar=" + avatar + "]";
+    }
+
+}
