@@ -1,6 +1,7 @@
 package com.pitchbooking.app.service;
 
 import com.pitchbooking.app.domain.AvailableTime;
+import com.pitchbooking.app.domain.PitchType;
 import com.pitchbooking.app.domain.Product;
 import com.pitchbooking.app.domain.SubPitch;
 import com.pitchbooking.app.domain.SubPitchAvailableTime;
@@ -35,15 +36,29 @@ public class ProductService {
 
     // Sân đấu
     public Page<ProductResponseDTO> getAllProductClient(Pageable pageable) {
-        return this.productRepository.findByStatusNot("DELETED", pageable).map(productMapper::toDTO);
+        return this.productRepository.findByStatusNot("DELETED", pageable)
+                .map(this::enrichAndMap);
     }
 
     public Page<ProductResponseDTO> getAllProductAdmin(Pageable pageable) {
-        return this.productRepository.findAll(pageable).map(productMapper::toDTO);
+        return this.productRepository.findAll(pageable).map(this::enrichAndMap);
     }
 
     public ProductResponseDTO getCourtById(Long id) {
-        return productRepository.findById(id).map(productMapper::toDTO).orElse(null);
+        return productRepository.findById(id).map(this::enrichAndMap).orElse(null);
+    }
+
+    /**
+     * Approach C: each Product has exactly one PitchType, stored on its SubPitches.
+     * Read the first sub-pitch's type and stash it on the (transient) Product field
+     * so the mapper can carry it into the response DTO.
+     */
+    private ProductResponseDTO enrichAndMap(Product product) {
+        List<SubPitch> subs = subPitchRepository.findByProductId(product.getId());
+        if (!subs.isEmpty() && subs.get(0).getPitchType() != null) {
+            product.setPitchType(subs.get(0).getPitchType());
+        }
+        return productMapper.toDTO(product);
     }
 
     public long getCourtProduct() {
@@ -83,7 +98,7 @@ public class ProductService {
 
         combinedSpec = combinedSpec.and(Specification.not(ProductSpec.addressIsNullOrEmpty()));
 
-        return this.productRepository.findAll(combinedSpec, pageable).map(productMapper::toDTO);
+        return this.productRepository.findAll(combinedSpec, pageable).map(this::enrichAndMap);
     }
 
     // lọc giá
@@ -126,6 +141,7 @@ public class ProductService {
 
     public ProductResponseDTO handSaveProduct(Product product) {
         boolean isNew = product.getId() == 0;
+        PitchType pitchType = product.getPitchType() != null ? product.getPitchType() : PitchType.FIVE_ASIDE;
 
         if (isNew) {
             // Liên kết product với toàn bộ khung giờ → populate bảng court_time
@@ -138,12 +154,12 @@ public class ProductService {
         if (isNew) {
             // Tạo sub-courts và subpitch_available_time chỉ khi tạo mới
             List<AvailableTime> allTimes = timeRepository.findAll();
-            
+
             String[] names = null;
             if (product.getSubPitchNames() != null && !product.getSubPitchNames().trim().isEmpty()) {
                 names = product.getSubPitchNames().split(",");
             }
-            
+
             int actualQuantity = (int) savedProduct.getQuantity();
             if (names != null && names.length > actualQuantity) {
                 actualQuantity = names.length;
@@ -159,6 +175,7 @@ public class ProductService {
                     subPitch.setName("Sân " + i);
                 }
                 subPitch.setProduct(savedProduct);
+                subPitch.setPitchType(pitchType);
                 subPitch = subPitchRepository.save(subPitch);
 
                 for (AvailableTime availableTime : allTimes) {
@@ -168,14 +185,25 @@ public class ProductService {
                     subPitchAvailableTimeRepository.save(sat);
                 }
             }
+        } else {
+            // On edit, propagate pitch type to all existing sub-pitches
+            // (Approach C: one Product = one PitchType — all sub-pitches share it).
+            List<SubPitch> subs = subPitchRepository.findByProductId(savedProduct.getId());
+            for (SubPitch sp : subs) {
+                if (sp.getPitchType() != pitchType) {
+                    sp.setPitchType(pitchType);
+                }
+            }
+            subPitchRepository.saveAll(subs);
         }
 
+        savedProduct.setPitchType(pitchType);
         return productMapper.toDTO(savedProduct);
     }
 
     public ProductResponseDTO getProductByID(long productId) {
         return productRepository.findById(productId)
-                .map(productMapper::toDTO)
+                .map(this::enrichAndMap)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
     }
 
@@ -185,7 +213,7 @@ public class ProductService {
     }
 
     public Optional<ProductResponseDTO> fetchProductById(long productId) {
-        return productRepository.findById(productId).map(productMapper::toDTO);
+        return productRepository.findById(productId).map(this::enrichAndMap);
     }
 
     public void deleteAllProduct(long productId) {
@@ -197,7 +225,7 @@ public class ProductService {
     }
 
     public Page<ProductResponseDTO> findByNameContaining(String name, Pageable pageable) {
-        return productRepository.findByNameContainingIgnoreCase(name, pageable).map(productMapper::toDTO);
+        return productRepository.findByNameContainingIgnoreCase(name, pageable).map(this::enrichAndMap);
     }
 
     public Page<ProductResponseDTO> searchProducts(String search, String address, Double maxPrice, Pageable pageable) {
@@ -232,7 +260,7 @@ public class ProductService {
             )
         );
 
-        return this.productRepository.findAll(spec, pageable).map(productMapper::toDTO);
+        return this.productRepository.findAll(spec, pageable).map(this::enrichAndMap);
     }
 
     public List<SubPitch> getAllCourtsByProduct(long productId) {

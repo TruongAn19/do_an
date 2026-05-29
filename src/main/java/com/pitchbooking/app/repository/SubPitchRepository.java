@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.pitchbooking.app.domain.PitchType;
 import com.pitchbooking.app.domain.Product;
 import com.pitchbooking.app.domain.SubPitch;
 
@@ -13,4 +14,6 @@ public interface SubPitchRepository extends JpaRepository<SubPitch, Long> {
     List<SubPitch> findByProduct(Product product);
 
     List<SubPitch> findByProductId(Long productId);
+
+    List<SubPitch> findByProductIdAndPitchType(Long productId, PitchType pitchType);
 }

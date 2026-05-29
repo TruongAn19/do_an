@@ -32,11 +32,14 @@ public class Product {
     private long sale;
     private String address;
     private String addressDetail;
-    private double depositPrice;
     private String status;
 
     @Transient
     private String subPitchNames;
+
+    @Transient
+    @Enumerated(EnumType.STRING)
+    private PitchType pitchType = PitchType.FIVE_ASIDE;
 
 
     @ManyToOne

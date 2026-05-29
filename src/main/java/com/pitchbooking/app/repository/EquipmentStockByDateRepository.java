@@ -19,7 +19,4 @@ public interface EquipmentStockByDateRepository extends JpaRepository<EquipmentS
             " AND r.product.id = :courtId")
     Integer sumRentalStockByCourtAndDate(Long courtId, LocalDate today);
 
-    @Query("Select rs from EquipmentStockByDate  rs where rs.equipmentId =:equipmentId and rs.date=:date")
-    EquipmentStockByDate findByEquipmentAndDate(Long equipmentId, LocalDate date);
-
 }

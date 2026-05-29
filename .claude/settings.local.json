@@ -18,7 +18,26 @@
       "Bash(rmdir src/app/features/rackets/detail src/app/features/rackets src/app/features/admin/rackets)",
       "Bash(rm src/app/core/models/racket.model.ts)",
       "Bash(rm src/app/features/equipments/rackets.spec.ts)",
-      "Bash(echo \"---EXIT $?---\")"
+      "Bash(echo \"---EXIT $?---\")",
+      "Bash(ng build *)",
+      "Bash(git -C \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\" diff --stat HEAD)",
+      "Bash(git -C \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\" diff HEAD -- src/app/features/booking/booking.css)",
+      "Bash(git -C \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\" stash)",
+      "Bash(git -C \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\" stash pop)",
+      "Bash(tee /tmp/mvnw-test.log)",
+      "Bash(./mvnw dependency:tree -DincludeArtifactIds=bucket4j-redis)",
+      "Bash(./mvnw -q compile)",
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(grep \"\\\\.java$\")",
+      "Bash(npm install *)",
+      "Bash(./mvnw -q -DskipTests compile)",
+      "Bash(./mvnw -DskipTests compile)",
+      "Bash(./mvnw -DskipTests clean compile)",
+      "Bash(./mvnw -Dtest=BookingServicePhase8Test test)",
+      "Bash(git status *)",
+      "Bash(mvnw.cmd compile *)",
+      "PowerShell(.\\\\mvnw.cmd compile -q -DskipTests 2>&1)",
+      "Bash(powershell -NoProfile -Command \"Get-Content src/main/java/com/pitchbooking/app/service/NotificationService.java | Select-String -Pattern 'create|pushToUser|pushToStaff|staffAndAdmin' -SimpleMatch\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\core\\models",
@@ -32,7 +51,9 @@
       "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\core\\guards",
       "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\equipments",
       "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\profile",
-      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\core\\utils"
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\core\\utils",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\admin\\products",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an"
     ]
   }
 }

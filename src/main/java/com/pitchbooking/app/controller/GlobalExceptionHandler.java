@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -119,8 +120,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleAllExceptions(
             Exception ex, HttpServletRequest request) {
-        if (ex instanceof java.io.IOException && ex.getMessage() != null && 
-            (ex.getMessage().contains("Broken pipe") || ex.getMessage().contains("connection was aborted"))) {
+        if (ex instanceof java.io.IOException && ex.getMessage() != null &&
+                (ex.getMessage().contains("Broken pipe") || ex.getMessage().contains("connection was aborted"))) {
             log.debug("SSE client connection closed: {}", ex.getMessage());
             return null; // Ignore these common SSE disconnect errors
         }
@@ -143,5 +144,10 @@ public class GlobalExceptionHandler {
     private boolean isSseRequest(HttpServletRequest request) {
         String accept = request.getHeader("Accept");
         return accept != null && accept.contains("text/event-stream");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoStaticResource(NoResourceFoundException ex) {
+        return ResponseEntity.notFound().build();
     }
 }

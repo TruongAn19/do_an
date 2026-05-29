@@ -30,11 +30,11 @@ public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooki
 
     @Modifying
     @Transactional
-    @Query("DELETE FROM TemporaryBooking t WHERE t.holdStartTime < :expiryTime")
-    void deleteExpiredHolds(@Param("expiryTime") LocalDateTime expiryTime);
+    @Query("DELETE FROM TemporaryBooking t WHERE t.holdExpiresAt < :now")
+    void deleteExpiredHolds(@Param("now") LocalDateTime now);
 
     default void deleteExpiredHolds() {
-        deleteExpiredHolds(LocalDateTime.now().minusMinutes(3));
+        deleteExpiredHolds(LocalDateTime.now());
     }
 
     @Modifying

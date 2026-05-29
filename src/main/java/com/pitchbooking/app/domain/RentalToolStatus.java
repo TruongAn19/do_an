@@ -2,6 +2,7 @@ package com.pitchbooking.app.domain;
 
 public enum RentalToolStatus {
     PENDING("Chờ thanh toán"),
+    DEPOSITED("Đã đặt cọc"),
     PAID("Đã thanh toán"),
     COMPLETED("Đã trả"),
     CANCELLED("Đã hủy");

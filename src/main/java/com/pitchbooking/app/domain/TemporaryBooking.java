@@ -26,10 +26,10 @@ public class TemporaryBooking {
 
     private LocalDate bookingDate;
 
-    private LocalDateTime holdStartTime;
+    private LocalDateTime holdExpiresAt;
 
     public boolean isExpired() {
-        return holdStartTime.plusMinutes(3).isBefore(LocalDateTime.now());
+        return holdExpiresAt.isBefore(LocalDateTime.now());
     }
 
 }

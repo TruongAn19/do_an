@@ -24,4 +24,7 @@ public class RentalToolDTO {
     private int quantityDay;
     private String rentalDate;
     private String rentalToolCode;
+    private String refundStatus;
+    private double depositAmount;
+    private String cancelledAt;
 }

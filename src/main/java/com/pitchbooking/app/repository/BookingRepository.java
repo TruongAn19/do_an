@@ -2,6 +2,7 @@ package com.pitchbooking.app.repository;
 
 import com.pitchbooking.app.domain.Booking;
 import com.pitchbooking.app.domain.BookingStatus;
+import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -54,4 +55,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findAllByStatus(BookingStatus status);
 
+    // Refund management (admin)
+    Page<Booking> findByRefundStatus(RefundStatus refundStatus, Pageable pageable);
+
+    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
 }

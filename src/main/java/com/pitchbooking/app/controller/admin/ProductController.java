@@ -101,8 +101,10 @@ public class ProductController {
         existing.setPrice(product.getPrice());
         existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
         existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
-        existing.setDepositPrice(product.getDepositPrice());
         existing.setShortDesc(product.getShortDesc());
+        existing.setPitchType(product.getPitchType() != null
+                ? product.getPitchType()
+                : existingDTO.getPitchType());
 
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "product"));

@@ -15,8 +15,13 @@ import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.dto.ApiResponse;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.domain.dto.AvailableTimeDTO;
+import com.pitchbooking.app.domain.dto.CancelBookingRequest;
+import com.pitchbooking.app.domain.dto.CancelBookingResponse;
 import com.pitchbooking.app.domain.dto.HoldBookingRequest;
+import com.pitchbooking.app.domain.dto.NotificationDTO;
 import com.pitchbooking.app.domain.dto.PreparedBookingResult;
+import com.pitchbooking.app.domain.NotificationType;
+import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.PaymentType;
 import com.pitchbooking.app.domain.dto.PaymentRequest;
 import com.pitchbooking.app.domain.dto.PlaceBookingRequest;
@@ -25,6 +30,7 @@ import jakarta.validation.Valid;
 import com.pitchbooking.app.domain.dto.VnpayResponse;
 import com.pitchbooking.app.repository.*;
 import com.pitchbooking.app.service.BookingService;
+import com.pitchbooking.app.service.NotificationService;
 import com.pitchbooking.app.service.NtfyService;
 import com.pitchbooking.app.service.PaymentService;
 import com.pitchbooking.app.service.ProductService;
@@ -46,7 +52,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,6 +76,7 @@ public class BookingClientController {
         RecommendationService recommendationService;
         SecurityUtils securityUtils;
         NtfyService ntfyService;
+        NotificationService notificationService;
         PricingService pricingService;
 
         @GetMapping("/recommend/{productId}")
@@ -154,8 +160,7 @@ public class BookingClientController {
                 User currentUser = getCurrentUser();
                 Long userId = currentUser.getId();
 
-                LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
-                temporaryBookingRepository.deleteExpiredHolds(expiryTime);
+                temporaryBookingRepository.deleteExpiredHolds();
                 temporaryBookingRepository.flush();
 
                 SubPitch court = subPitchRepository.findById(holdRequest.getSubPitchId())
@@ -176,8 +181,9 @@ public class BookingClientController {
                                 temporaryBookingRepository.flush();
                         } else {
                                 if (!existing.getUserId().equals(userId)) {
-                                        long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
-                                        long remaining = Math.max(180 - elapsed, 0);
+                                        long remaining = Math.max(
+                                                        Duration.between(now, existing.getHoldExpiresAt()).getSeconds(),
+                                                        0);
                                         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
                                                         .<Map<String, Object>>builder()
                                                         .status(409)
@@ -185,7 +191,7 @@ public class BookingClientController {
                                                         .data(Map.of("remainingTime", remaining))
                                                         .build());
                                 } else {
-                                        existing.setHoldStartTime(now);
+                                        existing.setHoldExpiresAt(now.plusMinutes(3));
                                         temporaryBookingRepository.save(existing);
                                         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                                         .status(200).message("Tiếp tục giữ sân tạm thời")
@@ -199,7 +205,7 @@ public class BookingClientController {
                 newHold.setAvailableTime(time);
                 newHold.setBookingDate(holdRequest.getBookingDate());
                 newHold.setUserId(userId);
-                newHold.setHoldStartTime(now);
+                newHold.setHoldExpiresAt(now.plusMinutes(3));
                 temporaryBookingRepository.save(newHold);
 
                 broadcastSlotHeld(holdRequest.getSubPitchId(), holdRequest.getAvailableTimeId(),
@@ -232,17 +238,10 @@ public class BookingClientController {
                         long productId = Long.parseLong(body.get("productId").toString());
                         long timeId = Long.parseLong(body.get("availableTimeId").toString());
                         String dateStr = body.get("bookingDate").toString();
-                        String bookingType = body.getOrDefault("bookingType", "ONE_TIME").toString();
+                        String bookingTypeStr = body.getOrDefault("bookingType", "ONE_TIME").toString();
                         LocalDate bookingDate = LocalDate.parse(dateStr);
+                        BookingType bookingType = BookingType.valueOf(bookingTypeStr);
 
-                        com.pitchbooking.app.domain.Product product = productService.getRawProductById(productId);
-                        com.pitchbooking.app.domain.AvailableTime time = timeRepository.findById(timeId)
-                                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ"));
-
-                        double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
-
-                        // 1. Tính toán danh sách ngày
-                        List<LocalDate> datesToBook = new ArrayList<>();
                         Integer durationMonths = body.containsKey("durationMonths")
                                         ? Integer.parseInt(body.get("durationMonths").toString())
                                         : null;
@@ -250,60 +249,23 @@ public class BookingClientController {
                                         ? (List<Integer>) body.get("daysOfWeek")
                                         : null;
 
-                        if ("WEEKLY_RECURRING".equals(bookingType)) {
-                                if (durationMonths != null && durationMonths > 0 && daysOfWeek != null) {
-                                        LocalDate endDate = bookingDate.plusMonths(durationMonths);
-                                        LocalDate current = bookingDate;
-                                        while (!current.isAfter(endDate)) {
-                                                if (daysOfWeek.contains(current.getDayOfWeek().getValue())) {
-                                                        datesToBook.add(current);
-                                                }
-                                                current = current.plusDays(1);
-                                        }
-                                }
-                        } else {
-                                datesToBook.add(bookingDate);
-                        }
+                        Product product = productService.getRawProductById(productId);
+                        AvailableTime time = timeRepository.findById(timeId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ"));
 
-                        if (datesToBook.isEmpty()) {
-                                throw new IllegalArgumentException("Vui lòng chọn Thứ và thời hạn hợp lệ.");
-                        }
+                        com.pitchbooking.app.domain.dto.BookingPriceBreakdown breakdown = pricingService
+                                        .calculateBookingPriceBreakdown(getCurrentUser(), product, time,
+                                                        bookingType, bookingDate, null, daysOfWeek, durationMonths);
 
-                        // 2. Tính toán giá với chiết khấu
-                        double totalBookingPrice = 0;
-                        double discountRate = pricingService.calculateRecurringDiscountRate(durationMonths);
-
-                        for (LocalDate date : datesToBook) {
-                                com.pitchbooking.app.service.pricing.BookingContext context = com.pitchbooking.app.service.pricing.BookingContext
-                                                .builder()
-                                                .user(getCurrentUser())
-                                                .time(time)
-                                                .bookingDate(date)
-                                                .build();
-
-                                double finalPricePerSession = pricingService.calculateFinalPrice(basePrice, context);
-
-                                if ("WEEKLY_RECURRING".equals(bookingType)) {
-                                        finalPricePerSession = finalPricePerSession * (1 - discountRate);
-                                }
-                                totalBookingPrice += finalPricePerSession;
-                        }
-
-                        double totalDeposit = product.getDepositPrice() * datesToBook.size();
-                        if ("WEEKLY_RECURRING".equals(bookingType)) {
-                                totalDeposit = totalDeposit * (1 - discountRate);
-                        }
-
-                        double originalTotalPrice = basePrice * datesToBook.size();
-                        double savings = originalTotalPrice - totalBookingPrice;
+                        double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
 
                         Map<String, Object> data = new java.util.LinkedHashMap<>();
                         data.put("basePrice", basePrice);
-                        data.put("sessions", datesToBook.size());
-                        data.put("totalPrice", totalBookingPrice);
-                        data.put("depositPrice", totalDeposit);
-                        data.put("savings", savings);
-                        data.put("discountRate", discountRate * 100);
+                        data.put("sessions", breakdown.getSlots().size());
+                        data.put("totalPrice", breakdown.getTotalPrice());
+                        data.put("depositPrice", breakdown.getDepositPrice());
+                        data.put("savings", breakdown.getSavings());
+                        data.put("discountRate", breakdown.getDiscountRate() * 100);
 
                         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                         .status(200).message("Ước tính giá thành công").data(data).build());
@@ -345,6 +307,27 @@ public class BookingClientController {
                                                 .build());
         }
 
+        /**
+         * Fetch a single booking owned by the caller — backs the
+         * /booking-detail/:id FE page. 404 if it doesn't exist or 403 if
+         * the caller is not the owner (admins should use admin endpoints).
+         */
+        @GetMapping("/detail/{bookingId}")
+        public ResponseEntity<ApiResponse<com.pitchbooking.app.domain.dto.BookingResponseDTO>> getBookingDetail(
+                        @PathVariable long bookingId) {
+                User currentUser = getCurrentUser();
+                com.pitchbooking.app.domain.dto.BookingResponseDTO dto = bookingService.fetchBookingById(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy đơn đặt sân ID: " + bookingId));
+                if (dto.getUser() == null || dto.getUser().getId() != currentUser.getId()) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                        .body(ApiResponse.<com.pitchbooking.app.domain.dto.BookingResponseDTO>builder()
+                                                        .status(403).message("Không có quyền truy cập").build());
+                }
+                return ResponseEntity.ok(ApiResponse.<com.pitchbooking.app.domain.dto.BookingResponseDTO>builder()
+                                .status(200).message("Thành công").data(dto).build());
+        }
+
         @GetMapping("/{bookingCode}/{courtId}/equipments")
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingEquipments(
                         @PathVariable String bookingCode,
@@ -358,10 +341,65 @@ public class BookingClientController {
                                 .status(200).message("Thành công").data(data).build());
         }
 
+        /**
+         * Spec-compliant cancel endpoint (CANCEL_BOOKING_FEATURE §4 — client).
+         * Returns full refund summary + contact info. Triggers WS fan-out:
+         *  - 1 notification to the cancelling user (BOOKING_CANCELLED)
+         *  - 1 notification per admin/staff (REFUND_REQUEST) — skipped if refund=0 (E11).
+         */
+        @PostMapping("/{bookingId}/cancel")
+        public ResponseEntity<ApiResponse<CancelBookingResponse>> cancelBookingV2(
+                        @PathVariable long bookingId,
+                        @RequestBody(required = false) CancelBookingRequest req) {
+                User currentUser = getCurrentUser();
+                String reason = req != null ? req.getReason() : null;
+
+                CancelBookingResponse resp = bookingService.cancelByUser(bookingId, currentUser.getId(), reason);
+
+                // Notification — user
+                String userMsg = resp.getRefundStatus() == RefundStatus.PENDING_REFUND
+                                ? String.format("Bạn đã huỷ thành công. Số tiền cọc hoàn dự kiến: %,.0fđ. "
+                                                + "Nếu chưa nhận sau 24h, vui lòng liên hệ %s / %s.",
+                                                resp.getRefundAmount(), resp.getContactHotline(), resp.getContactEmail())
+                                : "Bạn đã huỷ thành công. Không có khoản cọc nào cần hoàn.";
+                NotificationDTO userNotif = notificationService.create(
+                                currentUser.getId(),
+                                NotificationType.BOOKING_CANCELLED,
+                                "BOOKING", bookingId,
+                                "Huỷ đặt sân thành công",
+                                userMsg);
+                notificationService.pushToUser(currentUser.getId(), userNotif);
+
+                // Notification — admin/staff fan-out (D0.6). Skip if no refund needed (E11).
+                if (resp.getRefundStatus() == RefundStatus.PENDING_REFUND) {
+                        String staffTitle = "Yêu cầu hoàn cọc mới";
+                        String staffMsg = String.format(
+                                        "User %s vừa huỷ booking #%d — cần hoàn %,.0fđ.",
+                                        currentUser.getEmail(), bookingId, resp.getRefundAmount());
+                        List<Long> staffIds = notificationService.staffAndAdminUserIds();
+                        NotificationDTO broadcastDto = null;
+                        for (Long staffId : staffIds) {
+                                NotificationDTO n = notificationService.create(
+                                                staffId, NotificationType.REFUND_REQUEST,
+                                                "BOOKING", bookingId, staffTitle, staffMsg);
+                                if (broadcastDto == null) {
+                                        broadcastDto = n; // payload for /topic broadcast (all staff)
+                                }
+                        }
+                        if (broadcastDto != null) {
+                                notificationService.pushToStaff(broadcastDto);
+                        }
+                }
+
+                return ResponseEntity.ok(ApiResponse.<CancelBookingResponse>builder()
+                                .status(200).message("Hủy lịch đặt sân thành công").data(resp).build());
+        }
+
+        /** Legacy path — keeps old FE clients working; routes through the same logic. */
         @DeleteMapping("/{bookingId}")
         public ResponseEntity<ApiResponse<Void>> cancelBooking(@PathVariable long bookingId) {
                 User currentUser = getCurrentUser();
-                bookingService.cancelBooking(bookingId, currentUser);
+                bookingService.cancelByUser(bookingId, currentUser.getId(), null);
                 return ResponseEntity.ok(ApiResponse.<Void>builder()
                                 .status(200).message("Hủy lịch đặt sân thành công").build());
         }

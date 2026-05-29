@@ -10,6 +10,7 @@ public interface RentalToolMapper {
 
     @Mapping(target = "bookingCode", ignore = true)
     @Mapping(target = "equipmentName", ignore = true)
+    @Mapping(target = "cancelledAt", ignore = true)
     RentalToolDTO toDTO(RentalTool rentalTool);
 
     @Mapping(target = "returnDate", ignore = true)

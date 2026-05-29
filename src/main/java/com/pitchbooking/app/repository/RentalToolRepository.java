@@ -1,5 +1,6 @@
 package com.pitchbooking.app.repository;
 
+import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.RentalType;
@@ -52,6 +53,10 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     Page<RentalTool> findRentalByUserId(Long id, Pageable pageable);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
+
+    Page<RentalTool> findByRefundStatus(RefundStatus refundStatus, Pageable pageable);
+
+    Page<RentalTool> findByRefundStatusIn(List<RefundStatus> refundStatuses, Pageable pageable);
 
     Page<RentalTool> findByType(RentalType type, Pageable pageable);
 

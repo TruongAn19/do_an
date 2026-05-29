@@ -93,7 +93,6 @@ class BookingServicePhase8Test {
         product.setId(10L);
         product.setPrice(200_000);
         product.setSale(0);
-        product.setDepositPrice(50_000);
 
         subPitch = new SubPitch();
         subPitch.setId(7L);

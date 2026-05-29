@@ -16,10 +16,27 @@ import java.util.Optional;
 
 @Repository
 public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long> {
-  Optional<BookingDetail> findBySubPitchAndAvailableTimeAndDate(SubPitch subPitch, AvailableTime time,
-      LocalDate bookingDate);
+  // NOTE: both slot-availability queries exclude DA_HUY so a cancelled booking
+  // releases its slot. ID-only result for the collision check avoids loading
+  // the full entity graph just to do an existence test.
+  @Query("""
+          SELECT bd FROM BookingDetail bd
+          WHERE bd.subPitch = :subPitch
+            AND bd.availableTime = :time
+            AND bd.date = :bookingDate
+            AND bd.booking.status <> com.pitchbooking.app.domain.BookingStatus.DA_HUY
+          """)
+  Optional<BookingDetail> findBySubPitchAndAvailableTimeAndDate(@Param("subPitch") SubPitch subPitch,
+      @Param("time") AvailableTime time,
+      @Param("bookingDate") LocalDate bookingDate);
 
-  List<BookingDetail> findBySubPitchAndDate(SubPitch court, LocalDate date);
+  @Query("""
+          SELECT bd FROM BookingDetail bd
+          WHERE bd.subPitch = :court
+            AND bd.date = :date
+            AND bd.booking.status <> com.pitchbooking.app.domain.BookingStatus.DA_HUY
+          """)
+  List<BookingDetail> findBySubPitchAndDate(@Param("court") SubPitch court, @Param("date") LocalDate date);
 
   @Query("SELECT bd.date, SUM(bd.price) " +
       "FROM BookingDetail bd " +

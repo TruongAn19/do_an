@@ -2,6 +2,7 @@ package com.pitchbooking.app.config;
 
 import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
+import io.github.bucket4j.redis.lettuce.Bucket4jLettuce;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
@@ -20,8 +21,10 @@ import java.time.Duration;
  * Wires Bucket4j's {@link LettuceBasedProxyManager} against Redis so rate-limit
  * buckets survive restarts and are shared across application instances.
  *
- * <p>Profile-guarded so the test suite (which excludes RedisAutoConfiguration)
- * doesn't try to connect; {@link com.pitchbooking.app.service.InMemoryRateLimitService}
+ * <p>
+ * Profile-guarded so the test suite (which excludes RedisAutoConfiguration)
+ * doesn't try to connect;
+ * {@link com.pitchbooking.app.service.InMemoryRateLimitService}
  * picks up the slack there.
  */
 @Configuration
@@ -46,12 +49,12 @@ public class Bucket4jRedisConfig {
     }
 
     @Bean
-    @SuppressWarnings("deprecation") // builder API in 8.10.x; replacement varies by minor release
     public ProxyManager<String> bucket4jProxyManager(
             StatefulRedisConnection<String, byte[]> bucket4jRedisConnection) {
-        return LettuceBasedProxyManager.builderFor(bucket4jRedisConnection)
-                .withExpirationStrategy(
-                        ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(10)))
+        return Bucket4jLettuce.casBasedBuilder(bucket4jRedisConnection)
+                .expirationAfterWrite(
+                        ExpirationAfterWriteStrategy
+                                .basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(10)))
                 .build();
     }
 }

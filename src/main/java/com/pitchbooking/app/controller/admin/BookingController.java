@@ -1,9 +1,17 @@
 package com.pitchbooking.app.controller.admin;
 
+import com.pitchbooking.app.domain.Booking;
+import com.pitchbooking.app.domain.NotificationType;
+import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.dto.ApiResponse;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
+import com.pitchbooking.app.domain.dto.CancelBookingResponse;
+import com.pitchbooking.app.domain.dto.NotificationDTO;
+import com.pitchbooking.app.mapper.BookingMapper;
+import com.pitchbooking.app.repository.BookingRepository;
 import com.pitchbooking.app.service.BookingService;
+import com.pitchbooking.app.service.NotificationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,6 +33,9 @@ import java.util.Map;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class BookingController {
         BookingService bookingService;
+        BookingRepository bookingRepository;
+        BookingMapper bookingMapper;
+        NotificationService notificationService;
 
         @GetMapping
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookings(
@@ -98,5 +109,60 @@ public class BookingController {
                                 .message("Cập nhật trạng thái thành công")
                                 .data(updatedBooking)
                                 .build());
+        }
+
+        /**
+         * Admin marks a deposit as refunded (D0.7 — manual transfer, no VNPay API).
+         * Fires a REFUND_DONE notification + WS push to the original booking owner.
+         */
+        @PutMapping("/{id}/refund")
+        public ResponseEntity<ApiResponse<CancelBookingResponse>> confirmRefund(@PathVariable long id) {
+                CancelBookingResponse resp = bookingService.confirmRefund(id);
+
+                // Notify the booking owner.
+                Booking booking = bookingRepository.findById(id).orElse(null);
+                if (booking != null && booking.getUser() != null) {
+                        String msg = String.format(
+                                        "Quản trị viên đã xác nhận hoàn cọc %,.0fđ cho đơn #%d. "
+                                        + "Vui lòng kiểm tra tài khoản nhận tiền.",
+                                        resp.getRefundAmount(), id);
+                        NotificationDTO dto = notificationService.create(
+                                        booking.getUser().getId(),
+                                        NotificationType.REFUND_DONE,
+                                        "BOOKING", id,
+                                        "Đã hoàn cọc",
+                                        msg);
+                        notificationService.pushToUser(booking.getUser().getId(), dto);
+                }
+
+                return ResponseEntity.ok(ApiResponse.<CancelBookingResponse>builder()
+                                .status(200).message("Đã đánh dấu đã hoàn cọc").data(resp).build());
+        }
+
+        /**
+         * List bookings filtered by refund status — feeds the admin refund-requests page.
+         * Pass {@code status} ∈ {PENDING_REFUND, REFUNDED} or omit for all DA_HUY bookings.
+         */
+        @GetMapping("/refund-requests")
+        public ResponseEntity<ApiResponse<Map<String, Object>>> listRefundRequests(
+                        @RequestParam(required = false) RefundStatus status,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+                Pageable pageable = PageRequest.of(page, size, Sort.by("cancelledAt").descending());
+                Page<Booking> result = (status != null)
+                                ? bookingRepository.findByRefundStatus(status, pageable)
+                                : bookingRepository.findByStatus(com.pitchbooking.app.domain.BookingStatus.DA_HUY, pageable);
+
+                List<BookingResponseDTO> dtoList = result.getContent().stream()
+                                .map(bookingMapper::toDTO)
+                                .toList();
+
+                Map<String, Object> data = Map.of(
+                                "bookings", dtoList,
+                                "currentPage", page,
+                                "totalPages", result.getTotalPages(),
+                                "totalElements", result.getTotalElements());
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(200).message("Thành công").data(data).build());
         }
 }

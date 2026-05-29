@@ -33,6 +33,11 @@ public class RentalTool implements Serializable {
     private LocalDateTime updateAt;
     private String rentalToolCode;
 
+    @Enumerated(EnumType.STRING)
+    private RefundStatus refundStatus = RefundStatus.NONE;
+    private double depositAmount;
+    private LocalDateTime cancelledAt;
+
     private Long userId;
     // user id
 //    @ManyToOne
