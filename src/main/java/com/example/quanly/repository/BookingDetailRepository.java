@@ -16,10 +16,39 @@ import java.util.Optional;
 
 @Repository
 public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long> {
-  Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
-      LocalDate bookingDate);
 
-  List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date);
+  /**
+   * Tìm slot đã đặt cho (sân phụ, khung giờ, ngày) — BỎ QUA booking đã huỷ (DA_HUY)
+   * để slot của booking bị huỷ được giải phóng và có thể đặt lại.
+   */
+  @Query("SELECT bd FROM BookingDetail bd " +
+      "WHERE bd.subCourt = :subCourt AND bd.availableTime = :time AND bd.date = :bookingDate " +
+      "AND bd.booking.status <> :excludedStatus")
+  Optional<BookingDetail> findActiveBySubCourtAndAvailableTimeAndDate(
+      @Param("subCourt") SubCourt subCourt,
+      @Param("time") AvailableTime time,
+      @Param("bookingDate") LocalDate bookingDate,
+      @Param("excludedStatus") BookingStatus excludedStatus);
+
+  default Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
+      LocalDate bookingDate) {
+    return findActiveBySubCourtAndAvailableTimeAndDate(subCourt, time, bookingDate, BookingStatus.DA_HUY);
+  }
+
+  /**
+   * Các slot đã đặt cho (sân phụ, ngày) — BỎ QUA booking đã huỷ (DA_HUY).
+   */
+  @Query("SELECT bd FROM BookingDetail bd " +
+      "WHERE bd.subCourt = :court AND bd.date = :date " +
+      "AND bd.booking.status <> :excludedStatus")
+  List<BookingDetail> findActiveBySubCourtAndDate(
+      @Param("court") SubCourt court,
+      @Param("date") LocalDate date,
+      @Param("excludedStatus") BookingStatus excludedStatus);
+
+  default List<BookingDetail> findBySubCourtAndDate(SubCourt court, LocalDate date) {
+    return findActiveBySubCourtAndDate(court, date, BookingStatus.DA_HUY);
+  }
 
   @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
       "FROM BookingDetail bd " +

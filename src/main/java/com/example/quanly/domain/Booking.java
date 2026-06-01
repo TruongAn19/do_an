@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -54,5 +55,25 @@ public class Booking {
 
     @Column(name = "rental_tool_code")
     private String rentalToolCode = NO_RENTAL;
+
+    // --- Nhóm 2: Cancel + refund tracking ---
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_status", length = 32)
+    private RefundStatus refundStatus = RefundStatus.NONE;
+
+    @Column(name = "refund_amount")
+    private Double refundAmount;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "used_sessions_at_cancel")
+    private Integer usedSessionsAtCancel;
+
+    @Column(name = "total_sessions_at_cancel")
+    private Integer totalSessionsAtCancel;
+
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 
 }

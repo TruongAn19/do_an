@@ -32,6 +32,16 @@ public class RacketService {
         return racketRepository.findByProductAndAvailableTrue(productId);
     }
 
+    /**
+     * Danh sách vợt của sân (product) còn cho thuê theo booking — chỉ vợt có
+     * bookingStockQuantity > 0. Dùng cho flow bundled rental khi đặt sân.
+     */
+    public List<Racket> getBookableRacketsByProduct(Long productId) {
+        return racketRepository.findByProductAndAvailableTrue(productId).stream()
+                .filter(r -> r.getBookingStockQuantity() > 0)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public Page<Racket> getAllRacket(Pageable pageable) {
         return racketRepository.findAll(pageable);
     }

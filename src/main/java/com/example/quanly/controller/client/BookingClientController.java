@@ -2,6 +2,8 @@ package com.example.quanly.controller.client;
 
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.CancelBookingRequest;
+import com.example.quanly.domain.dto.CancelBookingResponse;
 import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.domain.dto.AvailableTimeDTO;
 import com.example.quanly.domain.dto.HoldBookingRequest;
@@ -197,7 +199,7 @@ public class BookingClientController {
         PreparedBookingResult prepared = bookingService.preparePendingBooking(currentUser,
                 req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
                 req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
-                req.getBookingType(), req.getRecurringEndDate());
+                req.getBookingType(), req.getRecurringEndDate(), req.getRackets());
 
         PaymentRequest paymentRequest = new PaymentRequest();
         paymentRequest.setId(prepared.pendingId());
@@ -213,6 +215,27 @@ public class BookingClientController {
                 .body(ApiResponse.<Map<String, Object>>builder()
                         .status(HttpStatus.CREATED.value())
                         .message("Vui lòng hoàn tất thanh toán để xác nhận đặt sân").data(data).build());
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<CancelBookingResponse>> cancelBooking(
+            @PathVariable Long id,
+            @RequestBody(required = false) CancelBookingRequest req) {
+
+        User currentUser = getCurrentUser();
+        String reason = req != null ? req.getReason() : null;
+        CancelBookingResponse result = bookingService.cancelByUser(id, currentUser.getId(), reason);
+        return ResponseEntity.ok(ApiResponse.<CancelBookingResponse>builder()
+                .status(200).message("Huỷ đặt sân thành công").data(result).build());
+    }
+
+    @GetMapping("/products/{productId}/rackets")
+    public ResponseEntity<ApiResponse<List<Racket>>> getRacketsForBooking(
+            @PathVariable Long productId) {
+
+        List<Racket> racketList = racketService.getBookableRacketsByProduct(productId);
+        return ResponseEntity.ok(ApiResponse.<List<Racket>>builder()
+                .status(200).message("Thành công").data(racketList).build());
     }
 
     @GetMapping("/{bookingCode}/{courtId}/rackets")

@@ -101,13 +101,16 @@ public class SecurityConfiguration {
                                                                 "/api/v1/payments/vnpay-callback",
                                                 "/api/v1/mock-payment/**",
                                                                 "/api/v1/rentals/*/rackets",
-                                                                "/api/v1/ai/**")
+                                                                "/api/v1/ai/**",
+                                                                "/ws/**")
 
                                                 .permitAll()
-                                                // Staff xem booking & rental
+                                                // Staff xem booking & rental + quản lý hoàn cọc + notification
                                                 .requestMatchers(
                                                                 "/api/v1/admin/bookings/**",
-                                                                "/api/v1/admin/rentals/**")
+                                                                "/api/v1/admin/rentals/**",
+                                                                "/api/v1/admin/refund-requests/**",
+                                                                "/api/v1/admin/notifications/**")
                                                 .hasAnyRole("STAFF", "ADMIN")
                                                 // Toàn bộ admin còn lại chỉ ADMIN
                                                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

@@ -31,6 +31,10 @@ public class RacketStatisticsService {
      * 1. Tổng số vợt/paddle hiện có trong kho của một sân
      */
     public Integer getTotalRackets(Long courtId) {
+        if (courtId == null) {
+            Integer total = racketRepository.countRackeQuantity();
+            return total == null ? 0 : total;
+        }
         Integer total = racketRepository.countRacketByProductId(courtId);
         return total == null ? 0 : total;
     }

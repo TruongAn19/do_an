@@ -3,6 +3,7 @@ package com.example.quanly.domain.dto;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,4 +22,12 @@ public class BookingResponseDTO {
     private String courtName;
     private String time;
     private List<BookingDetailResponseDTO> bookingDetails;
+
+    // --- Nhóm 2: refund tracking ---
+    private String refundStatus;
+    private Double refundAmount;
+    private LocalDateTime cancelledAt;
+    private Integer usedSessionsAtCancel;
+    private Integer totalSessionsAtCancel;
+    private String cancelReason;
 }

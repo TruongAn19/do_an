@@ -2,6 +2,7 @@ package com.example.quanly.repository;
 
 import com.example.quanly.domain.Booking;
 import com.example.quanly.domain.BookingStatus;
+import com.example.quanly.domain.RefundStatus;
 import com.example.quanly.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,5 +42,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Long findMostFrequentTimeSlotByUserId(@Param("userId") Long userId);
 
     List<Booking> findAllByStatus(BookingStatus status);
+
+    // --- Nhóm 2: refund management ---
+    Page<Booking> findByRefundStatus(RefundStatus refundStatus, Pageable pageable);
+
+    Page<Booking> findByStatus(BookingStatus status, Pageable pageable);
+
+    // --- Thống kê đặt sân: đếm số đơn theo trạng thái trong khoảng (theo ngày chơi) ---
+    @Query("SELECT b.status, COUNT(b) FROM Booking b WHERE b.bookingDate BETWEEN :start AND :end GROUP BY b.status")
+    List<Object[]> countByStatusBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
 }

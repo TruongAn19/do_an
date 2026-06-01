@@ -84,6 +84,16 @@ public class BookingController {
                                 .build());
         }
 
+        @PutMapping("/{id}/refund")
+        public ResponseEntity<ApiResponse<Void>> confirmRefund(@PathVariable long id) {
+                bookingService.confirmRefund(id);
+                return ResponseEntity.ok(ApiResponse.<Void>builder()
+                                .status(200)
+                                .message("Đã xác nhận hoàn cọc")
+                                .data(null)
+                                .build());
+        }
+
         @PutMapping("/{id}/status")
         public ResponseEntity<ApiResponse<BookingResponseDTO>> updateBookingStatus(
                         @PathVariable long id,

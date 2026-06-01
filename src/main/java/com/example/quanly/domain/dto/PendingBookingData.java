@@ -25,11 +25,26 @@ public class PendingBookingData {
     private double depositPrice;
     private List<SlotData> slots;
 
+    /**
+     * Vợt thuê kèm theo booking (bundled rental). Không nằm trong constructor để
+     * giữ tương thích — được set sau khi tính toán trong preparePendingBooking.
+     */
+    private List<RentalSlot> rentalSlots;
+
     @Data
     @AllArgsConstructor
     public static class SlotData {
         private LocalDate date;
         private double price;
         private long sale;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class RentalSlot {
+        private Long racketId;
+        private int quantity;
+        private double unitPrice;
+        private double subtotal;
     }
 }

@@ -1,13 +1,19 @@
 package com.example.quanly.service;
 
+import com.example.quanly.config.ContactInfo;
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.BookingResponseDTO;
+import com.example.quanly.domain.dto.CancelBookingResponse;
+import com.example.quanly.domain.dto.NotificationDTO;
 import com.example.quanly.domain.dto.PendingBookingData;
 import com.example.quanly.domain.dto.PreparedBookingResult;
+import com.example.quanly.domain.dto.RentalItem;
 import com.example.quanly.mapper.BookingMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.pricing.BookingContext;
 import com.example.quanly.service.pricing.PricingService;
+import com.example.quanly.exception.BusinessConflictException;
+import com.example.quanly.exception.ForbiddenOperationException;
 import com.example.quanly.exception.ResourceNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -36,6 +42,7 @@ public class BookingService {
     BookingRepository bookingRepository;
     BookingDetailRepository bookingDetailRepository;
     RentalToolRepository rentalToolRepository;
+    RacketRepository racketRepository;
     UserRepository userRepository;
     ProductRepository productRepository;
     TimeRepository timeRepository;
@@ -44,6 +51,8 @@ public class BookingService {
     BookingMapper bookingMapper;
     PricingService pricingService;
     PendingBookingCache pendingBookingCache;
+    NotificationService notificationService;
+    ContactInfo contactInfo;
 
     public Page<BookingResponseDTO> fetchAllBookings(Pageable pageable) {
         return bookingRepository.findAll(pageable).map(bookingMapper::toDTO);
@@ -104,7 +113,7 @@ public class BookingService {
     public PreparedBookingResult preparePendingBooking(User user,
             String receiverName, String receiverAddress, String receiverPhone,
             long productId, long timeId, long subCourtId, LocalDate bookingDate,
-            String bookingType, LocalDate recurringEndDate) {
+            String bookingType, LocalDate recurringEndDate, List<RentalItem> rackets) {
 
         // 1. Kiểm tra người dùng
         user = userRepository.findUserById(user.getId());
@@ -217,6 +226,36 @@ public class BookingService {
             depositPrice = depositPrice - (depositPrice * recurringDiscountRate / 100);
         }
 
+        // 8b. Bundled rental — thuê vợt kèm theo booking (chỉ ONE_TIME)
+        List<PendingBookingData.RentalSlot> rentalSlots = new ArrayList<>();
+        double rentalTotal = 0;
+        if (rackets != null && !rackets.isEmpty()) {
+            if (type == BookingType.WEEKLY_RECURRING) {
+                throw new IllegalArgumentException("Không hỗ trợ thuê vợt cho đặt sân theo tháng.");
+            }
+            for (RentalItem item : rackets) {
+                if (item == null || item.getRacketId() == null || item.getQuantity() <= 0) {
+                    continue;
+                }
+                Racket racket = racketRepository.findById(item.getRacketId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy vợt ID: " + item.getRacketId()));
+                if (racket.getBookingStockQuantity() < item.getQuantity()) {
+                    throw new IllegalArgumentException("Vợt " + racket.getName()
+                            + " không đủ số lượng. Còn lại: " + racket.getBookingStockQuantity() + ".");
+                }
+                double unitPrice = racket.getRentalPricePerPlay();
+                double subtotal = unitPrice * item.getQuantity();
+                rentalTotal += subtotal;
+                rentalSlots.add(new PendingBookingData.RentalSlot(
+                        racket.getId(), item.getQuantity(), unitPrice, subtotal));
+            }
+        }
+
+        // Gộp tiền thuê vợt vào tổng cọc và tổng tiền
+        depositPrice += rentalTotal;
+        totalBookingPrice += rentalTotal;
+
         // 9. Mở rộng thời gian giữ chỗ để đủ thời gian thanh toán VNPay (~18 phút từ lúc này)
         hold.setHoldStartTime(LocalDateTime.now().plusMinutes(15));
         temporaryBookingRepository.save(hold);
@@ -227,7 +266,7 @@ public class BookingService {
                 receiverName, receiverAddress, receiverPhone,
                 product, time, subCourt,
                 bookingDate, type, recurringEndDate,
-                totalBookingPrice, depositPrice, slots);
+                totalBookingPrice, depositPrice, slots, rentalSlots);
 
         long pendingId = pendingBookingCache.store(data);
         return new PreparedBookingResult(pendingId, depositPrice);
@@ -280,6 +319,46 @@ public class BookingService {
         }
         bookingDetailRepository.saveAll(details);
 
+        // Tạo RentalTool cho vợt thuê kèm (bundled rental) + trừ stock
+        List<PendingBookingData.RentalSlot> rentalSlots = data.getRentalSlots();
+        if (rentalSlots != null && !rentalSlots.isEmpty()) {
+            LocalDateTime nowTs = LocalDateTime.now();
+            for (PendingBookingData.RentalSlot slot : rentalSlots) {
+                Racket racket = racketRepository.findById(slot.getRacketId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy vợt ID: " + slot.getRacketId()));
+                if (racket.getBookingStockQuantity() < slot.getQuantity()) {
+                    throw new IllegalStateException("Vợt " + racket.getName()
+                            + " không đủ số lượng trong lúc thanh toán. Còn lại: "
+                            + racket.getBookingStockQuantity() + ".");
+                }
+
+                RentalTool tool = new RentalTool();
+                tool.setType(RentalType.ON_SITE);
+                tool.setBookingId(String.valueOf(savedBooking.getId()));
+                tool.setStatus(RentalToolStatus.PAID);
+                tool.setQuantityDay(1);
+                tool.setQuantity(slot.getQuantity());
+                tool.setRacketId(slot.getRacketId());
+                tool.setProductId(data.getProduct().getId());
+                tool.setUserId(data.getUser().getId());
+                tool.setPrice(slot.getUnitPrice() * slot.getQuantity());
+                tool.setRentalPrice(slot.getSubtotal());
+                tool.setFullName(data.getReceiverName());
+                tool.setPhone(data.getReceiverPhone());
+                tool.setEmail(data.getUser().getEmail());
+                tool.setRentalDate(savedBooking.getBookingDate());
+                tool.setCreateAt(nowTs);
+                tool.setUpdateAt(nowTs);
+                rentalToolRepository.save(tool);
+
+                racket.setBookingStockQuantity(racket.getBookingStockQuantity() - slot.getQuantity());
+                racketRepository.save(racket);
+            }
+            savedBooking.setRentalToolCode("BUNDLED");
+            bookingRepository.save(savedBooking);
+        }
+
         Long tmpId = data.getTemporaryBookingId();
         if (tmpId != null) {
             temporaryBookingRepository.deleteById(tmpId);
@@ -301,5 +380,178 @@ public class BookingService {
     @Transactional
     public Page<BookingResponseDTO> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
         return bookingRepository.findByUserId(userId, pageable).map(bookingMapper::toDTO);
+    }
+
+    // ============================ Nhóm 2: Cancel + Refund ============================
+
+    /**
+     * User tự huỷ booking. Tính tiền hoàn theo loại đặt (ONE_TIME có gate 2h,
+     * WEEKLY theo tỉ lệ buổi còn lại), cascade huỷ rental ON_SITE đính kèm + trả stock,
+     * và tạo notification cho user + staff/admin.
+     */
+    @Transactional
+    public CancelBookingResponse cancelByUser(Long bookingId, Long userId, String reason) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + bookingId));
+
+        // 1. Verify ownership
+        if (booking.getUser() == null || booking.getUser().getId() != userId) {
+            throw new ForbiddenOperationException("Bạn không có quyền huỷ đơn đặt sân này.");
+        }
+
+        // 2. Kiểm tra trạng thái
+        BookingStatus status = booking.getStatus();
+        if (status == BookingStatus.DA_HUY) {
+            throw new BusinessConflictException("Booking đã được huỷ.");
+        }
+        if (status == BookingStatus.DA_THANH_TOAN) {
+            throw new BusinessConflictException("Đơn đã hoàn thành, không thể huỷ.");
+        }
+        if (!(status == BookingStatus.CHO_THANH_TOAN
+                || status == BookingStatus.DA_DAT
+                || status == BookingStatus.DA_DAT_COC)) {
+            throw new BusinessConflictException("Trạng thái đơn không cho phép huỷ.");
+        }
+
+        // 3. Tính refund
+        LocalDate today = LocalDate.now();
+        List<BookingDetail> details = booking.getBookingDetails() != null
+                ? booking.getBookingDetails() : new ArrayList<>();
+        boolean oneTime = booking.getBookingType() == null
+                || booking.getBookingType() == BookingType.ONE_TIME;
+
+        double refund;
+        int totalSessions;
+        int usedSessions;
+
+        if (oneTime) {
+            totalSessions = 1;
+            usedSessions = 0;
+            LocalTime time = booking.getAvailableTime() != null
+                    ? booking.getAvailableTime().getTime() : LocalTime.MIN;
+            LocalDateTime startDateTime = booking.getBookingDate().atTime(time);
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isAfter(startDateTime.minusHours(2))) {
+                long minutesToStart = java.time.Duration.between(now, startDateTime).toMinutes();
+                String msg = minutesToStart >= 0
+                        ? "Không thể huỷ trong vòng 2 tiếng trước giờ bắt đầu (còn " + minutesToStart + " phút)."
+                        : "Không thể huỷ vì đã qua giờ bắt đầu.";
+                throw new BusinessConflictException(msg);
+            }
+            refund = booking.getDepositPrice();
+        } else {
+            totalSessions = details.size();
+            usedSessions = (int) details.stream()
+                    .filter(d -> d.getDate() != null && d.getDate().isBefore(today))
+                    .count();
+            int remaining = totalSessions - usedSessions;
+            refund = totalSessions > 0 ? booking.getDepositPrice() * remaining / totalSessions : 0;
+        }
+
+        // 4. Cập nhật booking
+        RefundStatus refundStatus = refund > 0 ? RefundStatus.PENDING_REFUND : RefundStatus.NOT_APPLICABLE;
+        booking.setStatus(BookingStatus.DA_HUY);
+        booking.setCancelledAt(LocalDateTime.now());
+        booking.setUsedSessionsAtCancel(usedSessions);
+        booking.setTotalSessionsAtCancel(totalSessions);
+        booking.setCancelReason(reason);
+        booking.setRefundAmount(refund);
+        booking.setRefundStatus(refundStatus);
+        bookingRepository.save(booking);
+
+        // 5. Cascade rental ON_SITE đính kèm → CANCELLED + trả stock
+        List<RentalTool> tools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(bookingId));
+        for (RentalTool rt : tools) {
+            if (rt.getStatus() == RentalToolStatus.CANCELLED) continue;
+            rt.setStatus(RentalToolStatus.CANCELLED);
+            rt.setUpdateAt(LocalDateTime.now());
+            rentalToolRepository.save(rt);
+            if (rt.getRacketId() != null && rt.getQuantity() != null) {
+                racketRepository.findById(rt.getRacketId()).ifPresent(racket -> {
+                    racket.setBookingStockQuantity(racket.getBookingStockQuantity() + rt.getQuantity());
+                    racketRepository.save(racket);
+                });
+            }
+        }
+
+        // 6. Notifications
+        String userMsg = "Đơn đặt sân " + booking.getBookingCode() + " đã được huỷ. "
+                + (refund > 0
+                        ? "Số tiền hoàn dự kiến: " + formatVnd(refund) + ". Chúng tôi sẽ hoàn cọc sớm nhất."
+                        : "Không có cọc được hoàn.");
+        NotificationDTO userDto = NotificationDTO.from(notificationService.create(
+                userId, NotificationType.BOOKING_CANCELLED, "BOOKING", booking.getId(),
+                "Huỷ đặt sân thành công", userMsg));
+        notificationService.pushToUser(booking.getUser().getEmail(), userDto);
+
+        // Staff/admin chỉ cần biết khi có tiền hoàn (E11)
+        if (refund > 0) {
+            String staffTitle = "Yêu cầu hoàn cọc mới";
+            String staffMsg = "Booking " + booking.getBookingCode() + " (" + booking.getReceiverName()
+                    + ") đã huỷ, cần hoàn cọc " + formatVnd(refund) + ".";
+            NotificationDTO lastDto = null;
+            for (Long sid : notificationService.staffAndAdminUserIds()) {
+                lastDto = NotificationDTO.from(notificationService.create(
+                        sid, NotificationType.REFUND_REQUEST, "BOOKING", booking.getId(), staffTitle, staffMsg));
+            }
+            notificationService.pushToStaff(lastDto != null ? lastDto : NotificationDTO.builder()
+                    .type(NotificationType.REFUND_REQUEST.name()).refType("BOOKING").refId(booking.getId())
+                    .title(staffTitle).message(staffMsg).isRead(false).createdAt(LocalDateTime.now()).build());
+        }
+
+        return CancelBookingResponse.builder()
+                .refundAmount(refund)
+                .refundStatus(refundStatus.name())
+                .usedSessions(usedSessions)
+                .totalSessions(totalSessions)
+                .hotline(contactInfo.getHotline())
+                .email(contactInfo.getEmail())
+                .build();
+    }
+
+    /**
+     * Admin/staff xác nhận đã chuyển khoản hoàn cọc cho user. Idempotent nếu đã REFUNDED.
+     */
+    @Transactional
+    public void confirmRefund(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + bookingId));
+
+        if (booking.getStatus() != BookingStatus.DA_HUY) {
+            throw new BusinessConflictException("Chỉ có thể hoàn cọc cho đơn đã huỷ.");
+        }
+        if (booking.getRefundStatus() == RefundStatus.REFUNDED) {
+            return; // idempotent
+        }
+        if (booking.getRefundStatus() != RefundStatus.PENDING_REFUND) {
+            throw new BusinessConflictException("Đơn này không ở trạng thái chờ hoàn cọc.");
+        }
+
+        booking.setRefundStatus(RefundStatus.REFUNDED);
+        bookingRepository.save(booking);
+
+        String msg = "Cọc đơn " + booking.getBookingCode() + " đã được hoàn"
+                + (booking.getRefundAmount() != null ? " (" + formatVnd(booking.getRefundAmount()) + ")" : "")
+                + ". Vui lòng kiểm tra tài khoản.";
+        if (booking.getUser() != null) {
+            NotificationDTO dto = NotificationDTO.from(notificationService.create(
+                    booking.getUser().getId(), NotificationType.REFUND_DONE, "BOOKING", booking.getId(),
+                    "Đã hoàn cọc", msg));
+            notificationService.pushToUser(booking.getUser().getEmail(), dto);
+        }
+    }
+
+    private String formatVnd(double amount) {
+        return String.format("%,.0f VNĐ", amount);
+    }
+
+    @Transactional
+    public Page<BookingResponseDTO> fetchRefundRequests(String refundStatus, Pageable pageable) {
+        if (refundStatus != null && !refundStatus.isBlank()) {
+            RefundStatus rs = RefundStatus.valueOf(refundStatus);
+            return bookingRepository.findByRefundStatus(rs, pageable).map(bookingMapper::toDTO);
+        }
+        // "Tất cả" — mọi booking đã huỷ
+        return bookingRepository.findByStatus(BookingStatus.DA_HUY, pageable).map(bookingMapper::toDTO);
     }
 }

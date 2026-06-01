@@ -1,7 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\refactor_do_an\" -Directory | Select-Object -First 20 | ForEach-Object { Write-Output \"[$\\($_.Name\\)]\" })"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\refactor_do_an\" -Directory | Select-Object -First 20 | ForEach-Object { Write-Output \"[$\\($_.Name\\)]\" })",
+      "Bash(./mvnw.cmd -q compile -o)",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
+      "Bash(npx ng *)",
+      "Bash(rm -f \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an/build_err.txt\" && echo \"removed\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('ng2-charts', \\(p.dependencies||{}\\)['ng2-charts']\\); console.log\\('chart.js', \\(p.dependencies||{}\\)['chart.js']\\);\")",
+      "Bash(mysql -h127.0.0.1 -P3309 -uroot -proot pickleball -e \"SELECT status, COUNT\\(*\\) c, MIN\\(booking_date\\) mind, MAX\\(booking_date\\) maxd FROM booking GROUP BY status;\")",
+      "PowerShell(docker exec pickleball-db mysql -uroot -proot pickleball -e \"SELECT rt.id rt_id, rt.status rt_status, rt.booking_id, b.id b_id, b.status b_status, b.booking_date FROM rental_tool rt LEFT JOIN booking b ON rt.booking_id = b.id WHERE rt.status='COMPLETED';\" 2>$null)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\core\\services",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\booking",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\environments",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\shared\\components\\notification-bell",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src",
+      "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an"
     ]
   }
 }
