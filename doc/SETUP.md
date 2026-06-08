@@ -5,7 +5,7 @@ Tài liệu này hướng dẫn cách cài đặt và chạy dự án Badminton 
 ## 1. Yêu cầu hệ thống
 Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đặt các công cụ sau:
 - **Java JDK 17** (hoặc mới hơn)
-- **Node.js** (Phiên bản LTS) & **npm**
+- **Node.js** (Phiên bản LTS) & **npm** (node -v: v24.14.0)
 - **MySQL 8.0**
 - **Redis Server**
 - **Maven** (Tùy chọn, có thể dùng `./mvnw` đi kèm trong thư mục backend)
