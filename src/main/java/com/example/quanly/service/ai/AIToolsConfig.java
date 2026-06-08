@@ -1,5 +1,6 @@
 package com.example.quanly.service.ai;
 
+import com.example.quanly.config.HoldPolicy;
 import com.example.quanly.domain.AvailableTime;
 import com.example.quanly.domain.SubCourt;
 import com.example.quanly.domain.BookingDetail;
@@ -30,16 +31,19 @@ public class AIToolsConfig {
     private final BookingDetailRepository bookingDetailRepository;
     private final TemporaryBookingRepository temporaryBookingRepository;
     private final BookingStatsService bookingStatsService;
+    private final HoldPolicy holdPolicy;
 
     public AIToolsConfig(SubCourtRepository subCourtRepository, TimeRepository timeRepository,
             BookingDetailRepository bookingDetailRepository,
             TemporaryBookingRepository temporaryBookingRepository,
-            BookingStatsService bookingStatsService) {
+            BookingStatsService bookingStatsService,
+            HoldPolicy holdPolicy) {
         this.subCourtRepository = subCourtRepository;
         this.timeRepository = timeRepository;
         this.bookingDetailRepository = bookingDetailRepository;
         this.temporaryBookingRepository = temporaryBookingRepository;
         this.bookingStatsService = bookingStatsService;
+        this.holdPolicy = holdPolicy;
     }
 
     public record CourtInfo(String clusterName, String courtName, String region, String addressDetail) {}
@@ -84,7 +88,7 @@ public class AIToolsConfig {
                 List<TemporaryBooking> temporaryBookings = temporaryBookingRepository
                         .findBySubCourtAndBookingDate(court, date);
                 Set<Long> heldTimeIds = temporaryBookings.stream()
-                        .filter(tb -> !tb.isExpired())
+                        .filter(tb -> !tb.isExpired(holdPolicy.getHoldDuration()))
                         .map(tb -> tb.getAvailableTime().getId())
                         .collect(Collectors.toSet());
 

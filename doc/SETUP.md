@@ -13,7 +13,7 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
 ---
 
 ## 2. Cấu trúc dự án
-- `refactor_do_an/`: Chứa mã nguồn **Backend** (Spring Boot).
+- `backend_do_an/`: Chứa mã nguồn **Backend** (Spring Boot).
 - `fontend_do_an/`: Chứa mã nguồn **Frontend** (Angular).
 
 ---
@@ -22,7 +22,7 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
 Dự án sử dụng MySQL để lưu trữ dữ liệu.
 1. Khởi chạy MySQL Server.
 2. Tạo một database mới có tên là `sancaulong1`.
-3. Kiểm tra cấu hình kết nối trong file `refactor_do_an/src/main/resources/application.properties`:
+3. Kiểm tra cấu hình kết nối trong file `backend_do_an/src/main/resources/application.properties`:
    ```properties
    spring.datasource.url=jdbc:mysql://localhost:3307/sancaulong1?createDatabaseIfNotExist=true
    spring.datasource.username=root

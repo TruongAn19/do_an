@@ -6,6 +6,7 @@ import com.example.quanly.domain.BookingStatus;
 import com.example.quanly.domain.SubCourt;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -43,6 +44,14 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
       @Param("status") BookingStatus status);
 
   List<BookingDetail> findByBookingId(long id);
+
+  /**
+   * A1: khi booking bị huỷ phải xoá active_slot_key của mọi BookingDetail thuộc booking đó,
+   * để slot được giải phóng (NULL được phép trùng) — nếu không, đặt lại slot sẽ dính UNIQUE.
+   */
+  @Modifying
+  @Query("UPDATE BookingDetail bd SET bd.activeSlotKey = NULL WHERE bd.booking.id = :bookingId")
+  void clearActiveSlotKeyByBooking(@Param("bookingId") long bookingId);
 
   @Query("""
           SELECT bd.product.id

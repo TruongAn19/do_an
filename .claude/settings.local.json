@@ -11,7 +11,22 @@
       "Bash(npx --prefix \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an\" --no-install tsc --noEmit -p \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an/tsconfig.json\")",
       "Bash(npx --prefix \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an\" tsc --noEmit -p \"c:/Users/An/OneDrive/Documents/source/Persion/fontend_do_an/tsconfig.json\")",
       "PowerShell($feRoot = \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\"; Push-Location $feRoot; try { & npx tsc --noEmit -p \"$feRoot\\\\tsconfig.json\" 2>&1 | Select-Object -Last 40 } finally { Pop-Location })",
-      "PowerShell($feRoot = \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\"; Push-Location $feRoot; try { & npx tsc --noEmit -p \"$feRoot\\\\tsconfig.json\"; \"ExitCode=$LASTEXITCODE\" } finally { Pop-Location })"
+      "PowerShell($feRoot = \"c:\\\\Users\\\\An\\\\OneDrive\\\\Documents\\\\source\\\\Persion\\\\fontend_do_an\"; Push-Location $feRoot; try { & npx tsc --noEmit -p \"$feRoot\\\\tsconfig.json\"; \"ExitCode=$LASTEXITCODE\" } finally { Pop-Location })",
+      "PowerShell(.\\\\mvnw.cmd -Dtest=BookingSlotConstraintTest test -q 2>&1)",
+      "PowerShell(.\\\\mvnw.cmd -Dtest=SecurityTests test -q 2>&1)",
+      "PowerShell(.\\\\mvnw.cmd test 2>&1)",
+      "PowerShell(.\\\\mvnw.cmd -Dtest=RentalStockConfirmTest test -q 2>&1)",
+      "Bash(./mvnw -q -Dtest=PendingBookingIdempotencyTest,RentalStockConfirmTest,BookingSlotConstraintTest test)",
+      "Bash(./mvnw -Dtest=PendingBookingIdempotencyTest,RentalStockConfirmTest,BookingSlotConstraintTest test)",
+      "Bash(./mvnw test *)",
+      "Bash(mysql -h127.0.0.1 -P3307 -uroot -proot sancaulong1 -e \"SELECT id, name, booking_stock_quantity, quantity, available FROM racket ORDER BY id;\")",
+      "Bash(where mysql.exe)",
+      "Bash(where mysqlsh.exe)",
+      "Bash(docker exec *)",
+      "Bash(./mvnw -q compile)",
+      "Bash(grep -h tests= target/surefire-reports/com.example.quanly.__TRACKED_VAR__.xml)",
+      "Bash(xargs -I{} sh -c 'grep -o \"testsuite[^>]*\" \"{}\" | head -1')",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\An\\OneDrive\\Documents\\source\\Persion\\fontend_do_an\\src\\app\\features\\rackets",

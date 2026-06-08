@@ -1,5 +1,6 @@
 package com.example.quanly.service;
 
+import com.example.quanly.config.HoldPolicy;
 import com.example.quanly.domain.TemporaryBooking;
 import com.example.quanly.repository.TemporaryBookingRepository;
 import jakarta.transaction.Transactional;
@@ -14,11 +15,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TemporaryBookingCleaner {
 
-    /** Phải khớp với {@link TemporaryBooking#isExpired()} — buffer 3 phút sau holdStartTime. */
-    private static final int HOLD_EXPIRY_MINUTES = 3;
-
     private final TemporaryBookingRepository temporaryBookingRepository;
     private final SlotEventPublisher slotEventPublisher;
+    private final HoldPolicy holdPolicy;
 
     @Scheduled(fixedRate = 60000) // chạy mỗi 60 giây
     @Transactional
@@ -26,7 +25,7 @@ public class TemporaryBookingCleaner {
         // Chỉ load các hold đã expired (không phải cả bảng) — quan trọng khi WEEKLY_RECURRING
         // có thể sinh nhiều hold cùng lúc. Query JOIN FETCH subCourt/availableTime để event
         // publish bên dưới không trigger N+1.
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(HOLD_EXPIRY_MINUTES);
+        LocalDateTime cutoff = LocalDateTime.now().minus(holdPolicy.getHoldDuration());
         List<TemporaryBooking> expired = temporaryBookingRepository.findExpiredHoldsForCleanup(cutoff);
         if (expired.isEmpty()) {
             return;

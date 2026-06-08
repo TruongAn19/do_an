@@ -25,12 +25,17 @@ public class RentalTool implements Serializable {
     private double rentalPrice;
     @Enumerated(EnumType.STRING)
     private RentalToolStatus status;  // PENDING,
+
+    @Enumerated(EnumType.STRING)
+    private RefundStatus refundStatus = RefundStatus.NOT_APPLICABLE;
+
     private Integer quantity;
     private Integer quantityDay;
     private LocalDate rentalDate;
     private LocalDate returnDate;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
+    private LocalDateTime cancelledAt;
     private String rentalToolCode;
 
     private Long userId;

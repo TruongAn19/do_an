@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
@@ -53,6 +54,11 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     Page<RentalTool> findRentalByUserId(Long id, Pageable pageable);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
+
+    // Đơn thuê PENDING quá hạn thanh toán — CHỈ DAILY standalone (ON_SITE cũng ở PENDING nhưng
+    // gắn booking, do BookingService cascade lo, không được job tự huỷ).
+    List<RentalTool> findByStatusAndTypeAndCreateAtBefore(
+            RentalToolStatus status, RentalType type, LocalDateTime threshold);
 
     Page<RentalTool> findByType(RentalType type, Pageable pageable);
 

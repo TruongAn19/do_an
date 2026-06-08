@@ -10,6 +10,7 @@ import com.example.quanly.domain.PaymentType;
 import com.example.quanly.domain.dto.PaymentRequest;
 import com.example.quanly.domain.dto.PlaceBookingRequest;
 import com.example.quanly.domain.dto.ProductResponseDTO;
+import com.example.quanly.config.HoldPolicy;
 import jakarta.validation.Valid;
 import com.example.quanly.domain.dto.VnpayResponse;
 import com.example.quanly.repository.*;
@@ -58,6 +59,7 @@ public class BookingClientController {
     RecommendationService recommendationService;
     SecurityUtils securityUtils;
     SlotEventPublisher slotEventPublisher;
+    HoldPolicy holdPolicy;
 
     @GetMapping("/recommend/{productId}")
     public ResponseEntity<ApiResponse<List<AvailableTimeDTO>>> getRecommendations(
@@ -107,7 +109,7 @@ public class BookingClientController {
         // Lấy danh sách các khung giờ đang bị giữ tạm thời và chưa hết hạn
         List<TemporaryBooking> temporaryBookings = temporaryBookingRepository.findBySubCourtAndBookingDate(court, date);
         Set<Long> heldTimeIds = temporaryBookings.stream()
-                .filter(tb -> !tb.isExpired())
+                .filter(tb -> !tb.isExpired(holdPolicy.getHoldDuration()))
                 .map(tb -> tb.getAvailableTime().getId())
                 .collect(Collectors.toSet());
 
@@ -137,7 +139,10 @@ public class BookingClientController {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getId();
 
-        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
+        // A6: Thời gian giữ chỗ động lấy từ bean cấu hình HoldPolicy (${booking.hold.duration-minutes})
+        int holdMinutes = holdPolicy.getDurationMinutes();
+        int holdSeconds = holdMinutes * 60;
+        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(holdMinutes);
         temporaryBookingRepository.deleteExpiredHolds(expiryTime);
         temporaryBookingRepository.flush();
 
@@ -153,13 +158,13 @@ public class BookingClientController {
 
         if (existingOpt.isPresent()) {
             TemporaryBooking existing = existingOpt.get();
-            if (existing.isExpired()) {
+            if (existing.isExpired(holdPolicy.getHoldDuration())) {
                 temporaryBookingRepository.delete(existing);
                 temporaryBookingRepository.flush();
             } else {
                 if (!existing.getUserId().equals(userId)) {
                     long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
-                    long remaining = Math.max(180 - elapsed, 0);
+                    long remaining = Math.max(holdSeconds - elapsed, 0);
                     return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
                             .<Map<String, Object>>builder()
                             .status(409)
@@ -170,12 +175,21 @@ public class BookingClientController {
                     existing.setHoldStartTime(now);
                     temporaryBookingRepository.save(existing);
                     slotEventPublisher.publishHeld(court.getId(), time.getId(),
-                            holdRequest.getBookingDate(), userId, now.plusMinutes(3));
+                            holdRequest.getBookingDate(), userId, now.plusMinutes(holdMinutes));
                     return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                             .status(200).message("Tiếp tục giữ sân tạm thời")
-                            .data(Map.of("remainingTime", 180)).build());
+                            .data(Map.of("remainingTime", (long) holdSeconds)).build());
                 }
             }
+        }
+        // --- NẾU ĐI TỚI ĐÂY, CHẮC CHẮN LÀ TẠO MỚI ---
+        long activeHolds = temporaryBookingRepository.countActiveHoldsByUser(userId, expiryTime);
+        if (activeHolds >= maxActiveHoldsPerUser) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(429)
+                            .message("Bạn đã đạt giới hạn tối đa giữ chỗ active. Vui lòng hoàn tất thanh toán hoặc chờ hết hạn.")
+                            .build());
         }
 
         TemporaryBooking newHold = new TemporaryBooking();
@@ -187,11 +201,11 @@ public class BookingClientController {
         temporaryBookingRepository.save(newHold);
 
         slotEventPublisher.publishHeld(court.getId(), time.getId(),
-                holdRequest.getBookingDate(), userId, now.plusMinutes(3));
+                holdRequest.getBookingDate(), userId, now.plusMinutes(holdMinutes));
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Giữ sân tạm thời thành công")
-                .data(Map.of("remainingTime", 180)).build());
+                .data(Map.of("remainingTime", (long) holdSeconds)).build());
     }
 
     @PostMapping("/place")
@@ -235,6 +249,10 @@ public class BookingClientController {
     @lombok.experimental.NonFinal
     @org.springframework.beans.factory.annotation.Value("${app.contact.email:admin@badmintonhub.vn}")
     private String contactEmail;
+
+    @lombok.experimental.NonFinal
+    @org.springframework.beans.factory.annotation.Value("${booking.hold.max-active-per-user:5}")
+    private int maxActiveHoldsPerUser;
 
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<com.example.quanly.domain.dto.CancelBookingResponse>> cancelBooking(

@@ -69,6 +69,15 @@ class SecurityTests {
     }
 
     @Test
+    @DisplayName("POST /api/v1/rentals/{id}/cancel không có token → 401")
+    void whenCancelRentalWithoutToken_thenUnauthorized() throws Exception {
+        // Khẳng định endpoint cancel KHÔNG lọt nhóm permitAll (vd /api/v1/rentals/*/rackets)
+        mockMvc.perform(post("/api/v1/rentals/1/cancel")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("POST /api/v1/client/bookings/hold không có token → 401")
     void whenHoldCourtWithoutToken_thenUnauthorized() throws Exception {
         mockMvc.perform(post("/api/v1/client/bookings/hold")

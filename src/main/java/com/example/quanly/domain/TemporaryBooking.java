@@ -3,6 +3,7 @@ package com.example.quanly.domain;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -28,8 +29,8 @@ public class TemporaryBooking {
 
     private LocalDateTime holdStartTime;
 
-    public boolean isExpired() {
-        return holdStartTime.plusMinutes(3).isBefore(LocalDateTime.now());
+    public boolean isExpired(Duration holdDuration) {
+        return holdStartTime.plus(holdDuration).isBefore(LocalDateTime.now());
     }
 
 }

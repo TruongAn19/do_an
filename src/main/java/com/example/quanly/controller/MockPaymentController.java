@@ -42,7 +42,8 @@ public class MockPaymentController {
         String confirmBase = "/api/v1/mock-payment/confirm"
                 + "?txnRef=" + encode(txnRef)
                 + "&orderInfo=" + encode(orderInfo)
-                + "&returnUrl=" + encode(returnUrl);
+                + "&returnUrl=" + encode(returnUrl)
+                + "&amount=" + encode(amount);
         String safeOrderInfo = orderInfo.replace("%", "%%");
 
         String html = """
@@ -85,12 +86,16 @@ public class MockPaymentController {
             @RequestParam String orderInfo,
             @RequestParam String returnUrl,
             @RequestParam String success,
+            @RequestParam(required = false) String amount,
             HttpServletResponse response) throws IOException {
 
         TreeMap<String, String> params = new TreeMap<>();
         params.put("vnp_OrderInfo", orderInfo);
         params.put("vnp_ResponseCode", "true".equals(success) ? "00" : "24");
         params.put("vnp_TxnRef", txnRef);
+        if (amount != null) {
+            params.put("vnp_Amount", amount);
+        }
 
         String hashData = VnpayUtil.getPaymentURL(params, false);
         String secureHash = VnpayUtil.hmacSHA512(vnpayConfig.getSecretKey(), hashData);
@@ -99,7 +104,7 @@ public class MockPaymentController {
                 + VnpayUtil.getPaymentURL(params, true)
                 + "&vnp_SecureHash=" + secureHash;
 
-        log.info("Mock payment confirm: success={}, orderInfo={}, returnUrl={}", success, orderInfo, returnUrl);
+        log.info("Mock payment confirm: success={}, orderInfo={}, returnUrl={}, amount={}", success, orderInfo, returnUrl, amount);
         response.sendRedirect(callbackUrl);
     }
 

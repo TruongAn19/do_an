@@ -45,6 +45,15 @@ public class PendingBookingCache {
     private static final Duration TTL = BookingService.PAYMENT_HOLD_WINDOW.plus(Duration.ofMinutes(2));
     private static final String KEY_PREFIX = "pending-booking:";
 
+    /**
+     * Marker kết quả: sau khi confirm thành công ghi {@code pending-booking-result:{id}} → bookingCode.
+     * Dùng để phân biệt callback TRÙNG LẶP (đã tạo booking, key snapshot đã bị consume nhưng marker còn)
+     * với phiên HẾT HẠN/không tồn tại thật (không có marker). TTL ngắn vài phút là đủ vì VNPay chỉ
+     * gọi lại callback trong cửa sổ ngắn (IPN + redirect).
+     */
+    private static final String RESULT_PREFIX = "pending-booking-result:";
+    private static final Duration RESULT_TTL = Duration.ofMinutes(5);
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper baseObjectMapper;
     private final UserRepository userRepository;
@@ -99,6 +108,47 @@ public class PendingBookingCache {
     public void remove(long pendingId) {
         redisTemplate.delete(KEY_PREFIX + pendingId);
         log.debug("Xóa pending booking khỏi Redis: pendingId={}", pendingId);
+    }
+
+    /**
+     * Lấy snapshot và xoá NGUYÊN TỬ trong một thao tác Redis ({@code GETDEL} qua
+     * {@code opsForValue().getAndDelete}). Đảm bảo idempotent dưới điều kiện đồng thời: VNPay có thể
+     * gọi callback nhiều lần (IPN + redirect) — chỉ callback "giành" được snapshot mới xử lý tiếp,
+     * các callback còn lại nhận {@link Optional#empty()}.
+     *
+     * <p>Khác với {@code get()} + {@code remove()} tách rời (hai callback cùng đọc trước khi bên nào
+     * xoá → một lần trả tiền tạo hai booking), {@code GETDEL} là atomic ở phía Redis server.
+     */
+    public Optional<PendingBookingData> getAndRemove(long pendingId) {
+        String json = redisTemplate.opsForValue().getAndDelete(KEY_PREFIX + pendingId);
+        if (json == null) {
+            return Optional.empty();
+        }
+        try {
+            PendingBookingSnapshot snapshot = jsonMapper.readValue(json, PendingBookingSnapshot.class);
+            return Optional.of(rehydrate(snapshot));
+        } catch (JsonProcessingException e) {
+            // Key đã bị xoá rồi; dữ liệu hỏng đằng nào cũng vô dụng nên chỉ log.
+            log.error("Không thể deserialize pending booking pendingId={}: {}", pendingId, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Ghi marker kết quả sau khi confirm thành công, để callback trùng lặp (snapshot đã bị consume)
+     * vẫn phân biệt được với phiên hết hạn thật. Xem {@link #RESULT_PREFIX}.
+     */
+    public void storeResult(long pendingId, String bookingCode) {
+        redisTemplate.opsForValue().set(RESULT_PREFIX + pendingId, bookingCode, RESULT_TTL);
+        log.debug("Lưu marker kết quả: pendingId={}, bookingCode={}", pendingId, bookingCode);
+    }
+
+    /**
+     * Đọc marker kết quả. Có giá trị → callback này là bản trùng của một lần thanh toán đã tạo booking
+     * thành công trước đó. Rỗng → phiên hết hạn/không tồn tại thật.
+     */
+    public Optional<String> getResult(long pendingId) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(RESULT_PREFIX + pendingId));
     }
 
     private PendingBookingSnapshot toSnapshot(PendingBookingData data) {

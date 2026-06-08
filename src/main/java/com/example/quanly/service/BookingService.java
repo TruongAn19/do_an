@@ -4,6 +4,7 @@ import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.domain.dto.PendingBookingData;
 import com.example.quanly.domain.dto.PreparedBookingResult;
+import com.example.quanly.config.HoldPolicy;
 import com.example.quanly.mapper.BookingMapper;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.pricing.BookingContext;
@@ -47,10 +48,12 @@ public class BookingService {
     public static final Duration PAYMENT_HOLD_WINDOW = Duration.ofMinutes(18);
 
     /**
-     * Phải khớp với hằng số "3 phút" trong {@link com.example.quanly.domain.TemporaryBooking#isExpired()}.
+     * Lấy thời gian giữ chỗ (grace period) động từ cấu hình TemporaryBooking.
      * Dùng để tính holdStartTime tương lai sao cho hold expire đúng vào {@code now + PAYMENT_HOLD_WINDOW}.
      */
-    private static final Duration HOLD_EXPIRY_GRACE = Duration.ofMinutes(3);
+    private Duration getHoldExpiryGrace() {
+        return holdPolicy.getHoldDuration();
+    }
 
     BookingRepository bookingRepository;
     BookingDetailRepository bookingDetailRepository;
@@ -65,6 +68,7 @@ public class BookingService {
     PricingService pricingService;
     PendingBookingCache pendingBookingCache;
     NotificationService notificationService;
+    HoldPolicy holdPolicy;
     SlotEventPublisher slotEventPublisher;
 
     public Page<BookingResponseDTO> fetchAllBookings(Pageable pageable) {
@@ -93,6 +97,7 @@ public class BookingService {
         this.bookingRepository.deleteById(id);
     }
 
+    @Transactional
     public void updateBooking(long id, String status) {
         Optional<Booking> bOptional = this.bookingRepository.findById(id);
         if (bOptional.isEmpty())
@@ -100,6 +105,11 @@ public class BookingService {
         Booking currentBooking = bOptional.get();
         currentBooking.setStatus(BookingStatus.fromLabel(status));
         this.bookingRepository.save(currentBooking);
+
+        // A1: admin huỷ qua đây cũng phải giải phóng slot (xoá active_slot_key) để đặt lại được.
+        if (currentBooking.getStatus() == BookingStatus.DA_HUY) {
+            bookingDetailRepository.clearActiveSlotKeyByBooking(id);
+        }
 
         // Khi booking được thanh toán đầy đủ tại sân: cascade trạng thái cho mọi rental ON_SITE
         // gắn kèm → COMPLETED, đồng thời trả lại stock vợt (user đã trả vợt khi thanh toán).
@@ -232,7 +242,7 @@ public class BookingService {
         }
 
         TemporaryBooking hold = tempHold.get();
-        if (hold.isExpired()) {
+        if (hold.isExpired(holdPolicy.getHoldDuration())) {
             temporaryBookingRepository.delete(hold);
             throw new IllegalArgumentException("Phiên giữ chỗ đã hết hạn.");
         }
@@ -254,7 +264,7 @@ public class BookingService {
 
                 if (existingOpt.isPresent()) {
                     TemporaryBooking existing = existingOpt.get();
-                    if (existing.isExpired()) {
+                    if (existing.isExpired(holdPolicy.getHoldDuration())) {
                         temporaryBookingRepository.delete(existing);
                         temporaryBookingRepository.flush();
                     } else if (!existing.getUserId().equals(user.getId())) {
@@ -338,7 +348,8 @@ public class BookingService {
         double totalBookingFullPrice = totalBookingPrice + rentalTotal;
 
         // 9. Gia hạn hold để cover cửa sổ thanh toán VNPay.
-        // Trick: TemporaryBooking.isExpired() = holdStartTime + 3 min < now (xem entity).
+        // Trick: TemporaryBooking.isExpired(grace) = holdStartTime + grace < now (xem entity),
+        // với grace = holdPolicy.getHoldDuration() (mặc định 3 min).
         // Để hold sống tới now + PAYMENT_HOLD_WINDOW (18 min), set holdStartTime vào tương lai
         // = now + (PAYMENT_HOLD_WINDOW - HOLD_EXPIRY_GRACE) = now + 15 min. Khi đó scheduled
         // cleaner sẽ không xoá hold cho tới đúng phút thứ 18.
@@ -408,15 +419,49 @@ public class BookingService {
             detail.setDate(slot.getDate());
             detail.setSale(slot.getSale());
             detail.setAvailableTime(data.getAvailableTime());
+            // A1: khóa chống trùng slot ở tầng DB (nguồn đảm bảo cuối cùng)
+            detail.setActiveSlotKey(
+                    data.getSubCourt().getId() + "-" + data.getAvailableTime().getId() + "-" + slot.getDate());
             details.add(detail);
         }
-        bookingDetailRepository.saveAll(details);
+        // saveAllAndFlush: ép vi phạm UNIQUE nổ NGAY trong try (không hoãn tới lúc commit
+        // ngoài tầm catch). Nếu hai callback VNPay chạy song song cùng chiếm một slot,
+        // chỉ một bên insert thành công; bên còn lại dính DataIntegrityViolationException.
+        try {
+            bookingDetailRepository.saveAllAndFlush(details);
+        } catch (DataIntegrityViolationException ex) {
+            // Slot bị người khác chiếm trong lúc thanh toán -> rollback toàn bộ confirm,
+            // không tạo booking nửa vời. Message giữ đúng format nhánh collision check ở trên
+            // để PaymentController tiếp tục trả 409.
+            LocalDate d = data.getSlots().get(0).getDate();
+            log.error("Vi phạm ràng buộc trùng slot khi confirm (pendingId snapshot): subCourt={}, time={}, date={}",
+                    data.getSubCourt().getId(), data.getAvailableTime().getId(), d);
+            throw new IllegalStateException("Sân đã bị đặt bởi người khác trong lúc thanh toán (ngày "
+                    + d.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
+        }
 
         // Tạo RentalTool cho từng vợt thuê kèm (nếu có)
         if (data.getRentals() != null && !data.getRentals().isEmpty()) {
             List<RentalTool> rentalTools = new ArrayList<>();
-            for (PendingBookingData.RentalSlot rs : data.getRentals()) {
-                Racket racket = rs.getRacket();
+
+            // A2: acquire lock theo thứ tự racketId tăng dần để hai confirm song song
+            // khoá vợt cùng thứ tự -> tránh deadlock.
+            List<PendingBookingData.RentalSlot> orderedRentals = new ArrayList<>(data.getRentals());
+            orderedRentals.sort(java.util.Comparator.comparing(rs -> rs.getRacket().getId()));
+
+            for (PendingBookingData.RentalSlot rs : orderedRentals) {
+                // A2: load lại racket có khoá ghi bi quan và RE-CHECK tồn kho. Giữa prepare và
+                // confirm (tới 18 phút) booking khác có thể đã trừ stock; check lúc prepare là
+                // chưa đủ. Thiếu hàng -> IllegalStateException -> controller trả 409 + rollback
+                // toàn bộ transaction confirm (không tạo booking nửa vời).
+                Racket racket = racketRepository.findByIdForUpdate(rs.getRacket().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy vợt ID: " + rs.getRacket().getId()));
+                if (racket.getBookingStockQuantity() < rs.getQuantity()) {
+                    throw new IllegalStateException(
+                            "Vợt \"" + racket.getName() + "\" đã hết hàng trong lúc thanh toán.");
+                }
+
                 RentalTool rt = new RentalTool();
                 rt.setFullName(data.getReceiverName());
                 rt.setEmail(data.getUser().getEmail());
@@ -440,7 +485,7 @@ public class BookingService {
                 rt.setUserId(data.getUser().getId());
                 rentalTools.add(rt);
 
-                // Trừ stock
+                // Trừ stock trên entity ĐÃ khoá
                 racket.setBookingStockQuantity(racket.getBookingStockQuantity() - rs.getQuantity());
                 racketRepository.save(racket);
             }
@@ -465,11 +510,11 @@ public class BookingService {
 
     /**
      * Tính holdStartTime cần set để TemporaryBooking sống được {@code PAYMENT_HOLD_WINDOW}
-     * kể từ {@code now}. Trick: vì {@code isExpired() = holdStartTime + 3min < now},
-     * ta dịch holdStartTime ra tương lai để bù trừ.
+     * kể từ {@code now}. Trick: vì {@code isExpired(grace) = holdStartTime + grace < now},
+     * ta dịch holdStartTime ra tương lai để bù trừ theo thời gian giữ chỗ động.
      */
     private LocalDateTime computeExtendedHoldStart(LocalDateTime now) {
-        return now.plus(PAYMENT_HOLD_WINDOW).minus(HOLD_EXPIRY_GRACE);
+        return now.plus(PAYMENT_HOLD_WINDOW).minus(getHoldExpiryGrace());
     }
 
     private void deleteAllHolds(PendingBookingData data) {
@@ -582,6 +627,9 @@ public class BookingService {
         booking.setTotalSessionsAtCancel(total);
         booking.setCancelReason(reason);
         bookingRepository.save(booking);
+
+        // A1: giải phóng slot — xoá active_slot_key để booking khác có thể đặt lại slot này.
+        bookingDetailRepository.clearActiveSlotKeyByBooking(bookingId);
 
         // D0.4: Cascade rental ON_SITE đính kèm
         List<RentalTool> attachedRentals = rentalToolRepository

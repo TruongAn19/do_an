@@ -12,10 +12,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
 
 @Entity
-@Table(name = "booking_detail")
+@Table(name = "booking_detail",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_booking_detail_active_slot",
+                columnNames = "active_slot_key"))
 @Data
 public class BookingDetail {
     @Id
@@ -24,6 +28,11 @@ public class BookingDetail {
 
     private double price;
     private long sale;
+
+    // A1: khóa chống trùng slot cho booking ĐANG active; NULL khi booking đã huỷ.
+    // NULL được phép trùng (cả MySQL lẫn H2) -> slot đã huỷ vẫn cho đặt lại.
+    @Column(name = "active_slot_key", length = 64)
+    private String activeSlotKey;
 
     
     @ManyToOne

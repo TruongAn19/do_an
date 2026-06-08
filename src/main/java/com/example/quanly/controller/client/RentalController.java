@@ -98,4 +98,29 @@ public class RentalController {
                 .status(200).message("Thuê vợt thành công")
                 .data(Map.of("rentalToolId", rentalTool.getId())).build());
     }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cancelRental(@PathVariable Long id) {
+        RentalTool rentalTool = rentalToolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
+
+        User currentUser = securityUtils.getCurrentUser();
+        if (!rentalTool.getUserId().equals(currentUser.getId())) {
+            throw new ForbiddenOperationException("Bạn không có quyền huỷ đơn thuê này");
+        }
+
+        try {
+            rentalToolService.cancelRental(id);
+        } catch (IllegalStateException ex) {
+            // Đơn đã COMPLETED → 409 (giống cách PaymentController bắt IllegalStateException của confirm).
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(409).message(ex.getMessage()).build());
+        }
+
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Huỷ đơn thuê thành công")
+                .data(Map.of("rentalToolId", id, "status", RentalToolStatus.CANCELLED.name()))
+                .build());
+    }
 }

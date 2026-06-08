@@ -63,4 +63,12 @@ public class RentalToolController {
                 return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
                                 .status(200).message("Cập nhật trạng thái thành công").data(updated).build());
         }
+
+        @PutMapping("/{id}/refund")
+        public ResponseEntity<ApiResponse<RentalToolDTO>> confirmRefund(@PathVariable Long id) {
+                rentalToolService.confirmRefund(id);
+                RentalToolDTO updated = rentalToolService.getRentalToolById(id);
+                return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
+                                .status(200).message("Đã đánh dấu hoàn cọc thành công").data(updated).build());
+        }
 }

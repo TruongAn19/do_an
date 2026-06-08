@@ -3,6 +3,7 @@ package com.example.quanly.service;
 import com.example.quanly.domain.Racket;
 import com.example.quanly.domain.RacketStockByDate;
 import com.example.quanly.domain.dto.CheckStockRequest;
+import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.repository.RacketRepository;
 import com.example.quanly.repository.RacketStockByDateRepository;
 import lombok.AccessLevel;
@@ -71,7 +72,30 @@ public class RacketStockByDateService {
         racketStockByDateRepository.saveAll(stocks);
     }
 
+    /**
+     * Trả tồn kho theo ngày cho 1 vợt. Nếu chưa có row cho ngày đó (vd job
+     * {@link #generateStockByDate()} chưa chạy tới ngày này, hoặc người dùng chọn ngày ngoài cửa sổ
+     * 7 ngày), TẠO MỚI on-demand từ {@code racket.quantity} thay vì trả {@code null} — tránh hiển thị
+     * "hết hàng" giả khi thực ra chưa có ai thuê ngày đó.
+     */
+    @Transactional
     public RacketStockByDate getStock(CheckStockRequest request) {
-        return racketStockByDateRepository.findByRacketAndDate(request.getRacketId(), request.getDate());
+        return racketStockByDateRepository
+                .findByRacketIdAndDate(request.getRacketId(), request.getDate())
+                .orElseGet(() -> createDefaultStock(request.getRacketId(), request.getDate()));
+    }
+
+    /** Khởi tạo row tồn kho mặc định cho (racket, date): khả dụng = tổng = racket.quantity. */
+    private RacketStockByDate createDefaultStock(Long racketId, LocalDate date) {
+        Racket racket = racketRepository.findById(racketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vợt id=" + racketId));
+        RacketStockByDate stock = new RacketStockByDate();
+        stock.setRacketId(racketId);
+        stock.setDate(date);
+        stock.setTotalStock(racket.getQuantity());
+        stock.setAvailableStock(racket.getQuantity());
+        stock.setReservedStock(0);
+        stock.setRentalStock(0);
+        return racketStockByDateRepository.save(stock);
     }
 }

@@ -10,6 +10,7 @@ import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @EnableScheduling
 @RequiredArgsConstructor
@@ -36,6 +38,7 @@ public class RentalToolService {
     BookingDetailRepository bookingDetailRepository;
     RentalToolMapper rentalToolMapper;
     RentalPricingService rentalPricingService;
+    NotificationService notificationService;
 
     // -------------------------------------------------------------------------
     // Queries
@@ -184,6 +187,8 @@ public class RentalToolService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
         if (status == RentalToolStatus.COMPLETED) {
             completeRental(rentalToolId);
+        } else if (status == RentalToolStatus.CANCELLED) {
+            cancelRental(rentalToolId);
         } else {
             rentalTool.setStatus(status);
         }
@@ -261,6 +266,150 @@ public class RentalToolService {
         rentalTool.setStatus(RentalToolStatus.COMPLETED);
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
+    }
+
+    /**
+     * Huỷ đơn thuê vợt + hoàn tồn kho (B1).
+     *
+     * <p>Chỉ áp dụng rental standalone DAILY (dùng {@link RacketStockByDate}). Vợt ON_SITE thuê kèm
+     * booking dùng {@code Racket.bookingStockQuantity} và đã được cascade ở
+     * {@code BookingService.cancelByUser} → KHÔNG đụng kho ở đây.
+     *
+     * <ul>
+     *   <li>Không tìm thấy → {@link ResourceNotFoundException}.</li>
+     *   <li>Đã CANCELLED → trả về bình thường (idempotent), không hoàn kho lần hai.</li>
+     *   <li>COMPLETED → {@link IllegalStateException} (không cho huỷ đơn đã trả).</li>
+     *   <li>PENDING → chỉ đổi trạng thái (chưa trừ kho qua handleDailyRental).</li>
+     *   <li>IN_USE (DAILY) → hoàn {@link RacketStockByDate} cho từng ngày, đảo đúng bucket.</li>
+     * </ul>
+     */
+    @Transactional
+    public void cancelRental(Long rentalToolId) {
+        RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
+
+        RentalToolStatus current = rentalTool.getStatus();
+
+        // Idempotent: đã huỷ rồi thì không làm gì thêm, không hoàn kho lần hai.
+        if (current == RentalToolStatus.CANCELLED) {
+            return;
+        }
+        if (current == RentalToolStatus.COMPLETED) {
+            throw new IllegalStateException("Đơn thuê đã hoàn thành, không thể huỷ.");
+        }
+
+        // Hoàn kho chỉ khi đơn DAILY đã thực sự trừ kho (IN_USE). PENDING chưa trừ → bỏ qua.
+        // ON_SITE: kho là bookingStockQuantity, cascade ở BookingService.cancelByUser → không đụng.
+        boolean wasPaid = current == RentalToolStatus.IN_USE;
+        if (wasPaid && rentalTool.getType() == RentalType.DAILY) {
+            restoreDailyStock(rentalTool);
+        }
+
+        // Chỉ đơn đã thanh toán (IN_USE) mới phát sinh cọc cần hoàn. PENDING chưa thu tiền → NOT_APPLICABLE.
+        RefundStatus refundStatus = wasPaid ? RefundStatus.PENDING_REFUND : RefundStatus.NOT_APPLICABLE;
+
+        rentalTool.setStatus(RentalToolStatus.CANCELLED);
+        rentalTool.setRefundStatus(refundStatus);
+        rentalTool.setCancelledAt(LocalDateTime.now());
+        rentalTool.setUpdateAt(LocalDateTime.now());
+        rentalToolRepository.save(rentalTool);
+
+        // Notification cho user (nuốt lỗi như BookingService.cancelByUser — không để fail nghiệp vụ chính).
+        try {
+            notificationService.sendToUser(rentalTool.getUserId(), NotificationType.BOOKING_CANCELLED,
+                    "RENTAL_TOOL", rentalToolId,
+                    "Huỷ đơn thuê vợt",
+                    String.format("Đơn thuê vợt %s đã được huỷ.", rentalTool.getRentalToolCode()));
+        } catch (Exception ex) {
+            log.warn("Gửi notification huỷ thuê vợt thất bại cho rentalToolId={}: {}", rentalToolId, ex.getMessage());
+        }
+
+        // Báo admin/staff CHỈ khi đơn đã thanh toán bị huỷ (có cọc cần hoàn). PENDING (job tự huỷ /
+        // lệch tiền) không thu tiền nên không làm phiền admin.
+        if (refundStatus == RefundStatus.PENDING_REFUND) {
+            try {
+                String staffMsg = String.format(
+                        "User vừa huỷ đơn thuê vợt %s (SĐT: %s). Cần liên hệ hoàn cọc %,.0f VNĐ.",
+                        rentalTool.getRentalToolCode(),
+                        rentalTool.getPhone() != null ? rentalTool.getPhone() : "(không có)",
+                        rentalTool.getRentalPrice());
+                notificationService.sendToAdminStaff(NotificationType.REFUND_REQUEST,
+                        "RENTAL_TOOL", rentalToolId,
+                        "Có đơn thuê vợt bị huỷ", staffMsg);
+            } catch (Exception ex) {
+                log.warn("Gửi notification cho admin khi huỷ thuê vợt thất bại id={}: {}", rentalToolId, ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Admin xác nhận đã hoàn cọc cho đơn thuê đã huỷ (mirror {@code BookingService.confirmRefund}).
+     * Tiền được admin & user tự liên hệ ngoài hệ thống; đây chỉ đánh dấu trạng thái + báo lại user.
+     */
+    @Transactional
+    public void confirmRefund(Long rentalToolId) {
+        RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
+
+        if (rentalTool.getStatus() != RentalToolStatus.CANCELLED) {
+            throw new IllegalArgumentException("Đơn thuê chưa bị huỷ — không có gì để xác nhận hoàn cọc.");
+        }
+        if (rentalTool.getRefundStatus() == RefundStatus.REFUNDED) {
+            return; // Idempotent
+        }
+        if (rentalTool.getRefundStatus() != RefundStatus.PENDING_REFUND) {
+            throw new IllegalArgumentException(
+                    "Trạng thái hoàn cọc hiện tại không cho phép xác nhận: "
+                            + (rentalTool.getRefundStatus() != null ? rentalTool.getRefundStatus().getLabel() : "không xác định"));
+        }
+
+        rentalTool.setRefundStatus(RefundStatus.REFUNDED);
+        rentalTool.setUpdateAt(LocalDateTime.now());
+        rentalToolRepository.save(rentalTool);
+
+        try {
+            String msg = String.format(
+                    "Cọc của đơn thuê vợt %s đã được hoàn (%,.0f VNĐ). Nếu chưa nhận được, vui lòng liên hệ admin.",
+                    rentalTool.getRentalToolCode(), rentalTool.getRentalPrice());
+            notificationService.sendToUser(rentalTool.getUserId(), NotificationType.REFUND_DONE,
+                    "RENTAL_TOOL", rentalToolId,
+                    "Đã hoàn cọc thuê vợt", msg);
+        } catch (Exception ex) {
+            log.warn("Gửi notification REFUND_DONE thuê vợt thất bại id={}: {}", rentalToolId, ex.getMessage());
+        }
+    }
+
+    /**
+     * Đảo ngược phép trừ của {@link #handleDailyRental} cho từng ngày trong kỳ thuê DAILY.
+     *
+     * <p>handleDailyRental trừ {@code availableStock} và cộng {@code reservedStock}; sau đó ngày
+     * "hôm nay" (và mỗi ngày qua cron {@link #updateRentalStockForToday}) lại chuyển {@code reserved → rentalStock}.
+     * Vì vậy lúc huỷ, {@code quantity} có thể đang nằm ở reservedStock HOẶC đã chuyển sang rentalStock.
+     * Phải gỡ từ đúng bucket: ưu tiên reservedStock, thiếu bao nhiêu lấy nốt từ rentalStock — tránh
+     * để reservedStock âm và rentalStock treo (đây là ca completeRental hiện đang bỏ sót).
+     */
+    private void restoreDailyStock(RentalTool rentalTool) {
+        Long racketId = rentalTool.getRacketId();
+        int quantity = rentalTool.getQuantity();
+        LocalDate rentalDate = rentalTool.getRentalDate();
+        int quantityDay = rentalTool.getQuantityDay();
+
+        for (int i = 0; i < quantityDay; i++) {
+            LocalDate date = rentalDate.plusDays(i);
+            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
+
+            stock.setAvailableStock(stock.getAvailableStock() + quantity);
+
+            int fromReserved = Math.min(stock.getReservedStock(), quantity);
+            stock.setReservedStock(stock.getReservedStock() - fromReserved);
+            int remainder = quantity - fromReserved;
+            if (remainder > 0) {
+                stock.setRentalStock(stock.getRentalStock() - remainder);
+            }
+
+            racketStockByDateRepository.save(stock);
+        }
     }
 
     @Transactional

@@ -18,8 +18,10 @@ public class RentalToolDTO {
     private double price;
     private double rentalPrice;
     private String status;
+    private String refundStatus;
     private int quantity;
     private int quantityDay;
     private String rentalDate;
+    private String cancelledAt;
     private String rentalToolCode;
 }

@@ -169,7 +169,8 @@ public class HomePageController {
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
                 User user = userService.getUserByEmail(principal.getName());
-                Pageable pageable = PageRequest.of(page, size);
+                // Lịch sử thuê: đơn mới nhất lên đầu (theo ngày tạo giảm dần)
+                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createAt"));
                 Page<RentalToolDTO> rentals = rentalToolService.fetchRentalByUser(user, pageable);
 
                 Map<String, Object> data = Map.of(
