@@ -36,6 +36,9 @@ public class PaymentService {
         vnpParamsMap.put("vnp_TxnRef", transactionId);
         vnpParamsMap.put("vnp_IpAddr", VnpayUtil.getIpAddress(request));
 
+        if (bankCode == null || bankCode.isEmpty()) {
+            bankCode = vnpayConfig.getDefaultBankCode();
+        }
         if (bankCode != null && !bankCode.isEmpty()) {
             vnpParamsMap.put("vnp_BankCode", bankCode);
         }

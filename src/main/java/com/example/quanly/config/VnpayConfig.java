@@ -25,7 +25,7 @@ public class VnpayConfig {
     @Value("${payment.vnPay.returnUrl}")
     private String vnp_ReturnUrl;
     @Value("${payment.vnPay.tmnCode}")
-    private String vnp_TmnCode ;
+    private String vnp_TmnCode;
     @Getter
     @Value("${payment.vnPay.secretKey}")
     private String secretKey;
@@ -35,6 +35,9 @@ public class VnpayConfig {
     private String vnp_Command;
     @Value("${payment.vnPay.orderType}")
     private String orderType;
+    @Getter
+    @Value("${payment.vnPay.defaultBankCode:}")
+    private String defaultBankCode;
 
     public Map<String, String> getVNPayConfig() {
         Map<String, String> vnpParamsMap = new HashMap<>();
