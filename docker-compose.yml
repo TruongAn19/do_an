@@ -1,42 +1,6 @@
 services:
   # ================================================================
-  # LEGACY stack (cầu lông) — chỉ giữ làm backup, không dùng nữa
-  # ================================================================
-  mysql:
-    image: mysql:8.0
-    container_name: badminton-db
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: sancaulong1
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-  redis:
-    image: redis:alpine
-    container_name: badminton-redis
-    ports:
-      - "6379:6379"
-
-  backend:
-    build: .
-    container_name: badminton-api
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/sancaulong1?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=root
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-    depends_on:
-      - mysql
-      - redis
-
-  # ================================================================
-  # NEW stack (sân bóng đá) — stack chính sau refactor
+  # NEW stack (sân bóng đá) — stack chính sau
   # ================================================================
   football-mysql:
     image: mysql:8.0
