@@ -12,16 +12,28 @@ services:
       - "3308:3306"
     volumes:
       - football_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
 
   football-redis:
     image: redis:alpine
     container_name: football-redis
     ports:
       - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   football-backend:
     build: .
     container_name: football-api
+    restart: on-failure
     ports:
       - "8081:8080"
     environment:
@@ -31,11 +43,13 @@ services:
       - SPRING_REDIS_HOST=football-redis
       - SPRING_REDIS_PORT=6379
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+      - SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=60000
       - SPRING_AI_OPENAI_API_KEY=${OPENAI_API_KEY:-dummy_local_dev}
     depends_on:
-      - football-mysql
-      - football-redis
+      football-mysql:
+        condition: service_healthy
+      football-redis:
+        condition: service_healthy
 
 volumes:
-  mysql_data:
   football_mysql_data:

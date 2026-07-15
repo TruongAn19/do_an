@@ -54,7 +54,7 @@ INSERT IGNORE INTO `available_time` (`id`, `time`) VALUES
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `products`
   (`id`, `name`, `price`, `image`, `detail_desc`, `short_desc`,
-   `quantity`, `sale`, `address`, `deposit_price`, `status`, `user_id`)
+   `quantity`, `sale`, `address`, `status`, `user_id`)
 VALUES
 (
   1,
@@ -65,7 +65,7 @@ VALUES
   'Cụm 5 sân bóng mini 5 người — Quận 1',
   5, 0,
   '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM',
-  100000, 'ACTIVE', 1
+  'ACTIVE', 1
 ),
 (
   2,
@@ -76,7 +76,7 @@ VALUES
   'Cụm 4 sân 7 người mặt cỏ cao cấp — Quận 3',
   4, 0,
   '456 Võ Văn Tần, Phường 5, Quận 3, TP.HCM',
-  150000, 'ACTIVE', 1
+  'ACTIVE', 1
 ),
 (
   3,
@@ -87,7 +87,7 @@ VALUES
   'Cụm 3 sân 11 người chuẩn FIFA — Quận 7',
   3, 0,
   '789 Lê Văn Lương, Phường Tân Hưng, Quận 7, TP.HCM',
-  300000, 'ACTIVE', 1
+  'ACTIVE', 1
 );
 
 -- ----------------------------------------------------------------
@@ -113,22 +113,22 @@ INSERT IGNORE INTO `pitch_time` (`product_id`, `time_id`) VALUES
 --    Product 2 → sân id  6–9  (Sân 7 người A–D)
 --    Product 3 → sân id 10–12 (Sân 11 người Đỏ/Xanh/Vàng)
 -- ----------------------------------------------------------------
-INSERT IGNORE INTO `sub_pitches` (`id`, `name`, `product_id`) VALUES
+INSERT IGNORE INTO `sub_pitches` (`id`, `name`, `pitch_type`, `product_id`) VALUES
 -- Antigravity (5 sân mini)
-(1,  'Sân mini 1', 1),
-(2,  'Sân mini 2', 1),
-(3,  'Sân mini 3', 1),
-(4,  'Sân mini 4', 1),
-(5,  'Sân mini 5', 1),
+(1,  'Sân mini 1', 'FIVE_ASIDE', 1),
+(2,  'Sân mini 2', 'FIVE_ASIDE', 1),
+(3,  'Sân mini 3', 'FIVE_ASIDE', 1),
+(4,  'Sân mini 4', 'FIVE_ASIDE', 1),
+(5,  'Sân mini 5', 'FIVE_ASIDE', 1),
 -- Elite Arena (4 sân 7 người)
-(6,  'Sân 7 người A', 2),
-(7,  'Sân 7 người B', 2),
-(8,  'Sân 7 người C', 2),
-(9,  'Sân 7 người D', 2),
+(6,  'Sân 7 người A', 'SEVEN_ASIDE', 2),
+(7,  'Sân 7 người B', 'SEVEN_ASIDE', 2),
+(8,  'Sân 7 người C', 'SEVEN_ASIDE', 2),
+(9,  'Sân 7 người D', 'SEVEN_ASIDE', 2),
 -- Pro Center (3 sân 11 người)
-(10, 'Sân 11 người Đỏ',  3),
-(11, 'Sân 11 người Xanh', 3),
-(12, 'Sân 11 người Vàng', 3);
+(10, 'Sân 11 người Đỏ', 'ELEVEN_ASIDE', 3),
+(11, 'Sân 11 người Xanh', 'ELEVEN_ASIDE', 3),
+(12, 'Sân 11 người Vàng', 'ELEVEN_ASIDE', 3);
 
 -- ----------------------------------------------------------------
 -- 7. SUBPITCH_AVAILABLE_TIME
