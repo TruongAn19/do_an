@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +44,7 @@ public class PaymentService {
 
         // Chế độ mock: trả về trang thanh toán giả chạy local, không cần VNPay thật
         if (vnpayConfig.isMockEnabled()) {
-            String mockUrl = "http://localhost:8080/api/v1/mock-payment"
+            String mockUrl = getMockPaymentBaseUrl(request)
                     + "?amount=" + vnpParamsMap.get("vnp_Amount")
                     + "&orderInfo=" + URLEncoder.encode(vnpParamsMap.get("vnp_OrderInfo"), StandardCharsets.UTF_8)
                     + "&returnUrl=" + URLEncoder.encode(vnpParamsMap.get("vnp_ReturnUrl"), StandardCharsets.UTF_8)
@@ -63,6 +65,18 @@ public class PaymentService {
                 .message("Tạo thanh toán thành công")
                 .paymentUrl(paymentUrl)
                 .build();
+    }
+
+    private String getMockPaymentBaseUrl(HttpServletRequest request) {
+        if (StringUtils.hasText(vnpayConfig.getMockPaymentUrl())) {
+            return vnpayConfig.getMockPaymentUrl();
+        }
+
+        return ServletUriComponentsBuilder.fromRequestUri(request)
+                .replacePath(request.getContextPath() + "/api/v1/mock-payment")
+                .replaceQuery(null)
+                .build()
+                .toUriString();
     }
 
     /**

@@ -1,12 +1,16 @@
-# STEP 1: Biểu diễn máy build
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /app
-COPY . .
-RUN chmod +x mvnw && ./mvnw clean package -DskipTests
 
-# STEP 2: Môi trường chạy thực (tiết kiệm không gian)
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
+
+COPY src src
+RUN ./mvnw -B clean package -DskipTests
+
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar run.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/run.jar"]
+ENTRYPOINT ["java", "-jar", "/app/run.jar"]

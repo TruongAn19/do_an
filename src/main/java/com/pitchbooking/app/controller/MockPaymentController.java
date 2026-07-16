@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,9 +25,6 @@ import java.util.TreeMap;
 public class MockPaymentController {
 
     private final VnpayConfig vnpayConfig;
-
-    @Value("${payment.mock.backendCallbackUrl:http://localhost:8080/api/v1/payments/vnpay-callback}")
-    private String backendCallbackUrl;
 
     @GetMapping(produces = "text/html;charset=UTF-8")
     public ResponseEntity<String> showPaymentPage(
