@@ -65,37 +65,4 @@ VALUES
 (5, CURDATE() + INTERVAL 3 DAY,    6, 0, 0,  6, NOW(), NOW()),
 (5, CURDATE() + INTERVAL 4 DAY,    6, 0, 0,  6, NOW(), NOW()),
 (5, CURDATE() + INTERVAL 5 DAY,    6, 0, 0,  6, NOW(), NOW()),
-(5, CURDATE() + INTERVAL 6 DAY,    6, 0, 0,  6, NOW(), NOW()),
-
--- ================================================================
--- Equipment 6: Bóng Adidas World Cup (qty = 5, product_id = 3)
--- ================================================================
-(6, CURDATE(),                     5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 1 DAY,    5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 2 DAY,    5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 3 DAY,    5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 4 DAY,    5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 5 DAY,    5, 0, 0,  5, NOW(), NOW()),
-(6, CURDATE() + INTERVAL 6 DAY,    5, 0, 0,  5, NOW(), NOW()),
-
--- ================================================================
--- Equipment 7: Giày đinh sắt Nike Phantom GT (qty = 4, product_id = 3)
--- ================================================================
-(7, CURDATE(),                     4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 1 DAY,    4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 2 DAY,    4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 3 DAY,    4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 4 DAY,    4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 5 DAY,    4, 0, 0,  4, NOW(), NOW()),
-(7, CURDATE() + INTERVAL 6 DAY,    4, 0, 0,  4, NOW(), NOW()),
-
--- ================================================================
--- Equipment 8: Áo bib 22 cái (qty = 8, product_id = 3)
--- ================================================================
-(8, CURDATE(),                     8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 1 DAY,    8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 2 DAY,    8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 3 DAY,    8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 4 DAY,    8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 5 DAY,    8, 0, 0,  8, NOW(), NOW()),
-(8, CURDATE() + INTERVAL 6 DAY,    8, 0, 0,  8, NOW(), NOW());
+(5, CURDATE() + INTERVAL 6 DAY,    6, 0, 0,  6, NOW(), NOW());

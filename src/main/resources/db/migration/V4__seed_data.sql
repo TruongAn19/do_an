@@ -77,24 +77,12 @@ VALUES
   4, 0,
   '456 Võ Văn Tần, Phường 5, Quận 3, TP.HCM',
   'ACTIVE', 1
-),
-(
-  3,
-  'Pro Football Center',
-  800000,
-  'https://images.unsplash.com/photo-1486286701208-1d58e9338013?w=800',
-  'Cụm 3 sân bóng đá 11 người chuẩn FIFA, mặt cỏ tự nhiên Bermuda được chăm sóc bởi đội ngũ chuyên gia. Hệ thống đèn pha 2000 lux, phòng thay đồ chuẩn quốc tế, phòng họp đội. Nơi tổ chức giải hạng Nhất khu vực.',
-  'Cụm 3 sân 11 người chuẩn FIFA — Quận 7',
-  3, 0,
-  '789 Lê Văn Lương, Phường Tân Hưng, Quận 7, TP.HCM',
-  'ACTIVE', 1
 );
 
 -- ----------------------------------------------------------------
 -- 5. PITCH_TIME  (khung giờ hoạt động từng cụm sân)
 --    Product 1 (Antigravity):    05:00–22:00  → time_id  1–18
 --    Product 2 (Elite Arena):    06:00–21:00  → time_id  2–17
---    Product 3 (Pro Center):     07:00–22:00  → time_id  3–18
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `pitch_time` (`product_id`, `time_id`) VALUES
 -- Antigravity: 05:00–22:00
@@ -102,16 +90,12 @@ INSERT IGNORE INTO `pitch_time` (`product_id`, `time_id`) VALUES
 (1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),
 -- Elite Arena: 06:00–21:00
 (2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10),
-(2,11),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),
--- Pro Center: 07:00–22:00
-(3,3),(3,4),(3,5),(3,6),(3,7),(3,8),(3,9),(3,10),
-(3,11),(3,12),(3,13),(3,14),(3,15),(3,16),(3,17),(3,18);
+(2,11),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17);
 
 -- ----------------------------------------------------------------
 -- 6. SUB_PITCHES  (sân con trong từng cụm)
 --    Product 1 → sân id  1–5  (Sân mini 1–5)
 --    Product 2 → sân id  6–9  (Sân 7 người A–D)
---    Product 3 → sân id 10–12 (Sân 11 người Đỏ/Xanh/Vàng)
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `sub_pitches` (`id`, `name`, `pitch_type`, `product_id`) VALUES
 -- Antigravity (5 sân mini)
@@ -124,11 +108,7 @@ INSERT IGNORE INTO `sub_pitches` (`id`, `name`, `pitch_type`, `product_id`) VALU
 (6,  'Sân 7 người A', 'SEVEN_ASIDE', 2),
 (7,  'Sân 7 người B', 'SEVEN_ASIDE', 2),
 (8,  'Sân 7 người C', 'SEVEN_ASIDE', 2),
-(9,  'Sân 7 người D', 'SEVEN_ASIDE', 2),
--- Pro Center (3 sân 11 người)
-(10, 'Sân 11 người Đỏ', 'ELEVEN_ASIDE', 3),
-(11, 'Sân 11 người Xanh', 'ELEVEN_ASIDE', 3),
-(12, 'Sân 11 người Vàng', 'ELEVEN_ASIDE', 3);
+(9,  'Sân 7 người D', 'SEVEN_ASIDE', 2);
 
 -- ----------------------------------------------------------------
 -- 7. SUBPITCH_AVAILABLE_TIME
@@ -154,14 +134,7 @@ INSERT IGNORE INTO `subpitch_available_time` (`sub_pitch_id`, `available_time_id
 -- ── Sân 7 người C ──
 (8,2),(8,3),(8,4),(8,5),(8,6),(8,7),(8,8),(8,9),(8,10),(8,11),(8,12),(8,13),(8,14),(8,15),(8,16),(8,17),
 -- ── Sân 7 người D ──
-(9,2),(9,3),(9,4),(9,5),(9,6),(9,7),(9,8),(9,9),(9,10),(9,11),(9,12),(9,13),(9,14),(9,15),(9,16),(9,17),
-
--- ── Sân 11 người Đỏ (Pro Center, 07:00–22:00, time 3–18) ──
-(10,3),(10,4),(10,5),(10,6),(10,7),(10,8),(10,9),(10,10),(10,11),(10,12),(10,13),(10,14),(10,15),(10,16),(10,17),(10,18),
--- ── Sân 11 người Xanh ──
-(11,3),(11,4),(11,5),(11,6),(11,7),(11,8),(11,9),(11,10),(11,11),(11,12),(11,13),(11,14),(11,15),(11,16),(11,17),(11,18),
--- ── Sân 11 người Vàng ──
-(12,3),(12,4),(12,5),(12,6),(12,7),(12,8),(12,9),(12,10),(12,11),(12,12),(12,13),(12,14),(12,15),(12,16),(12,17),(12,18);
+(9,2),(9,3),(9,4),(9,5),(9,6),(9,7),(9,8),(9,9),(9,10),(9,11),(9,12),(9,13),(9,14),(9,15),(9,16),(9,17);
 
 -- ----------------------------------------------------------------
 -- 8. EQUIPMENT  (thiết bị cho thuê — bóng/giày/áo bib/lưới)
@@ -192,15 +165,4 @@ VALUES
     60000, 25000,  8,  8, 'ACTIVE', 2),
 (5, 'Giày đinh dăm Adidas X Speedflow', 2500000, 1, 'Adidas',
     'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
-    70000, 30000,  6,  6, 'ACTIVE', 2),
-
--- ── Pro Center (product_id = 3) ──
-(6, 'Bóng Adidas World Cup',       3500000, 1, 'Adidas',
-    'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400',
-    100000, 40000,  5,  5, 'ACTIVE', 3),
-(7, 'Giày đinh sắt Nike Phantom GT', 3200000, 1, 'Nike',
-    'https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400',
-    90000, 35000,  4,  4, 'ACTIVE', 3),
-(8, 'Áo bib 22 cái (chia 2 đội)',  1100000, 1, 'Local',
-    'https://images.unsplash.com/photo-1556270036-bf68b69b3a72?w=400',
-    60000, 25000,  8,  8, 'ACTIVE', 3);
+    70000, 30000,  6,  6, 'ACTIVE', 2);
