@@ -3,11 +3,13 @@ package com.example.quanly;
 import com.example.quanly.controller.PaymentController;
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.domain.dto.PendingBookingData;
 import com.example.quanly.repository.*;
 import com.example.quanly.service.NotificationService;
 import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.PendingBookingCache;
+import com.example.quanly.service.BookingService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +62,7 @@ class PendingBookingIdempotencyTest {
     @Autowired UserRepository userRepository;
 
     @MockBean PaymentService paymentService;       // bỏ qua verify chữ ký
+    @SpyBean BookingService bookingService;
     @SpyBean NotificationService notificationService; // verify REFUND_REQUEST khi confirm fail
 
     private User user;
@@ -324,5 +327,49 @@ class PendingBookingIdempotencyTest {
         Mockito.verify(notificationService).sendToAdminStaff(
                 eq(NotificationType.REFUND_REQUEST), eq("RENTAL_TOOL"), eq(rt.getId()),
                 anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Lỗi hạ tầng khi confirm giữ snapshot để callback sau retry thành công")
+    void transientConfirmFailure_keepsSnapshotForRetry() {
+        long pendingId = pendingBookingCache.store(pendingData(SLOT_DATE));
+        Mockito.doThrow(new RuntimeException("database temporarily unavailable"))
+                .doCallRealMethod()
+                .when(bookingService).confirmPendingBooking(any(PendingBookingData.class), eq(pendingId));
+
+        assertThrows(RuntimeException.class,
+                () -> paymentController.handleVnpayCallback(callbackRequest(pendingId, "00")));
+        assertTrue(pendingBookingCache.get(pendingId).isPresent(),
+                "Snapshot phải còn sau lỗi không xác định để VNPay có thể retry");
+        assertEquals(0, bookingRepository.count());
+
+        ResponseEntity<ApiResponse<Map<String, Object>>> retry =
+                paymentController.handleVnpayCallback(callbackRequest(pendingId, "00"));
+
+        assertEquals(200, retry.getStatusCode().value());
+        assertEquals(1, bookingRepository.count());
+        assertFalse(pendingBookingCache.get(pendingId).isPresent(),
+                "Chỉ xóa snapshot sau khi transaction tạo booking thành công");
+    }
+
+    @Test
+    @DisplayName("Booking đã commit nhưng Redis chưa đánh dấu: callback tìm lại bằng pending payment id")
+    void committedBookingWithoutRedisMarker_isRecoveredIdempotently() {
+        long pendingId = pendingBookingCache.store(pendingData(SLOT_DATE));
+        BookingResponseDTO committed =
+                bookingService.confirmPendingBooking(pendingData(SLOT_DATE), pendingId);
+        assertEquals(1, bookingRepository.count());
+        assertTrue(pendingBookingCache.get(pendingId).isPresent());
+        assertTrue(pendingBookingCache.getResult(pendingId).isEmpty());
+
+        ResponseEntity<ApiResponse<Map<String, Object>>> retry =
+                paymentController.handleVnpayCallback(callbackRequest(pendingId, "00"));
+
+        assertEquals(200, retry.getStatusCode().value());
+        assertEquals(committed.getBookingCode(), dataOf(retry).get("bookingCode"));
+        assertEquals(1, bookingRepository.count(), "Retry không được tạo booking thứ hai");
+        assertFalse(pendingBookingCache.get(pendingId).isPresent());
+        assertEquals(committed.getBookingCode(),
+                pendingBookingCache.getResult(pendingId).orElseThrow());
     }
 }

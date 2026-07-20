@@ -382,6 +382,17 @@ public class BookingService {
      */
     @Transactional
     public BookingResponseDTO confirmPendingBooking(PendingBookingData data) {
+        return confirmPendingBooking(data, null);
+    }
+
+    @Transactional
+    public BookingResponseDTO confirmPendingBooking(PendingBookingData data, Long pendingPaymentId) {
+        if (pendingPaymentId != null) {
+            Optional<Booking> existing = bookingRepository.findByPendingPaymentId(pendingPaymentId);
+            if (existing.isPresent()) {
+                return bookingMapper.toDTO(existing.get());
+            }
+        }
         // Final collision check — guard against a race where the hold expired
         for (PendingBookingData.SlotData slot : data.getSlots()) {
             Optional<BookingDetail> conflict = bookingDetailRepository
@@ -396,6 +407,7 @@ public class BookingService {
 
         Booking booking = new Booking();
         booking.setUser(data.getUser());
+        booking.setPendingPaymentId(pendingPaymentId);
         booking.setReceiverName(data.getReceiverName());
         booking.setReceiverAddress(data.getReceiverAddress());
         booking.setReceiverPhone(data.getReceiverPhone());

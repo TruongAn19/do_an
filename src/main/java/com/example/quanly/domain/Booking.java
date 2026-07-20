@@ -22,6 +22,8 @@ public class Booking {
     private double totalPrice;
     private String receiverName;
     private String bookingCode;
+    @Column(name = "pending_payment_id", unique = true)
+    private Long pendingPaymentId;
     private String receiverAddress;
     private String receiverPhone;
     @Convert(converter = BookingStatusConverter.class)

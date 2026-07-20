@@ -229,4 +229,21 @@ class RentalCancelTest {
         assertEquals(RentalToolStatus.CANCELLED.name(), dto.getStatus());
         assertStock(FUTURE, 5, 0, 0);
     }
+
+    @Test
+    @DisplayName("Hoàn thành DAILY sau khi stock đã chuyển reserved -> rental: không âm bucket")
+    void complete_inUse_usesReservedAndRentalBucketsCorrectly() {
+        LocalDate today = LocalDate.now();
+        LocalDate tomorrow = today.plusDays(1);
+        stock(today, 4, 0, 1);
+        stock(tomorrow, 4, 1, 0);
+        RentalTool rt = rental(RentalToolStatus.IN_USE, RentalType.DAILY, today, 1, 2);
+
+        rentalToolService.completeRental(rt.getId());
+
+        assertStock(today, 5, 0, 0);
+        assertStock(tomorrow, 5, 0, 0);
+        assertEquals(RentalToolStatus.COMPLETED,
+                rentalToolRepository.findById(rt.getId()).orElseThrow().getStatus());
+    }
 }

@@ -92,8 +92,7 @@ public class RentalController {
                     .data(Map.of("paymentUrl", vnpayResponse.getPaymentUrl())).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.IN_USE);
-        rentalToolService.handleDailyRental(rentalTool);
+        rentalToolService.handleDailyRental(rentalTool.getId());
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thuê vợt thành công")
                 .data(Map.of("rentalToolId", rentalTool.getId())).build());

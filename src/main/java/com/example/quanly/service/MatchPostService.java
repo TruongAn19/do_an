@@ -4,6 +4,7 @@ import com.example.quanly.domain.MatchParticipant;
 import com.example.quanly.domain.MatchPost;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.MatchPostResponseDTO;
+import com.example.quanly.exception.BusinessConflictException;
 import com.example.quanly.mapper.MatchPostMapper;
 import com.example.quanly.repository.MatchParticipantRepository;
 import com.example.quanly.repository.MatchPostRepository;
@@ -67,8 +68,10 @@ public class MatchPostService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
     }
 
+    @Transactional
     public MatchParticipant joinPost(Long postId, User user) {
-        MatchPost post = getPostEntityById(postId);
+        MatchPost post = matchPostRepository.findByIdForUpdate(postId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
 
         validateJoinConditions(post, user);
 
@@ -146,10 +149,15 @@ public class MatchPostService {
             throw new RuntimeException("Bài đăng đã bị huỷ");
         }
         if ("full".equals(post.getStatus())) {
-            throw new RuntimeException("Bài đăng đã đủ người tham gia");
+            throw new BusinessConflictException("Bài đăng đã đủ người tham gia");
+        }
+        if (participantRepository.countByMatchPostId(post.getId()) >= post.getMaxParticipants()) {
+            post.setStatus("full");
+            matchPostRepository.save(post);
+            throw new BusinessConflictException("Bài đăng đã đủ người tham gia");
         }
         if (participantRepository.existsByMatchPostIdAndUserId(post.getId(), user.getId())) {
-            throw new RuntimeException("Bạn đã tham gia bài đăng này rồi");
+            throw new BusinessConflictException("Bạn đã tham gia bài đăng này rồi");
         }
     }
 

@@ -147,8 +147,7 @@ public class PaymentController {
                             .status(400).message("Số tiền thanh toán không khớp").data(null).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.IN_USE);
-        rentalToolService.handleDailyRental(rentalTool);
+        rentalTool = rentalToolService.handleDailyRental(rentalToolId);
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
@@ -161,9 +160,20 @@ public class PaymentController {
     }
 
     private ResponseEntity<ApiResponse<Map<String, Object>>> handlePendingBookingCallback(long pendingId, boolean success, long vnpAmount, String vnpAmountStr) {
+        Optional<String> completedResult = pendingBookingCache.getResult(pendingId);
+        if (completedResult.isPresent()) {
+            return duplicateBookingResponse(completedResult.get());
+        }
+        if (!pendingBookingCache.tryAcquireProcessing(pendingId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(409).message("Phiên đặt sân đang được xử lý").data(null).build());
+        }
+
+        try {
         // getAndRemove atomic (GETDEL): chỉ callback đầu tiên "giành" được snapshot, các callback trùng
         // (VNPay gọi cả IPN lẫn redirect) nhận empty → không tạo booking lần hai.
-        PendingBookingData data = pendingBookingCache.getAndRemove(pendingId)
+        PendingBookingData data = pendingBookingCache.get(pendingId)
                 .orElse(null);
 
         if (data == null) {
@@ -186,6 +196,7 @@ public class PaymentController {
 
         if (!success) {
             bookingService.cancelPendingBooking(data);
+            pendingBookingCache.remove(pendingId);
             log.info("Thanh toán PENDING_BOOKING pendingId={} thất bại, đã giải phóng giữ chỗ", pendingId);
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán thất bại, vui lòng thử lại")
@@ -199,6 +210,7 @@ public class PaymentController {
                     pendingId, vnpAmount, vnpAmountStr, expectedAmount, data.getDepositPrice());
 
             bookingService.cancelPendingBooking(data);
+            pendingBookingCache.remove(pendingId);
 
             // Bắn notification cho admin/staff yêu cầu rà soát hoàn tiền thủ công
             try {
@@ -220,9 +232,10 @@ public class PaymentController {
         }
 
         try {
-            BookingResponseDTO booking = bookingService.confirmPendingBooking(data);
+            BookingResponseDTO booking = bookingService.confirmPendingBooking(data, pendingId);
             // Ghi marker kết quả để callback trùng nhận diện được booking đã tạo.
             pendingBookingCache.storeResult(pendingId, booking.getBookingCode());
+            pendingBookingCache.remove(pendingId);
             log.info("Thanh toán PENDING_BOOKING pendingId={} thành công, bookingId={}", pendingId, booking.getId());
             try {
                 emailService.sendBookingConfirmationEmail(
@@ -235,6 +248,7 @@ public class PaymentController {
                     .data(Map.of("type", "BOOKING", "bookingId", booking.getId(), "bookingCode", booking.getBookingCode()))
                     .build());
         } catch (IllegalStateException e) {
+            pendingBookingCache.remove(pendingId);
             // Xung đột slot/hết tồn vợt (A1/A2) NHƯNG TIỀN ĐÃ ĐƯỢC THU. Snapshot đã bị getAndRemove
             // consume nên không thể retry → KHÔNG được im lặng nuốt mất tiền. Đánh dấu cần hoàn tiền
             // thủ công bằng notification cho admin/staff (tái dùng pattern REFUND_REQUEST của cancelByUser).
@@ -256,5 +270,14 @@ public class PaymentController {
                     .body(ApiResponse.<Map<String, Object>>builder()
                             .status(409).message(e.getMessage()).data(null).build());
         }
+        } finally {
+            pendingBookingCache.releaseProcessing(pendingId);
+        }
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> duplicateBookingResponse(String bookingCode) {
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .status(200).message("Đơn đã được xác nhận trước đó")
+                .data(Map.of("type", "BOOKING", "bookingCode", bookingCode)).build());
     }
 }

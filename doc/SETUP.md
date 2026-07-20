@@ -26,7 +26,7 @@ Dự án sử dụng MySQL để lưu trữ dữ liệu.
    ```properties
    spring.datasource.url=jdbc:mysql://localhost:3307/sancaulong1?createDatabaseIfNotExist=true
    spring.datasource.username=root
-   spring.datasource.password=root
+   spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
    ```
    *Lưu ý: Thay đổi cổng (mặc định thường là 3306, trong file đang để 3307), username và password cho phù hợp với máy của bạn.*
 
@@ -73,7 +73,8 @@ Sau khi Flyway khởi tạo dữ liệu, bạn có thể đăng nhập bằng c�
 ## 7. Các lưu ý quan trọng
 - **Redis:** Đảm bảo Redis server đang chạy (mặc định port 6379) để hệ thống có thể quản lý việc giữ chỗ sân (Hold slot). Nếu không có Redis, chức năng đặt sân sẽ báo lỗi.
 - **CORS:** Nếu bạn đổi port chạy frontend, hãy cập nhật `cors.allowed-origins` trong `application.properties` của backend.
-- **Thanh toán:** Hiện tại dự án đang bật chế độ `payment.mock.enabled=true`, cho phép giả lập thanh toán VNPay để test local dễ dàng mà không cần cấu hình API Key thật.
+- **Biến môi trường:** Sao chép `.env.example` thành `.env`, thay toàn bộ giá trị mẫu và không commit `.env`.
+- **Thanh toán:** Mock payment đã tắt (`payment.mock.enabled=false`); backend sử dụng cổng VNPay sandbox để kiểm thử.
 
 ---
 *Chúc bạn cài đặt thành công!*

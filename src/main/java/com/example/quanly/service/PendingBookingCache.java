@@ -53,6 +53,8 @@ public class PendingBookingCache {
      */
     private static final String RESULT_PREFIX = "pending-booking-result:";
     private static final Duration RESULT_TTL = Duration.ofMinutes(5);
+    private static final String PROCESSING_PREFIX = "pending-booking-processing:";
+    private static final Duration PROCESSING_TTL = Duration.ofMinutes(2);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper baseObjectMapper;
@@ -149,6 +151,15 @@ public class PendingBookingCache {
      */
     public Optional<String> getResult(long pendingId) {
         return Optional.ofNullable(redisTemplate.opsForValue().get(RESULT_PREFIX + pendingId));
+    }
+
+    public boolean tryAcquireProcessing(long pendingId) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(
+                PROCESSING_PREFIX + pendingId, "1", PROCESSING_TTL));
+    }
+
+    public void releaseProcessing(long pendingId) {
+        redisTemplate.delete(PROCESSING_PREFIX + pendingId);
     }
 
     private PendingBookingSnapshot toSnapshot(PendingBookingData data) {

@@ -3,6 +3,7 @@ package com.example.quanly.service;
 import com.example.quanly.domain.*;
 import com.example.quanly.domain.dto.CreateRentalRequest;
 import com.example.quanly.domain.dto.RentalToolDTO;
+import com.example.quanly.exception.ForbiddenOperationException;
 import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.mapper.RentalToolMapper;
 import com.example.quanly.repository.*;
@@ -160,17 +161,41 @@ public class RentalToolService {
             throw new ResourceNotFoundException("Không tìm thấy booking với mã: " + bookingCode);
         }
 
+        if (booking.getUser() == null || booking.getUser().getId() != rentalTool.getUserId()) {
+            throw new ForbiddenOperationException("Bạn không có quyền thuê vợt cho booking này.");
+        }
+
         validateBookingActiveForRental(booking);
+
+        List<BookingDetail> bookingDetails = bookingDetailRepository.findByBookingId(booking.getId());
+        boolean belongsToBookedProduct = bookingDetails.stream()
+                .anyMatch(detail -> detail.getProduct() != null
+                        && detail.getProduct().getId() == rentalTool.getProductId());
+        if (!belongsToBookedProduct) {
+            throw new IllegalArgumentException("Vợt không thuộc sân của booking này.");
+        }
+
+        Racket racket = racketRepository.findByIdForUpdate(rentalTool.getRacketId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy vợt id=" + rentalTool.getRacketId()));
+        if (!racket.isAvailable() || racket.getBookingStockQuantity() < rentalTool.getQuantity()) {
+            throw new IllegalStateException("Không đủ vợt tại sân cho số lượng yêu cầu.");
+        }
+        racket.setBookingStockQuantity(racket.getBookingStockQuantity() - rentalTool.getQuantity());
+        racketRepository.save(racket);
 
         rentalTool.setRentalDate(booking.getBookingDate());
         rentalTool.setBookingId(String.valueOf(booking.getId()));
+        rentalTool.setQuantityDay(1);
+        rentalTool.setStatus(RentalToolStatus.IN_USE);
         rentalToolRepository.save(rentalTool);
 
-        List<BookingDetail> bookingDetails = bookingDetailRepository.findByBookingId(booking.getId());
         double totalBookingDetailPrice = bookingDetails.stream()
                 .mapToDouble(BookingDetail::getPrice)
                 .sum();
-        booking.setTotalPrice(totalBookingDetailPrice + rentalTool.getRentalPrice());
+        double totalRentalPrice = rentalToolRepository
+                .sumActiveRentalPriceByBookingId(String.valueOf(booking.getId()));
+        booking.setTotalPrice(totalBookingDetailPrice + totalRentalPrice);
         booking.setRentalToolCode(rentalTool.getRentalToolCode());
         bookingRepository.save(booking);
 
@@ -203,7 +228,21 @@ public class RentalToolService {
      * Trừ tồn kho khi xác nhận thuê DAILY (CASH hoặc VNPay callback thành công).
      */
     @Transactional
-    public void handleDailyRental(RentalTool rentalTool) {
+    public RentalTool handleDailyRental(Long rentalToolId) {
+        RentalTool rentalTool = rentalToolRepository.findByIdForUpdate(rentalToolId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy đơn thuê id=" + rentalToolId));
+
+        if (rentalTool.getType() != RentalType.DAILY) {
+            throw new IllegalArgumentException("Chỉ đơn thuê DAILY mới được thanh toán qua luồng này.");
+        }
+        if (rentalTool.getStatus() == RentalToolStatus.IN_USE) {
+            return rentalTool;
+        }
+        if (rentalTool.getStatus() != RentalToolStatus.PENDING) {
+            throw new IllegalStateException("Đơn thuê không ở trạng thái chờ thanh toán.");
+        }
+
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
@@ -211,8 +250,11 @@ public class RentalToolService {
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
-            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
+            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDateForUpdate(racketId, date)
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
+            if (stock.getAvailableStock() < quantity) {
+                throw new IllegalStateException("Không đủ vợt vào ngày " + date);
+            }
             stock.setAvailableStock(stock.getAvailableStock() - quantity);
             stock.setReservedStock(stock.getReservedStock() + quantity);
             racketStockByDateRepository.save(stock);
@@ -236,8 +278,10 @@ public class RentalToolService {
             }
         }
 
+        rentalTool.setStatus(RentalToolStatus.IN_USE);
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
+        return rentalTool;
     }
 
     @Transactional
@@ -249,18 +293,8 @@ public class RentalToolService {
             throw new IllegalStateException("Đơn thuê không ở trạng thái có thể hoàn thành");
         }
 
-        Long racketId = rentalTool.getRacketId();
-        int quantity = rentalTool.getQuantity();
-        LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = rentalTool.getQuantityDay();
-
-        for (int i = 0; i < quantityDay; i++) {
-            LocalDate date = rentalDate.plusDays(i);
-            RacketStockByDate stock = racketStockByDateRepository.findByRacketIdAndDate(racketId, date)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
-            stock.setAvailableStock(stock.getAvailableStock() + quantity);
-            stock.setReservedStock(stock.getReservedStock() - quantity);
-            racketStockByDateRepository.save(stock);
+        if (rentalTool.getType() == RentalType.DAILY) {
+            restoreDailyStock(rentalTool);
         }
 
         rentalTool.setStatus(RentalToolStatus.COMPLETED);
