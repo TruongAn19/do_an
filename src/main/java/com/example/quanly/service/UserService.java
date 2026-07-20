@@ -31,6 +31,10 @@ public class UserService {
 
     @PostConstruct
     public void initAdminUser() {
+        Role adminRole = ensureRoleExists("ADMIN", "Quản trị viên hệ thống");
+        ensureRoleExists("USER", "Khách hàng");
+        ensureRoleExists("STAFF", "Nhân viên");
+
         if (userRepository.findByEmail("admin@gmail.com") == null) {
             User admin = new User();
             admin.setFullName("admin");
@@ -38,18 +42,20 @@ public class UserService {
             admin.setPhone("0963931420");
             admin.setAddress("Hà Nội");
             admin.setPassword(passwordEncoder.encode("123456"));
-            Role adminRole = new Role();
-            adminRole.setName("ADMIN");
-            Role userRole = new Role();
-            userRole.setName("USER");
-            Role staffRole = new Role();
-            staffRole.setName("STAFF");
-            roleRepository.save(adminRole);
-            roleRepository.save(userRole);
-            roleRepository.save(staffRole);
             admin.setRole(adminRole);
             userRepository.save(admin);
         }
+    }
+
+    private Role ensureRoleExists(String name, String description) {
+        Role existing = roleRepository.findByName(name);
+        if (existing != null) {
+            return existing;
+        }
+        Role role = new Role();
+        role.setName(name);
+        role.setDescription(description);
+        return roleRepository.save(role);
     }
 
     public UserResponseDTO handleSaveUser(User user) {
@@ -71,7 +77,14 @@ public class UserService {
     }
 
     public Role getRoleByName(String name) {
-        return this.roleRepository.findByName(name);
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Vai trò không được để trống");
+        }
+        Role role = this.roleRepository.findByName(name.trim().toUpperCase());
+        if (role == null) {
+            throw new IllegalArgumentException("Vai trò không hợp lệ: " + name);
+        }
+        return role;
     }
 
     public User registerDTOtoUser(RegisterDTO registerDTO) {
