@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -68,12 +70,23 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    public Page<UserResponseDTO> getUsers(Pageable pageable) {
+        return userRepository.findAll(pageable).map(userMapper::toDTO);
+    }
+
     public UserResponseDTO getUserById(long userId) {
         return userMapper.toDTO(this.userRepository.findUserById(userId));
     }
 
     public void deleteAUser(long id) {
         this.userRepository.deleteById(id);
+    }
+
+    public void changePassword(long userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng id=" + userId));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
     public Role getRoleByName(String name) {

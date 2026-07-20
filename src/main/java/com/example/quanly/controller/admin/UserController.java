@@ -1,12 +1,17 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.User;
+import com.example.quanly.domain.dto.AdminChangePasswordRequest;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.UserResponseDTO;
 import com.example.quanly.service.UploadService;
 import com.example.quanly.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,9 +29,14 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserResponseDTO>>> getUsers() {
-        List<UserResponseDTO> users = userService.getAllUser();
-        return ResponseEntity.ok(ApiResponse.<List<UserResponseDTO>>builder()
+    public ResponseEntity<ApiResponse<Page<UserResponseDTO>>> getUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Page<UserResponseDTO> users = userService.getUsers(
+                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "id")));
+        return ResponseEntity.ok(ApiResponse.<Page<UserResponseDTO>>builder()
                 .status(200).message("Thành công").data(users).build());
     }
 
@@ -93,5 +103,13 @@ public class UserController {
         UserResponseDTO updatedUser = userService.handleSaveUser(user);
         return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
                 .status(200).message("Cập nhật role thành công").data(updatedUser).build());
+    }
+    @PutMapping("/{userId}/password")
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @PathVariable long userId,
+            @Valid @RequestBody AdminChangePasswordRequest request) {
+        userService.changePassword(userId, request.newPassword());
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200).message("Đổi mật khẩu thành công").data(null).build());
     }
 }
