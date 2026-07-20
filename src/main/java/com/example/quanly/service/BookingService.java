@@ -70,6 +70,7 @@ public class BookingService {
     NotificationService notificationService;
     HoldPolicy holdPolicy;
     SlotEventPublisher slotEventPublisher;
+    MemberLevelService memberLevelService;
 
     public Page<BookingResponseDTO> fetchAllBookings(Pageable pageable) {
         return bookingRepository.findAll(pageable).map(bookingMapper::toDTO);
@@ -130,6 +131,10 @@ public class BookingService {
                 }
             }
             rentalToolRepository.saveAll(rentalTools);
+
+            if (currentBooking.getUser() != null) {
+                memberLevelService.evaluateAndUpgrade(currentBooking.getUser().getId());
+            }
         }
     }
 

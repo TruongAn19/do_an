@@ -23,6 +23,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByPendingPaymentId(Long pendingPaymentId);
 
+    @Query("""
+            SELECT COALESCE(SUM(b.totalPrice), 0)
+            FROM Booking b
+            WHERE b.user.id = :userId
+              AND b.status = :status
+            """)
+    double sumTotalPriceByUserIdAndStatus(
+            @Param("userId") Long userId, @Param("status") BookingStatus status);
+
     // Tìm các Booking có ít nhất một BookingDetail với ngày cụ thể
     @Query(value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date", countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date")
     Page<Booking> findByBookingDetailsDate(@Param("date") LocalDate date, Pageable pageable);
