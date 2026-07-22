@@ -1,6 +1,7 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.Product;
+import com.example.quanly.domain.RentalType;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.TopRacketDto;
 import com.example.quanly.repository.ProductRepository;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -37,28 +39,37 @@ public class RacketStatisticsController {
 
         Integer totalRackets = statisticsService.getTotalRackets(courtId);
         int currentlyRented = statisticsService.getCurrentlyRentedRackets(courtId);
-        int rentalCount = statisticsService.getRentalCountInRange(courtId, startDate, endDate);
-        double revenue = statisticsService.getRevenueInRange(courtId, startDate, endDate);
+        Map<String, Object> daily = statisticsService.getBreakdownByType(courtId, startDate, endDate, RentalType.DAILY);
+        Map<String, Object> onSite = statisticsService.getBreakdownByType(courtId, startDate, endDate, RentalType.ON_SITE);
+        int totalOrders = (Integer) daily.get("orders") + (Integer) onSite.get("orders");
+        long totalQuantity = (Long) daily.get("quantity") + (Long) onSite.get("quantity");
+        double totalRevenue = (Double) daily.get("revenue") + (Double) onSite.get("revenue");
         List<TopRacketDto> topRackets = statisticsService.getTopRentedRacketsInRange(courtId, startDate, endDate, 5);
 
         YearMonth currentMonth = YearMonth.now();
         YearMonth sixMonthsAgo = currentMonth.minusMonths(5);
 
-        Map<YearMonth, Integer> rentalsByMonth = statisticsService.getRentalCountByMonthRange(courtId, sixMonthsAgo, currentMonth);
-        Map<YearMonth, Double> revenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth);
+        Map<YearMonth, Integer> dailyOrdersByMonth = statisticsService.getOrderCountByMonthRange(courtId, sixMonthsAgo, currentMonth, RentalType.DAILY);
+        Map<YearMonth, Integer> onSiteOrdersByMonth = statisticsService.getOrderCountByMonthRange(courtId, sixMonthsAgo, currentMonth, RentalType.ON_SITE);
+        Map<YearMonth, Double> dailyRevenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth, RentalType.DAILY);
+        Map<YearMonth, Double> onSiteRevenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth, RentalType.ON_SITE);
 
         List<Product> listProduct = productRepository.findAll();
 
-        Map<String, Object> data = Map.of(
-                "listProduct", listProduct,
-                "totalRackets", totalRackets,
-                "currentlyRented", currentlyRented,
-                "monthlyRentals", rentalCount,
-                "monthlyRevenue", revenue,
-                "topRackets", topRackets,
-                "rentalsByMonth", rentalsByMonth,
-                "revenueByMonth", revenueByMonth
-        );
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("listProduct", listProduct);
+        data.put("totalRackets", totalRackets);
+        data.put("currentlyRented", currentlyRented);
+        data.put("monthlyOrders", totalOrders);
+        data.put("monthlyQuantity", totalQuantity);
+        data.put("monthlyRevenue", totalRevenue);
+        data.put("daily", daily);
+        data.put("onSite", onSite);
+        data.put("topRackets", topRackets);
+        data.put("dailyOrdersByMonth", dailyOrdersByMonth);
+        data.put("onSiteOrdersByMonth", onSiteOrdersByMonth);
+        data.put("dailyRevenueByMonth", dailyRevenueByMonth);
+        data.put("onSiteRevenueByMonth", onSiteRevenueByMonth);
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thành công").data(data).build());

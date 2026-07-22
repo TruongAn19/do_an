@@ -39,6 +39,18 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     int countDailyRentalByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = :type AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND (:courtId IS NULL OR r.productId = :courtId)")
+    int countCompletedOrdersByType(@Param("courtId") Long courtId, @Param("type") RentalType type,
+            @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM RentalTool r WHERE r.type = :type AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND (:courtId IS NULL OR r.productId = :courtId)")
+    Long sumCompletedQuantityByType(@Param("courtId") Long courtId, @Param("type") RentalType type,
+            @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COALESCE(SUM(r.rentalPrice), 0) FROM RentalTool r WHERE r.type = :type AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND (:courtId IS NULL OR r.productId = :courtId)")
+    Double sumCompletedRevenueByType(@Param("courtId") Long courtId, @Param("type") RentalType type,
+            @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
     @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = 'DAILY' AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status = 'COMPLETED' AND r.productId = :courtId and r.id = :racketId")
     int countRacketDailyRentalByCourtAndDateRange(@Param("racketId") Long racketId, @Param("courtId") Long courtId,
             @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
@@ -50,6 +62,10 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     @Query("SELECT rkt, SUM(rt.quantity) FROM RentalTool rt JOIN Racket rkt ON rt.racketId = rkt.id WHERE rt.type = 'DAILY' AND rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = 'COMPLETED' AND (:courtId IS NULL OR rkt.product.id = :courtId) GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
     List<Object[]> findTopDailyRentedRackets(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate, Pageable pageable);
+
+    @Query("SELECT rkt, SUM(rt.quantity) FROM RentalTool rt JOIN Racket rkt ON rt.racketId = rkt.id WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = 'COMPLETED' AND (:courtId IS NULL OR rt.productId = :courtId) GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
+    List<Object[]> findTopCompletedRackets(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate, Pageable pageable);
 
     @Query("SELECT COUNT(rt) FROM RentalTool rt WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = :status AND (:courtId IS NULL OR rt.productId = :courtId)")

@@ -70,7 +70,7 @@ public class RacketStatisticsService {
         Pageable pageable = (Pageable) PageRequest.of(0, limit);
 
         // Truy vấn để lấy các vợt thuê nhiều nhất
-        List<Object[]> results = rentalToolRepository.findTopDailyRentedRackets(courtId, startDate, endDate, pageable);
+        List<Object[]> results = rentalToolRepository.findTopCompletedRackets(courtId, startDate, endDate, pageable);
 
         List<TopRacketDto> topRackets = new ArrayList<>();
         for (Object[] result : results) {
@@ -86,6 +86,39 @@ public class RacketStatisticsService {
             topRackets.add(dto);
         }
         return topRackets;
+    }
+
+    public Map<String, Object> getBreakdownByType(Long courtId, LocalDate startDate, LocalDate endDate,
+            com.example.quanly.domain.RentalType type) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("orders", rentalToolRepository.countCompletedOrdersByType(courtId, type, startDate, endDate));
+        result.put("quantity", rentalToolRepository.sumCompletedQuantityByType(courtId, type, startDate, endDate));
+        result.put("revenue", rentalToolRepository.sumCompletedRevenueByType(courtId, type, startDate, endDate));
+        return result;
+    }
+
+    public Map<YearMonth, Integer> getOrderCountByMonthRange(Long courtId, YearMonth startMonth,
+            YearMonth endMonth, com.example.quanly.domain.RentalType type) {
+        Map<YearMonth, Integer> result = new LinkedHashMap<>();
+        YearMonth current = startMonth;
+        while (!current.isAfter(endMonth)) {
+            result.put(current, rentalToolRepository.countCompletedOrdersByType(
+                    courtId, type, current.atDay(1), current.atEndOfMonth()));
+            current = current.plusMonths(1);
+        }
+        return result;
+    }
+
+    public Map<YearMonth, Double> getRevenueByMonthRange(Long courtId, YearMonth startMonth,
+            YearMonth endMonth, com.example.quanly.domain.RentalType type) {
+        Map<YearMonth, Double> result = new LinkedHashMap<>();
+        YearMonth current = startMonth;
+        while (!current.isAfter(endMonth)) {
+            result.put(current, rentalToolRepository.sumCompletedRevenueByType(
+                    courtId, type, current.atDay(1), current.atEndOfMonth()));
+            current = current.plusMonths(1);
+        }
+        return result;
     }
 
     public Map<YearMonth, Integer> getRentalCountByMonthRange(Long courtId, YearMonth startMonth, YearMonth endMonth) {
