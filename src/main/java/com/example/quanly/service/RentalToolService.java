@@ -40,6 +40,7 @@ public class RentalToolService {
     RentalToolMapper rentalToolMapper;
     RentalPricingService rentalPricingService;
     NotificationService notificationService;
+    RacketService racketService;
 
     // -------------------------------------------------------------------------
     // Queries
@@ -295,11 +296,22 @@ public class RentalToolService {
 
         if (rentalTool.getType() == RentalType.DAILY) {
             restoreDailyStock(rentalTool);
+        } else if (rentalTool.getType() == RentalType.ON_SITE) {
+            Racket racket = racketRepository.findByIdForUpdate(rentalTool.getRacketId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy vợt id=" + rentalTool.getRacketId()));
+            int capacity = racket.getTargetQuantity() != null
+                    ? racket.getTargetQuantity()
+                    : racket.getQuantity();
+            racket.setBookingStockQuantity(Math.min(capacity,
+                    racket.getBookingStockQuantity() + rentalTool.getQuantity()));
+            racketRepository.save(racket);
         }
 
         rentalTool.setStatus(RentalToolStatus.COMPLETED);
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
+        racketService.tryFinalizeRetirement(rentalTool.getRacketId());
     }
 
     /**
@@ -424,6 +436,8 @@ public class RentalToolService {
      */
     private void restoreDailyStock(RentalTool rentalTool) {
         Long racketId = rentalTool.getRacketId();
+        Racket racket = racketRepository.findById(racketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vợt id=" + racketId));
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = rentalTool.getQuantityDay();
@@ -441,6 +455,13 @@ public class RentalToolService {
             if (remainder > 0) {
                 stock.setRentalStock(stock.getRentalStock() - remainder);
             }
+
+            int remainingCommitted = stock.getReservedStock() + stock.getRentalStock();
+            int capacity = racket.getTargetQuantity() != null
+                    ? racket.getTargetQuantity()
+                    : (racket.getQuantity() > 0 ? racket.getQuantity() : stock.getTotalStock());
+            stock.setTotalStock(Math.max(capacity, remainingCommitted));
+            stock.setAvailableStock(Math.max(0, capacity - remainingCommitted));
 
             racketStockByDateRepository.save(stock);
         }

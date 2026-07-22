@@ -5,7 +5,6 @@ import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.service.BookingStatsService;
 import com.example.quanly.service.ProductService;
-import com.example.quanly.service.UploadService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,7 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -27,7 +25,6 @@ import java.util.Map;
 public class ProductController {
 
     ProductService productService;
-    UploadService uploadService;
     BookingStatsService bookingStatsService;
 
     @GetMapping
@@ -56,12 +53,7 @@ public class ProductController {
 
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
-            @RequestPart("product") Product product,
-            @RequestPart(value = "productImg", required = false) MultipartFile file) {
-
-        if (file != null && !file.isEmpty()) {
-            product.setImage(uploadService.handleSaveUploadFile(file, "product"));
-        }
+            @RequestPart("product") Product product) {
         product.setDetailDesc(product.getDetailDesc() != null
                 ? product.getDetailDesc().replace("\n", "<br>")
                 : "");
@@ -82,36 +74,9 @@ public class ProductController {
     @PutMapping(value = "/{productId}", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
             @PathVariable long productId,
-            @RequestPart("product") Product product,
-            @RequestPart(value = "productImg", required = false) MultipartFile file) {
+            @RequestPart("product") Product product) {
 
-        ProductResponseDTO existingDTO = productService.getProductByID(productId);
-        if (existingDTO == null) {
-            throw new IllegalArgumentException("Không tìm thấy sân id=" + productId);
-        }
-
-        // Cần lấy Entity để update
-        Product existing = new Product();
-        existing.setId(productId);
-        existing.setName(product.getName());
-        existing.setDetailDesc(product.getDetailDesc());
-        existing.setAddress(product.getAddress());
-        existing.setSale(product.getSale());
-        existing.setPrice(product.getPrice());
-        existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
-        existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
-        existing.setDepositPrice(existingDTO.getDepositPrice());
-        existing.setShortDesc(existingDTO.getShortDesc());
-
-        if (file != null && !file.isEmpty()) {
-            existing.setImage(uploadService.handleSaveUploadFile(file, "product"));
-        } else if (product.getImage() != null && !product.getImage().isEmpty()) {
-            existing.setImage(product.getImage());
-        } else {
-            existing.setImage(existingDTO.getImage());
-        }
-
-        ProductResponseDTO updatedProduct = productService.handSaveProduct(existing);
+        ProductResponseDTO updatedProduct = productService.updateProduct(productId, product);
 
         return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
                 .status(200).message("Cập nhật sân thành công").data(updatedProduct).build());

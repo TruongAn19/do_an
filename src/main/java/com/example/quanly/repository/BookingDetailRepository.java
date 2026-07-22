@@ -17,6 +17,11 @@ import java.util.Optional;
 
 @Repository
 public interface BookingDetailRepository extends JpaRepository<BookingDetail, Long> {
+  @Query("SELECT COUNT(bd) > 0 FROM BookingDetail bd WHERE bd.subCourt = :subCourt " +
+      "AND bd.date >= :fromDate AND bd.booking.status <> com.example.quanly.domain.BookingStatus.DA_HUY")
+  boolean existsActiveFromDateBySubCourt(
+      @Param("subCourt") SubCourt subCourt,
+      @Param("fromDate") LocalDate fromDate);
   Optional<BookingDetail> findBySubCourtAndAvailableTimeAndDate(SubCourt subCourt, AvailableTime time,
       LocalDate bookingDate);
 

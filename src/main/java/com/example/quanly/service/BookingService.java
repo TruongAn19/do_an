@@ -73,11 +73,11 @@ public class BookingService {
     MemberLevelService memberLevelService;
 
     public Page<BookingResponseDTO> fetchAllBookings(Pageable pageable) {
-        return bookingRepository.findAll(pageable).map(bookingMapper::toDTO);
+        return bookingRepository.findByDeletedFalse(pageable).map(bookingMapper::toDTO);
     }
 
     public Page<BookingResponseDTO> fetchBookingCode(String code, Pageable pageable) {
-        return bookingRepository.findByBookingCodeContainingIgnoreCase(code, pageable).map(bookingMapper::toDTO);
+        return bookingRepository.findByBookingCodeContainingIgnoreCaseAndDeletedFalse(code, pageable).map(bookingMapper::toDTO);
     }
 
     public Page<BookingResponseDTO> fetchBookingsByDate(LocalDate date, Pageable pageable) {
@@ -90,12 +90,10 @@ public class BookingService {
 
     @Transactional
     public void deleteBookingById(long id) {
-        Optional<Booking> bookingOptional = this.bookingRepository.findById(id);
-        if (bookingOptional.isPresent()) {
-            List<BookingDetail> bookingDetails = bookingOptional.get().getBookingDetails();
-            this.bookingDetailRepository.deleteAllInBatch(bookingDetails);
-        }
-        this.bookingRepository.deleteById(id);
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + id));
+        booking.setDeleted(true);
+        bookingRepository.save(booking);
     }
 
     @Transactional
@@ -143,7 +141,7 @@ public class BookingService {
     }
 
     public List<BookingResponseDTO> fetchBookingByUser(User user) {
-        return this.bookingRepository.findByUser(user).stream()
+        return this.bookingRepository.findByUserAndDeletedFalse(user).stream()
                 .map(bookingMapper::toDTO)
                 .collect(Collectors.toList());
     }
@@ -215,8 +213,8 @@ public class BookingService {
         // 4. Lấy thông tin sân, khung giờ
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm ID: " + productId));
-        SubCourt subCourt = subCourtRepository.findById(subCourtId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subCourtId));
+        SubCourt subCourt = subCourtRepository.findByIdAndActiveTrue(subCourtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ đang hoạt động ID: " + subCourtId));
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
 
@@ -548,12 +546,12 @@ public class BookingService {
 
     @Transactional
     public Page<BookingResponseDTO> fetchBookingByUserWithPaging(Long userId, Pageable pageable) {
-        return bookingRepository.findByUserId(userId, pageable).map(bookingMapper::toDTO);
+        return bookingRepository.findByUserIdAndDeletedFalse(userId, pageable).map(bookingMapper::toDTO);
     }
 
     @Transactional
     public Page<BookingResponseDTO> fetchBookingByUserAndTypeWithPaging(Long userId, BookingType bookingType, Pageable pageable) {
-        return bookingRepository.findByUserIdAndBookingType(userId, bookingType, pageable).map(bookingMapper::toDTO);
+        return bookingRepository.findByUserIdAndBookingTypeAndDeletedFalse(userId, bookingType, pageable).map(bookingMapper::toDTO);
     }
 
     // =============================================================================

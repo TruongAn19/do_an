@@ -35,6 +35,10 @@ public class Racket {
 
     private int quantity; // số vợt cho thuê
 
+    private Integer targetQuantity;
+
+    private int pendingRetirementQuantity;
+
     private String status;
 
     @ManyToOne(fetch = FetchType.EAGER)

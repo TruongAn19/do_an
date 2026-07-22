@@ -51,7 +51,7 @@ public class AIToolsConfig {
 
     @Tool(description = "Liệt kê danh sách tất cả các sân cầu lông, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
     public AllCourtsResponse listAllCourts() {
-        List<SubCourt> courts = subCourtRepository.findAll();
+        List<SubCourt> courts = subCourtRepository.findByActiveTrue();
         List<CourtInfo> infoList = courts.stream().map(c -> {
             String cluster = c.getProduct() != null ? c.getProduct().getName() : "Chưa xác định";
             String region = c.getProduct() != null ? c.getProduct().getAddress() : "Chưa có khu vực";
@@ -74,7 +74,7 @@ public class AIToolsConfig {
             LocalDate today = LocalDate.now();
             LocalTime now = LocalTime.now();
 
-            List<SubCourt> allCourts = subCourtRepository.findAll();
+            List<SubCourt> allCourts = subCourtRepository.findByActiveTrue();
             List<AvailableTime> allTimes = timeRepository.findAll();
 
             List<String> availableSlots = new ArrayList<>();

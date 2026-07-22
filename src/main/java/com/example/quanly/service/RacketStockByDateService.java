@@ -38,11 +38,12 @@ public class RacketStockByDateService {
             for (LocalDate date = today; !date.isAfter(targetDate); date = date.plusDays(1)) {
                 boolean exists = racketStockByDateRepository.existsByRacketIdAndDate(racket.getId(), date);
                 if (!exists) {
+                    int capacity = effectiveCapacity(racket);
                     RacketStockByDate stock = new RacketStockByDate();
                     stock.setRacketId(racket.getId());
                     stock.setDate(date);
-                    stock.setTotalStock(racket.getQuantity());
-                    stock.setAvailableStock(racket.getQuantity());
+                    stock.setTotalStock(capacity);
+                    stock.setAvailableStock(capacity);
                     stock.setReservedStock(0);
                     stock.setRentalStock(0);
                     racketStockByDateRepository.save(stock);
@@ -58,12 +59,13 @@ public class RacketStockByDateService {
 
         List<RacketStockByDate> stocks = new ArrayList<>();
 
+        int capacity = effectiveCapacity(racket);
         for (LocalDate date = today; !date.isAfter(targetDate); date = date.plusDays(1)) {
             RacketStockByDate stock = new RacketStockByDate();
             stock.setRacketId(racket.getId());
             stock.setDate(date);
-            stock.setTotalStock(racket.getQuantity());
-            stock.setAvailableStock(racket.getQuantity());
+            stock.setTotalStock(capacity);
+            stock.setAvailableStock(capacity);
             stock.setReservedStock(0);
             stock.setRentalStock(0);
             stocks.add(stock);
@@ -92,10 +94,17 @@ public class RacketStockByDateService {
         RacketStockByDate stock = new RacketStockByDate();
         stock.setRacketId(racketId);
         stock.setDate(date);
-        stock.setTotalStock(racket.getQuantity());
-        stock.setAvailableStock(racket.getQuantity());
+        int capacity = effectiveCapacity(racket);
+        stock.setTotalStock(capacity);
+        stock.setAvailableStock(capacity);
         stock.setReservedStock(0);
         stock.setRentalStock(0);
         return racketStockByDateRepository.save(stock);
+    }
+
+    private int effectiveCapacity(Racket racket) {
+        return racket.getTargetQuantity() != null
+                ? racket.getTargetQuantity()
+                : racket.getQuantity();
     }
 }

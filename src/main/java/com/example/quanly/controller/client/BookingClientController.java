@@ -98,8 +98,8 @@ public class BookingClientController {
             @RequestParam("courtId") Long courtId) {
 
         LocalDate date = LocalDate.parse(dateStr);
-        SubCourt court = subCourtRepository.findById(courtId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + courtId));
+        SubCourt court = subCourtRepository.findByIdAndActiveTrue(courtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ đang hoạt động ID: " + courtId));
 
         List<BookingDetail> bookings = bookingDetailRepository.findBySubCourtAndDate(court, date);
         Set<Long> bookedTimeIds = bookings.stream()
@@ -146,8 +146,8 @@ public class BookingClientController {
         temporaryBookingRepository.deleteExpiredHolds(expiryTime);
         temporaryBookingRepository.flush();
 
-        SubCourt court = subCourtRepository.findById(holdRequest.getSubCourtId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
+        SubCourt court = subCourtRepository.findByIdAndActiveTrue(holdRequest.getSubCourtId())
+                .orElseThrow(() -> new IllegalArgumentException("Sân phụ không tồn tại hoặc đã ngừng hoạt động"));
         AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
 

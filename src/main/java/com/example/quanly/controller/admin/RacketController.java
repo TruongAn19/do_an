@@ -4,14 +4,12 @@ import com.example.quanly.domain.Racket;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.service.RacketService;
 import com.example.quanly.service.RacketStockByDateService;
-import com.example.quanly.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -20,7 +18,6 @@ import java.util.Map;
 public class RacketController {
 
     private final RacketService racketService;
-    private final UploadService uploadService;
     private final RacketStockByDateService racketStockByDateService;
 
     @GetMapping("/api/v1/admin/rackets")
@@ -50,13 +47,11 @@ public class RacketController {
 
     @PostMapping(value = "/api/v1/admin/rackets", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<Racket>> createRacket(
-            @RequestPart("racket") Racket racket,
-            @RequestPart(value = "racketImg", required = false) MultipartFile file) {
-
-        if (file != null && !file.isEmpty()) {
-            racket.setImage(uploadService.handleSaveUploadFile(file, "racket"));
-        }
+            @RequestPart("racket") Racket racket) {
         racket.setStatus("ACTIVE");
+        racket.setTargetQuantity(racket.getQuantity());
+        racket.setPendingRetirementQuantity(0);
+        racket.setBookingStockQuantity(racket.getQuantity());
         Racket saved = racketService.handSaveRacket(racket);
         racketStockByDateService.generateStockForRacket(saved);
 
@@ -67,28 +62,18 @@ public class RacketController {
     @PutMapping(value = "/api/v1/admin/rackets/{racketId}", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<Racket>> updateRacket(
             @PathVariable long racketId,
-            @RequestPart("racket") Racket racket,
-            @RequestPart(value = "racketImg", required = false) MultipartFile file) {
+            @RequestPart("racket") Racket racket) {
 
-        Racket existing = racketService.getRacketById(racketId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt id=" + racketId));
-
-        existing.setName(racket.getName());
-        existing.setPrice(racket.getPrice());
-        existing.setFactory(racket.getFactory());
-        existing.setAvailable(racket.isAvailable());
-        existing.setRentalPricePerDay(racket.getRentalPricePerDay());
-        existing.setRentalPricePerPlay(racket.getRentalPricePerPlay());
-        existing.setBookingStockQuantity(racket.getBookingStockQuantity());
-        existing.setQuantity(racket.getQuantity());
-        existing.setStatus(racket.getStatus());
-        existing.setProduct(racket.getProduct());
-        if (file != null && !file.isEmpty()) {
-            existing.setImage(uploadService.handleSaveUploadFile(file, "racket"));
-        }
-        racketService.handSaveRacket(existing);
+        Racket existing = racketService.updateRacket(racketId, racket);
 
         return ResponseEntity.ok(ApiResponse.<Racket>builder()
                 .status(200).message("Cập nhật vợt thành công").data(existing).build());
+    }
+
+    @DeleteMapping("/api/v1/admin/rackets/{racketId}")
+    public ResponseEntity<ApiResponse<String>> deleteRacket(@PathVariable long racketId) {
+        racketService.deleteRacket(racketId);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .status(200).message("Ngừng sử dụng vợt thành công").data(null).build());
     }
 }

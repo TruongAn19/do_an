@@ -18,6 +18,8 @@ public interface RacketRepository extends JpaRepository<Racket, Long>, JpaSpecif
     @Query("SELECT r FROM Racket r WHERE r.product.id = :productId AND r.available = true")
     List<Racket> findByProductAndAvailableTrue(Long productId);
 
+    List<Racket> findByProductId(Long productId);
+
     /**
      * A2: lấy Racket có khoá ghi bi quan (SELECT ... FOR UPDATE) để re-check + trừ tồn kho
      * lúc confirm thanh toán. Hai callback confirm song song trên cùng vợt sẽ bị serial hoá,

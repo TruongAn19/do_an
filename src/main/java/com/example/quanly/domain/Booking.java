@@ -77,4 +77,6 @@ public class Booking {
 
     @Column(name = "cancel_reason", length = 255)
     private String cancelReason;
+
+    private boolean deleted = false;
 }

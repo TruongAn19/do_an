@@ -9,11 +9,14 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 public interface RacketStockByDateRepository extends JpaRepository<RacketStockByDate, Long> {
     boolean existsByRacketIdAndDate(Long id, LocalDate date);
 
     Optional<RacketStockByDate> findByRacketIdAndDate(Long racketId, LocalDate date);
+
+    List<RacketStockByDate> findByRacketIdAndDateGreaterThanEqual(Long racketId, LocalDate date);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM RacketStockByDate s WHERE s.racketId = :racketId AND s.date = :date")

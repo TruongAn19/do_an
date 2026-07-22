@@ -13,4 +13,5 @@ import com.example.quanly.domain.SubCourtAvailableTime;
 public interface SubCourtAvailableTimeRepository extends JpaRepository<SubCourtAvailableTime, Long> {
     Optional<SubCourtAvailableTime> findBySubCourtAndAvailableTime(SubCourt subCourt, AvailableTime availableTime);
 
+
 }

@@ -19,6 +19,7 @@ import java.util.Optional;
 
 @Repository
 public interface TemporaryBookingRepository extends JpaRepository<TemporaryBooking, Long> {
+    boolean existsBySubCourtAndHoldStartTimeGreaterThanEqual(SubCourt subCourt, LocalDateTime expiryLimit);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TemporaryBooking t WHERE t.subCourt = :subCourt AND t.availableTime = :time AND t.bookingDate = :date")
     Optional<TemporaryBooking> findBySubCourtAndAvailableTimeAndBookingDateWithLock(

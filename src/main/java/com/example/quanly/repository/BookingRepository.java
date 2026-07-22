@@ -21,6 +21,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByUser(User user);
 
+    List<Booking> findByUserAndDeletedFalse(User user);
+
     Optional<Booking> findByPendingPaymentId(Long pendingPaymentId);
 
     @Query("""
@@ -33,7 +35,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("userId") Long userId, @Param("status") BookingStatus status);
 
     // Tìm các Booking có ít nhất một BookingDetail với ngày cụ thể
-    @Query(value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date", countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date")
+    @Query(value = "SELECT DISTINCT b FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date AND b.deleted = false", countQuery = "SELECT COUNT(DISTINCT b) FROM Booking b JOIN b.bookingDetails bd WHERE bd.date = :date AND b.deleted = false")
     Page<Booking> findByBookingDetailsDate(@Param("date") LocalDate date, Pageable pageable);
 
     Booking findByBookingCode(String bookingCode);
@@ -45,13 +47,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Page<Booking> findAll(Pageable pageable);
 
+    Page<Booking> findByDeletedFalse(Pageable pageable);
+
+    Page<Booking> findByBookingCodeContainingIgnoreCaseAndDeletedFalse(String code, Pageable pageable);
+
     Page<Booking> findByBookingCodeContainingIgnoreCase(String code, Pageable pageable);
 
     @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
     Page<Booking> findByUserId(Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
+    Page<Booking> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
     Page<Booking> findByUserIdAndBookingType(Long userId, BookingType bookingType, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"bookingDetails", "user", "bookingDetails.product", "bookingDetails.availableTime", "bookingDetails.subCourt"})
+    Page<Booking> findByUserIdAndBookingTypeAndDeletedFalse(Long userId, BookingType bookingType, Pageable pageable);
 
     @Query(value = "SELECT available_time_id FROM booking WHERE user_id = :userId GROUP BY available_time_id ORDER BY COUNT(*) DESC LIMIT 1", nativeQuery = true)
     Long findMostFrequentTimeSlotByUserId(@Param("userId") Long userId);

@@ -71,7 +71,7 @@ public class UserService {
     }
 
     public Page<UserResponseDTO> getUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(userMapper::toDTO);
+        return userRepository.findByEnabledTrue(pageable).map(userMapper::toDTO);
     }
 
     public UserResponseDTO getUserById(long userId) {
@@ -79,7 +79,10 @@ public class UserService {
     }
 
     public void deleteAUser(long id) {
-        this.userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng id=" + id));
+        user.setEnabled(false);
+        userRepository.save(user);
     }
 
     public void changePassword(long userId, String newPassword) {

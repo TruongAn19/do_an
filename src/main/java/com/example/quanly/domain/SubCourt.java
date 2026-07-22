@@ -24,6 +24,8 @@ public class SubCourt {
 
     private String name; // VD: "Sân 1", "Sân 2", ...
 
+    private boolean active = true;
+
     @ManyToOne
     @JoinColumn(name = "product_id")
     @JsonIgnoreProperties({"user", "rackets", "availableTimes"})
@@ -47,6 +49,14 @@ public class SubCourt {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Product getProduct() {

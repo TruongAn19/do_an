@@ -31,7 +31,7 @@ public class RecommendationService {
         Long frequentTimeId = bookingRepository.findMostFrequentTimeSlotByUserId(userId);
 
         // 2. Lấy tất cả các sân thuộc sản phẩm này
-        List<SubCourt> courts = subCourtRepository.findByProductId(productId);
+        List<SubCourt> courts = subCourtRepository.findByProductIdAndActiveTrue(productId);
 
         // 3. Kiểm tra xem hôm nay hoặc ngày mai, khung giờ này có trống ở sân nào không
         LocalDate today = LocalDate.now();
