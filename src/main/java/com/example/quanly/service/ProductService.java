@@ -80,9 +80,8 @@ public class ProductService {
                     for (String addr : addresses) {
                         String searchStr = "%" + addr.toLowerCase() + "%";
                         predicates.add(cb.or(
-                            cb.like(cb.lower(root.get("address")), searchStr),
-                            cb.like(cb.lower(root.get("addressDetail")), searchStr)
-                        ));
+                                cb.like(cb.lower(root.get("address")), searchStr),
+                                cb.like(cb.lower(root.get("addressDetail")), searchStr)));
                     }
                     return cb.or(predicates.toArray(new Predicate[0]));
                 };
@@ -152,12 +151,12 @@ public class ProductService {
         if (isNew) {
             // Tạo sub-courts và subcourt_available_time chỉ khi tạo mới
             List<AvailableTime> allTimes = timeRepository.findAll();
-            
+
             String[] names = null;
             if (product.getSubCourtNames() != null && !product.getSubCourtNames().trim().isEmpty()) {
                 names = product.getSubCourtNames().split(",");
             }
-            
+
             int actualQuantity = (int) savedProduct.getQuantity();
             if (names != null && names.length > actualQuantity) {
                 actualQuantity = names.length;
@@ -263,8 +262,8 @@ public class ProductService {
                     activeCourts.subList(targetQuantity, activeCourts.size()));
             LocalDate today = LocalDate.now();
             LocalDateTime activeHoldCutoff = LocalDateTime.now().minusMinutes(holdDurationMinutes);
-            boolean inUse = courtsToDeactivate.stream().anyMatch(court ->
-                    bookingDetailRepository.existsActiveFromDateBySubCourt(court, today)
+            boolean inUse = courtsToDeactivate.stream()
+                    .anyMatch(court -> bookingDetailRepository.existsActiveFromDateBySubCourt(court, today)
                             || temporaryBookingRepository
                                     .existsBySubCourtAndHoldStartTimeGreaterThanEqual(court, activeHoldCutoff));
             if (inUse) {
@@ -364,40 +363,31 @@ public class ProductService {
         Specification<Product> spec = Specification.where(null);
 
         if (search != null && !search.trim().isEmpty()) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.like(cb.lower(root.get("name")), "%" + search.trim().toLowerCase() + "%"));
+            spec = spec.and(
+                    (root, query, cb) -> cb.like(cb.lower(root.get("name")), "%" + search.trim().toLowerCase() + "%"));
         }
 
         if (address != null && !address.trim().isEmpty()) {
             String searchAddr = "%" + address.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> 
-                    cb.or(
-                        cb.like(cb.lower(root.get("address")), searchAddr),
-                        cb.like(cb.lower(root.get("addressDetail")), searchAddr)
-                    )
-            );
+            spec = spec.and((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("address")), searchAddr),
+                    cb.like(cb.lower(root.get("addressDetail")), searchAddr)));
         }
 
         if (maxPrice != null) {
-            spec = spec.and((root, query, cb) -> 
-                    cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("price"), maxPrice));
         }
 
         spec = spec.and(Specification.not(ProductSpec.addressIsNullOrEmpty()));
 
-        spec = spec.and((root, query, cb) -> 
-            cb.or(
+        spec = spec.and((root, query, cb) -> cb.or(
                 cb.notEqual(root.get("status"), "DELETED"),
-                cb.isNull(root.get("status"))
-            )
-        );
+                cb.isNull(root.get("status"))));
 
         return this.productRepository.findAll(spec, pageable).map(productMapper::toDTO);
     }
 
     public List<SubCourt> getAllCourtsByProduct(long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
         List<SubCourt> allCourts = this.subCourtRepository.findByProductIdAndActiveTrue(productId);
 
         // Giữ lại SubCourt đầu tiên theo tên

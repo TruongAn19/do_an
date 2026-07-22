@@ -10,7 +10,6 @@ import com.example.quanly.repository.SubCourtRepository;
 import com.example.quanly.repository.TemporaryBookingRepository;
 import com.example.quanly.repository.TimeRepository;
 import com.example.quanly.service.BookingStatsService;
-import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -49,7 +48,6 @@ public class AIToolsConfig {
     public record CourtInfo(String clusterName, String courtName, String region, String addressDetail) {}
     public record AllCourtsResponse(List<CourtInfo> courts) {}
 
-    @Tool(description = "Liệt kê danh sách tất cả các sân cầu lông, bao gồm tên sân, khu vực (Hà Nội, HCM...) và địa chỉ chi tiết.")
     public AllCourtsResponse listAllCourts() {
         List<SubCourt> courts = subCourtRepository.findByActiveTrue();
         List<CourtInfo> infoList = courts.stream().map(c -> {
@@ -67,7 +65,6 @@ public class AIToolsConfig {
     public record CourtAvailabilityResponse(String date, List<String> availableSlots) {
     }
 
-    @Tool(description = "Kiểm tra lịch trống của các sân cầu lông theo ngày. Tham số date phải có định dạng YYYY-MM-DD.")
     public CourtAvailabilityResponse checkCourtAvailability(CourtAvailabilityRequest request) {
         try {
             LocalDate date = LocalDate.parse(request.date());
@@ -125,7 +122,6 @@ public class AIToolsConfig {
     public record RevenueResponse(String report) {
     }
 
-    @Tool(description = "Lấy báo cáo doanh thu theo khoảng thời gian. Truyền startDate và endDate theo định dạng YYYY-MM-DD. CHỈ DÀNH CHO ADMIN.")
     public RevenueResponse getRevenueReport(RevenueRequest request) {
         // Endpoint /api/v1/ai/** là permitAll nhưng JWT filter vẫn populate auth nếu token có
         // → check role tại đây để chặn user thường gõ tay "doanh thu tuần này".
@@ -140,10 +136,12 @@ public class AIToolsConfig {
             Map<String, Double> revenueData = bookingStatsService.getRevenueBetweenDates(start, end);
 
             if (revenueData.isEmpty()) {
-                return new RevenueResponse("Không có dữ liệu doanh thu trong khoảng thời gian này.");
+                return new RevenueResponse("Không có dữ liệu doanh thu trong khoảng "
+                        + start + " đến " + end + ".");
             }
 
-            StringBuilder report = new StringBuilder();
+            StringBuilder report = new StringBuilder("Khoảng báo cáo: ")
+                    .append(start).append(" đến ").append(end).append("\n");
             double total = 0;
             for (Map.Entry<String, Double> entry : revenueData.entrySet()) {
                 report.append("- ").append(entry.getKey()).append(": ")
