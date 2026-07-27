@@ -4,16 +4,19 @@ import com.pitchbooking.app.domain.Booking;
 import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
@@ -25,6 +28,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Page<Booking> findByBookingDetailsDate(@Param("date") LocalDate date, Pageable pageable);
 
     Booking findByBookingCode(String bookingCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Booking b WHERE b.bookingCode = :bookingCode")
+    Optional<Booking> findByBookingCodeWithLock(@Param("bookingCode") String bookingCode);
 
     @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
     List<Booking> findBookingsByStatusAndDate(BookingStatus status, LocalDate date);

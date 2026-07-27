@@ -12,6 +12,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.contact")
 @Data
 public class ContactProperties {
-    private String hotline = "0123456789";
-    private String email = "admin@badmintonhub.vn";
+    private String hotline = "";
+    private String email = "";
 }

@@ -5,16 +5,23 @@ import com.pitchbooking.app.domain.Booking;
 import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.BookingType;
 import com.pitchbooking.app.domain.Product;
+import com.pitchbooking.app.domain.RentalTool;
+import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.SubPitch;
+import com.pitchbooking.app.domain.SubPitchAvailableTime;
+import com.pitchbooking.app.domain.TemporaryBooking;
 import com.pitchbooking.app.domain.User;
+import com.pitchbooking.app.domain.dto.BookingPriceBreakdown;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
 import com.pitchbooking.app.domain.dto.PendingBookingData;
+import com.pitchbooking.app.domain.dto.PreparedBookingResult;
 import com.pitchbooking.app.mapper.BookingMapper;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.BookingRepository;
 import com.pitchbooking.app.repository.ProductRepository;
 import com.pitchbooking.app.repository.RentalToolRepository;
 import com.pitchbooking.app.repository.SubPitchRepository;
+import com.pitchbooking.app.repository.SubPitchAvailableTimeRepository;
 import com.pitchbooking.app.repository.TemporaryBookingRepository;
 import com.pitchbooking.app.repository.TimeRepository;
 import com.pitchbooking.app.repository.UserRepository;
@@ -29,10 +36,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -71,6 +81,7 @@ class BookingServicePhase8Test {
     @Mock ProductRepository productRepository;
     @Mock TimeRepository timeRepository;
     @Mock SubPitchRepository subPitchRepository;
+    @Mock SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
     @Mock TemporaryBookingRepository temporaryBookingRepository;
     @Mock BookingMapper bookingMapper;
     @Mock PricingService pricingService;
@@ -96,9 +107,226 @@ class BookingServicePhase8Test {
 
         subPitch = new SubPitch();
         subPitch.setId(7L);
+        subPitch.setProduct(product);
 
         availableTime = new AvailableTime();
         availableTime.setId(3L);
+    }
+
+    private void mockAvailableTimeForSubPitch() {
+        SubPitchAvailableTime relation = new SubPitchAvailableTime();
+        relation.setSubPitch(subPitch);
+        relation.setAvailableTime(availableTime);
+        when(subPitchAvailableTimeRepository.findBySubPitchAndAvailableTime(
+                subPitch, availableTime)).thenReturn(Optional.of(relation));
+    }
+
+    @Test
+    @DisplayName("Paying a booking does not mark linked rentals as returned")
+    void updateBooking_toPaid_keepsRentalStatusUnchanged() {
+        Booking booking = new Booking();
+        booking.setId(88L);
+        booking.setStatus(BookingStatus.DA_DAT);
+
+        RentalTool rental = new RentalTool();
+        rental.setId(99L);
+        rental.setBookingId(String.valueOf(booking.getId()));
+        rental.setStatus(RentalToolStatus.DEPOSITED);
+
+        when(bookingRepository.findById(booking.getId())).thenReturn(Optional.of(booking));
+        org.mockito.Mockito.lenient()
+                .when(rentalToolRepository.findRentalToolsByBookingId(
+                        String.valueOf(booking.getId())))
+                .thenReturn(List.of(rental));
+
+        bookingService.updateBooking(booking.getId(), BookingStatus.DA_THANH_TOAN.name());
+
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_THANH_TOAN);
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.DEPOSITED);
+        verify(bookingRepository).save(booking);
+        verify(rentalToolRepository, never())
+                .findRentalToolsByBookingId(String.valueOf(booking.getId()));
+        verify(rentalToolRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("Booking rejects a sub-pitch from another product")
+    void prepareBooking_subPitchFromAnotherProduct_rejects() {
+        Product anotherProduct = new Product();
+        anotherProduct.setId(11L);
+        subPitch.setProduct(anotherProduct);
+
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
+
+        assertThatThrownBy(() -> bookingService.preparePendingBooking(
+                user, "Receiver", "Address", "0900000000",
+                product.getId(), availableTime.getId(), subPitch.getId(),
+                LocalDate.now().plusDays(1), BookingType.ONE_TIME.name(),
+                null, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Sân phụ ID " + subPitch.getId()
+                                + " không thuộc sân ID " + product.getId() + ".");
+
+        verify(pricingService, never()).calculateBookingPriceBreakdown(
+                any(), any(), any(), any(), any(), any(), any(), any());
+        verify(pendingBookingCache, never()).store(any(PendingBookingData.class));
+    }
+
+    @Test
+    @DisplayName("Booking rejects a time not configured for the sub-pitch")
+    void prepareBooking_timeNotConfiguredForSubPitch_rejects() {
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
+        when(subPitchAvailableTimeRepository.findBySubPitchAndAvailableTime(
+                subPitch, availableTime)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookingService.preparePendingBooking(
+                user, "Receiver", "Address", "0900000000",
+                product.getId(), availableTime.getId(), subPitch.getId(),
+                LocalDate.now().plusDays(1), BookingType.ONE_TIME.name(),
+                null, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Khung giờ ID " + availableTime.getId()
+                                + " không được cấu hình cho sân phụ ID "
+                                + subPitch.getId() + ".");
+
+        verify(pricingService, never()).calculateBookingPriceBreakdown(
+                any(), any(), any(), any(), any(), any(), any(), any());
+        verify(pendingBookingCache, never()).store(any(PendingBookingData.class));
+    }
+
+    @Test
+    @DisplayName("WEEKLY_RECURRING holds every generated booking date")
+    void prepareWeeklyBooking_holdsEveryGeneratedDate() {
+        LocalDate anchorDate = LocalDate.now().plusDays(1);
+        LocalDate secondDate = anchorDate.plusWeeks(1);
+        LocalDate thirdDate = anchorDate.plusWeeks(2);
+        LocalDate recurringEndDate = thirdDate;
+        List<Integer> daysOfWeek = List.of(anchorDate.getDayOfWeek().getValue());
+        List<PendingBookingData.SlotData> slots = List.of(
+                new PendingBookingData.SlotData(anchorDate, 200_000d, 0L),
+                new PendingBookingData.SlotData(secondDate, 200_000d, 0L),
+                new PendingBookingData.SlotData(thirdDate, 200_000d, 0L));
+        BookingPriceBreakdown breakdown = new BookingPriceBreakdown(
+                slots, 600_000d, 300_000d, 0d, 0d);
+
+        TemporaryBooking anchorHold = new TemporaryBooking();
+        anchorHold.setId(101L);
+        anchorHold.setUserId(user.getId());
+        anchorHold.setSubPitch(subPitch);
+        anchorHold.setAvailableTime(availableTime);
+        anchorHold.setBookingDate(anchorDate);
+        anchorHold.setHoldExpiresAt(LocalDateTime.now().plusMinutes(2));
+
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
+        mockAvailableTimeForSubPitch();
+        when(pricingService.calculateBookingPriceBreakdown(
+                user, product, availableTime, BookingType.WEEKLY_RECURRING,
+                anchorDate, recurringEndDate, daysOfWeek, null))
+                .thenReturn(breakdown);
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(
+                subPitch, availableTime, anchorDate)).thenReturn(Optional.empty());
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(
+                subPitch, availableTime, secondDate)).thenReturn(Optional.empty());
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(
+                subPitch, availableTime, thirdDate)).thenReturn(Optional.empty());
+        when(temporaryBookingRepository.findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                subPitch, availableTime, anchorDate)).thenReturn(Optional.of(anchorHold));
+        when(temporaryBookingRepository.findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                subPitch, availableTime, secondDate)).thenReturn(Optional.empty());
+        when(temporaryBookingRepository.findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                subPitch, availableTime, thirdDate)).thenReturn(Optional.empty());
+
+        AtomicLong nextHoldId = new AtomicLong(200L);
+        when(temporaryBookingRepository.save(any(TemporaryBooking.class))).thenAnswer(invocation -> {
+            TemporaryBooking hold = invocation.getArgument(0);
+            if (hold.getId() == null) {
+                hold.setId(nextHoldId.incrementAndGet());
+            }
+            return hold;
+        });
+        when(pendingBookingCache.store(any(PendingBookingData.class))).thenReturn(1234L);
+
+        PreparedBookingResult result = bookingService.preparePendingBooking(
+                user, "Receiver", "Address", "0900000000",
+                product.getId(), availableTime.getId(), subPitch.getId(),
+                anchorDate, BookingType.WEEKLY_RECURRING.name(), recurringEndDate,
+                daysOfWeek, null);
+
+        ArgumentCaptor<PendingBookingData> pendingCaptor =
+                ArgumentCaptor.forClass(PendingBookingData.class);
+        verify(pendingBookingCache).store(pendingCaptor.capture());
+        assertThat(pendingCaptor.getValue().getTemporaryBookingIds())
+                .containsExactly(101L, 201L, 202L);
+        assertThat(pendingCaptor.getValue().getSlots())
+                .extracting(PendingBookingData.SlotData::getDate)
+                .containsExactly(anchorDate, secondDate, thirdDate);
+        assertThat(result.pendingId()).isEqualTo(1234L);
+        assertThat(result.depositPrice()).isEqualTo(300_000d);
+    }
+
+    @Test
+    @DisplayName("WEEKLY_RECURRING rejects a generated date held by another user")
+    void prepareWeeklyBooking_dateHeldByAnotherUser_rejects() {
+        LocalDate anchorDate = LocalDate.now().plusDays(1);
+        LocalDate secondDate = anchorDate.plusWeeks(1);
+        LocalDate recurringEndDate = secondDate;
+        List<Integer> daysOfWeek = List.of(anchorDate.getDayOfWeek().getValue());
+        BookingPriceBreakdown breakdown = new BookingPriceBreakdown(
+                List.of(
+                        new PendingBookingData.SlotData(anchorDate, 200_000d, 0L),
+                        new PendingBookingData.SlotData(secondDate, 200_000d, 0L)),
+                400_000d, 200_000d, 0d, 0d);
+
+        TemporaryBooking anchorHold = new TemporaryBooking();
+        anchorHold.setId(101L);
+        anchorHold.setUserId(user.getId());
+        anchorHold.setHoldExpiresAt(LocalDateTime.now().plusMinutes(2));
+
+        TemporaryBooking otherUserHold = new TemporaryBooking();
+        otherUserHold.setId(102L);
+        otherUserHold.setUserId(99L);
+        otherUserHold.setHoldExpiresAt(LocalDateTime.now().plusMinutes(2));
+
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
+        mockAvailableTimeForSubPitch();
+        when(pricingService.calculateBookingPriceBreakdown(
+                user, product, availableTime, BookingType.WEEKLY_RECURRING,
+                anchorDate, recurringEndDate, daysOfWeek, null))
+                .thenReturn(breakdown);
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(
+                subPitch, availableTime, anchorDate)).thenReturn(Optional.empty());
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(
+                subPitch, availableTime, secondDate)).thenReturn(Optional.empty());
+        when(temporaryBookingRepository.findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                subPitch, availableTime, anchorDate)).thenReturn(Optional.of(anchorHold));
+        when(temporaryBookingRepository.findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                subPitch, availableTime, secondDate)).thenReturn(Optional.of(otherUserHold));
+        when(temporaryBookingRepository.save(anchorHold)).thenReturn(anchorHold);
+
+        assertThatThrownBy(() -> bookingService.preparePendingBooking(
+                user, "Receiver", "Address", "0900000000",
+                product.getId(), availableTime.getId(), subPitch.getId(),
+                anchorDate, BookingType.WEEKLY_RECURRING.name(), recurringEndDate,
+                daysOfWeek, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(secondDate.format(
+                        java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+        verify(pendingBookingCache, never()).store(any(PendingBookingData.class));
     }
 
     /**
@@ -121,7 +349,8 @@ class BookingServicePhase8Test {
                 BookingType.ONE_TIME,
                 null, null, null,
                 400_000d, 50_000d,
-                List.of(new PendingBookingData.SlotData(LocalDate.now().plusDays(1), 400_000d, 0L)));
+                List.of(new PendingBookingData.SlotData(LocalDate.now().plusDays(1), 400_000d, 0L)),
+                List.of(999L));
 
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
@@ -152,6 +381,7 @@ class BookingServicePhase8Test {
 
         verify(rentalToolRepository, never()).save(any());
         verify(rentalToolRepository, never()).saveAll(any());
+        verify(temporaryBookingRepository).deleteAllById(List.of(999L));
         assertThat(result.getStatus()).isEqualTo("DA_DAT");
     }
 }

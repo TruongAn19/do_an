@@ -4,6 +4,7 @@ import com.pitchbooking.app.config.JwtTokenProvider;
 import com.pitchbooking.app.config.SecurityConfiguration;
 import com.pitchbooking.app.repository.RentalToolRepository;
 import com.pitchbooking.app.service.PaymentService;
+import com.pitchbooking.app.service.NotificationService;
 import com.pitchbooking.app.service.RateLimitService;
 import com.pitchbooking.app.service.RentalToolService;
 import com.pitchbooking.app.util.SecurityUtils;
@@ -49,6 +50,7 @@ class ControllerContractTest {
     @MockBean RentalToolRepository rentalToolRepository;
     @MockBean PaymentService paymentService;
     @MockBean SecurityUtils securityUtils;
+    @MockBean NotificationService notificationService;
 
     // =========================================================================
     // Security: unauthenticated → 401

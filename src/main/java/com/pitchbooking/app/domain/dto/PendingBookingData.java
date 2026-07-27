@@ -42,6 +42,7 @@ public class PendingBookingData implements Serializable {
     private double totalBookingPrice;
     private double depositPrice;
     private List<SlotData> slots;
+    private List<Long> temporaryBookingIds;
 
     @Data
     @AllArgsConstructor

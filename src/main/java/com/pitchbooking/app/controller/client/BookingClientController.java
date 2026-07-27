@@ -68,6 +68,7 @@ public class BookingClientController {
         ProductService productService;
         EquipmentService equipmentService;
         SubPitchRepository subPitchRepository;
+        SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
         TimeRepository timeRepository;
         BookingDetailRepository bookingDetailRepository;
         BookingService bookingService;
@@ -167,6 +168,13 @@ public class BookingClientController {
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
                 AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
+
+                if (subPitchAvailableTimeRepository
+                                .findBySubPitchAndAvailableTime(court, time)
+                                .isEmpty()) {
+                        throw new IllegalArgumentException(
+                                        "Khung giờ không được cấu hình cho sân phụ đã chọn.");
+                }
 
                 Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
                                 .findBySubPitchAndAvailableTimeAndBookingDateWithLock(court, time,
@@ -357,11 +365,21 @@ public class BookingClientController {
                 CancelBookingResponse resp = bookingService.cancelByUser(bookingId, currentUser.getId(), reason);
 
                 // Notification — user
-                String userMsg = resp.getRefundStatus() == RefundStatus.PENDING_REFUND
-                                ? String.format("Bạn đã huỷ thành công. Số tiền cọc hoàn dự kiến: %,.0fđ. "
-                                                + "Nếu chưa nhận sau 24h, vui lòng liên hệ %s / %s.",
-                                                resp.getRefundAmount(), resp.getContactHotline(), resp.getContactEmail())
-                                : "Bạn đã huỷ thành công. Không có khoản cọc nào cần hoàn.";
+                String userMsg;
+                if (resp.getRefundStatus() == RefundStatus.PENDING_REFUND) {
+                        userMsg = String.format(
+                                        "Bạn đã huỷ thành công. Số tiền cọc hoàn dự kiến: %,.0fđ. "
+                                                        + "Khoản hoàn đang chờ quản trị viên xử lý.",
+                                        resp.getRefundAmount());
+                        if (resp.getContactHotline() != null && !resp.getContactHotline().isBlank()) {
+                                userMsg += " Hotline: " + resp.getContactHotline() + ".";
+                        }
+                        if (resp.getContactEmail() != null && !resp.getContactEmail().isBlank()) {
+                                userMsg += " Email: " + resp.getContactEmail() + ".";
+                        }
+                } else {
+                        userMsg = "Bạn đã huỷ thành công. Không có khoản cọc nào cần hoàn.";
+                }
                 NotificationDTO userNotif = notificationService.create(
                                 currentUser.getId(),
                                 NotificationType.BOOKING_CANCELLED,

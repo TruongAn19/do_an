@@ -105,8 +105,7 @@ public class PaymentController {
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.DEPOSITED);
-        rentalToolService.handleDailyRental(rentalTool);
+        rentalTool = rentalToolService.confirmVnpayPayment(rentalToolId);
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()

@@ -131,7 +131,7 @@ public class RentalController {
         // Thông báo cho user
         String userMsg = needsRefund
                 ? String.format("Bạn đã huỷ đơn thuê %s thành công. "
-                        + "Tiền cọc %,.0fđ sẽ được hoàn trong 24h. Liên hệ admin nếu chưa nhận.",
+                        + "Tiền cọc %,.0fđ đang chờ quản trị viên xử lý.",
                         rentalTool.getRentalToolCode(), depositAmount)
                 : String.format("Bạn đã huỷ đơn thuê %s thành công.",
                         rentalTool.getRentalToolCode());
@@ -164,7 +164,7 @@ public class RentalController {
         }
 
         String responseMsg = needsRefund
-                ? String.format("Huỷ đơn thuê thành công. Tiền cọc %,.0fđ sẽ được hoàn trong 24h.", depositAmount)
+                ? String.format("Huỷ đơn thuê thành công. Tiền cọc %,.0fđ đang chờ quản trị viên xử lý.", depositAmount)
                 : "Huỷ đơn thuê thành công";
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message(responseMsg)

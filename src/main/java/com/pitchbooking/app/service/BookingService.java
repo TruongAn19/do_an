@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -55,6 +56,7 @@ public class BookingService {
     ProductRepository productRepository;
     TimeRepository timeRepository;
     SubPitchRepository subPitchRepository;
+    SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
     TemporaryBookingRepository temporaryBookingRepository;
     BookingMapper bookingMapper;
     PricingService pricingService;
@@ -94,12 +96,6 @@ public class BookingService {
         Booking currentBooking = bOptional.get();
         currentBooking.setStatus(BookingStatus.fromLabel(status));
         this.bookingRepository.save(currentBooking);
-
-        if (currentBooking.getStatus() == BookingStatus.DA_THANH_TOAN) {
-            List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(currentBooking.getId() + "");
-            rentalTools.forEach(rt -> rt.setStatus(RentalToolStatus.COMPLETED));
-            rentalToolRepository.saveAll(rentalTools);
-        }
     }
 
     public List<RentalTool> getRentalToolsByBookingId(long id) {
@@ -138,6 +134,8 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subPitchId));
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
+
+        validateBookingSelection(product, subPitch, time);
 
         // 3. Tính toán danh sách ngày + giá (shared với /estimate)
         com.pitchbooking.app.domain.dto.BookingPriceBreakdown breakdown = pricingService
@@ -180,36 +178,107 @@ public class BookingService {
                     "Sân này đã bị trùng lịch vào các ngày: " + String.join(", ", conflictedDates));
         }
 
-        // 6. Kiểm tra giữ chỗ (Hold Court) cho ngày bắt đầu (anchor date)
-        Optional<TemporaryBooking> tempHold = temporaryBookingRepository
-                .findBySubPitchAndAvailableTimeAndBookingDateWithLock(subPitch, time, bookingDate);
+        // 6. Giữ toàn bộ các ngày trong gói đến hết khung thanh toán VNPay.
+        List<TemporaryBooking> holds = reservePendingBookingSlots(
+                subPitch, time, bookingDate, datesToBook, user.getId());
+        List<Long> holdIds = holds.stream()
+                .map(TemporaryBooking::getId)
+                .collect(Collectors.toList());
 
-        if (tempHold.isEmpty()) {
-            throw new IllegalArgumentException("Bạn cần giữ chỗ cho ngày bắt đầu trước khi xác nhận đặt.");
-        }
-
-        TemporaryBooking hold = tempHold.get();
-        if (hold.isExpired()) {
-            temporaryBookingRepository.delete(hold);
-            throw new IllegalArgumentException("Phiên giữ chỗ đã hết hạn.");
-        }
-
-        // 7. Gia hạn giữ chỗ — kéo dài hold đến hết khung thanh toán VNPay (15 phút)
-        hold.setHoldExpiresAt(LocalDateTime.now().plusMinutes(15));
-        temporaryBookingRepository.save(hold);
-
-        // 8. Lưu vào cache (chỉ ID + snapshot field cần thiết, không phải entity refs)
+        // 7. Lưu vào cache (chỉ ID + snapshot field cần thiết, không phải entity refs)
         PendingBookingData data = new PendingBookingData(
-                hold.getId(),
+                holds.get(0).getId(),
                 user.getId(), user.getEmail(),
                 receiverName, receiverAddress, receiverPhone,
                 product.getId(), time.getId(), subPitch.getId(),
                 bookingDate, type, finalEndDate,
                 daysOfWeek, durationMonths,
-                breakdown.getTotalPrice(), breakdown.getDepositPrice(), breakdown.getSlots());
+                breakdown.getTotalPrice(), breakdown.getDepositPrice(), breakdown.getSlots(),
+                holdIds);
 
         long pendingId = pendingBookingCache.store(data);
         return new PreparedBookingResult(pendingId, breakdown.getDepositPrice());
+    }
+
+    private void validateBookingSelection(
+            Product product,
+            SubPitch subPitch,
+            AvailableTime availableTime) {
+        if (subPitch.getProduct() == null || subPitch.getProduct().getId() != product.getId()) {
+            throw new IllegalArgumentException(
+                    "Sân phụ ID " + subPitch.getId()
+                            + " không thuộc sân ID " + product.getId() + ".");
+        }
+
+        if (subPitchAvailableTimeRepository
+                .findBySubPitchAndAvailableTime(subPitch, availableTime)
+                .isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Khung giờ ID " + availableTime.getId()
+                            + " không được cấu hình cho sân phụ ID " + subPitch.getId() + ".");
+        }
+    }
+
+    private List<TemporaryBooking> reservePendingBookingSlots(
+            SubPitch subPitch,
+            AvailableTime availableTime,
+            LocalDate anchorDate,
+            List<LocalDate> datesToBook,
+            Long userId) {
+
+        LinkedHashSet<LocalDate> datesToHold = new LinkedHashSet<>();
+        datesToHold.add(anchorDate);
+        datesToHold.addAll(datesToBook);
+
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+        List<TemporaryBooking> holds = new ArrayList<>();
+
+        for (LocalDate date : datesToHold) {
+            Optional<TemporaryBooking> existing = temporaryBookingRepository
+                    .findBySubPitchAndAvailableTimeAndBookingDateWithLock(
+                            subPitch, availableTime, date);
+
+            TemporaryBooking hold;
+            if (existing.isPresent()) {
+                hold = existing.get();
+                if (hold.isExpired()) {
+                    temporaryBookingRepository.delete(hold);
+                    temporaryBookingRepository.flush();
+                    if (date.equals(anchorDate)) {
+                        throw new IllegalArgumentException("Phiên giữ chỗ đã hết hạn.");
+                    }
+                    hold = createTemporaryBooking(subPitch, availableTime, date, userId);
+                } else if (hold.getUserId() == null || !hold.getUserId().equals(userId)) {
+                    throw new IllegalArgumentException(
+                            "Sân đang được người khác giữ vào ngày "
+                                    + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+                }
+            } else {
+                if (date.equals(anchorDate)) {
+                    throw new IllegalArgumentException(
+                            "Bạn cần giữ chỗ cho ngày bắt đầu trước khi xác nhận đặt.");
+                }
+                hold = createTemporaryBooking(subPitch, availableTime, date, userId);
+            }
+
+            hold.setHoldExpiresAt(expiresAt);
+            holds.add(temporaryBookingRepository.save(hold));
+        }
+
+        return holds;
+    }
+
+    private TemporaryBooking createTemporaryBooking(
+            SubPitch subPitch,
+            AvailableTime availableTime,
+            LocalDate bookingDate,
+            Long userId) {
+        TemporaryBooking hold = new TemporaryBooking();
+        hold.setSubPitch(subPitch);
+        hold.setAvailableTime(availableTime);
+        hold.setBookingDate(bookingDate);
+        hold.setUserId(userId);
+        return hold;
     }
 
     /**
@@ -275,10 +344,7 @@ public class BookingService {
         }
         bookingDetailRepository.saveAll(details);
 
-        Long tmpId = data.getTemporaryBookingId();
-        if (tmpId != null) {
-            temporaryBookingRepository.deleteById(tmpId);
-        }
+        releaseTemporaryBookings(data);
 
         return bookingMapper.toDTO(savedBooking);
     }
@@ -287,9 +353,14 @@ public class BookingService {
      * Called on failed VNPay payment. Frees the slot hold and removes the pending booking.
      */
     public void cancelPendingBooking(PendingBookingData data) {
-        Long tmpId = data.getTemporaryBookingId();
-        if (tmpId != null) {
-            temporaryBookingRepository.deleteById(tmpId);
+        releaseTemporaryBookings(data);
+    }
+
+    private void releaseTemporaryBookings(PendingBookingData data) {
+        if (data.getTemporaryBookingIds() != null && !data.getTemporaryBookingIds().isEmpty()) {
+            temporaryBookingRepository.deleteAllById(data.getTemporaryBookingIds());
+        } else if (data.getTemporaryBookingId() != null) {
+            temporaryBookingRepository.deleteById(data.getTemporaryBookingId());
         }
     }
 

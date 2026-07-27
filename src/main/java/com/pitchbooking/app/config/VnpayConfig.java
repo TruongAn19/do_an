@@ -22,7 +22,7 @@ public class VnpayConfig {
     @Value("${payment.mock.enabled:false}")
     private boolean mockEnabled;
     @Getter
-    @Value("${payment.mock.url}")
+    @Value("${payment.mock.url:}")
     private String mockPaymentUrl;
     @Getter
     @Value("${payment.vnPay.returnUrl}")
