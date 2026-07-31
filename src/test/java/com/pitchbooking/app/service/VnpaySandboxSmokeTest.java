@@ -4,6 +4,7 @@ import com.pitchbooking.app.config.VnpayConfig;
 import com.pitchbooking.app.domain.PaymentType;
 import com.pitchbooking.app.domain.dto.PaymentRequest;
 import com.pitchbooking.app.domain.dto.VnpayResponse;
+import com.pitchbooking.app.repository.PaymentTransactionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -16,6 +17,7 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class VnpaySandboxSmokeTest {
 
@@ -24,7 +26,7 @@ class VnpaySandboxSmokeTest {
     void configuredSandbox_generatesSignedPaymentPage() throws Exception {
         Properties properties = loadRuntimeProperties();
         VnpayConfig config = buildConfig(properties);
-        PaymentService paymentService = new PaymentService(config);
+        PaymentService paymentService = new PaymentService(config, mock(PaymentTransactionRepository.class));
 
         PaymentRequest paymentRequest = PaymentRequest.builder()
                 .id(999_999L)

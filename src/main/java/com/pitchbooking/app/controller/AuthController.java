@@ -8,6 +8,7 @@ import com.pitchbooking.app.domain.dto.LoginRequest;
 import com.pitchbooking.app.domain.dto.RegisterDTO;
 import com.pitchbooking.app.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -107,7 +108,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<String>> register(@RequestBody RegisterDTO registerDTO) {
+    public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterDTO registerDTO) {
         if (userService.findByEmail(registerDTO.getEmail()) != null) {
             return ResponseEntity.badRequest().body(ApiResponse.<String>builder()
                     .status(400)

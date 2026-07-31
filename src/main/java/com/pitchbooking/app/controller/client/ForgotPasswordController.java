@@ -3,18 +3,23 @@ package com.pitchbooking.app.controller.client;
 import com.pitchbooking.app.domain.PasswordResetToken;
 import com.pitchbooking.app.domain.User;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.ResetPasswordRequest;
 import com.pitchbooking.app.domain.utility.PasswordResetTokenDAO;
 import com.pitchbooking.app.domain.utility.UserDAO;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -31,18 +36,22 @@ public class ForgotPasswordController {
     JavaMailSender mailSender;
     PasswordEncoder passwordEncoder;
 
+    @Value("${app.frontend.reset-password-url:http://localhost:4200/reset-password}")
+    @NonFinal
+    String resetPasswordUrl;
+
     @Transactional
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> handleForgot(@RequestBody Map<String, String> body) {
         String email = body.get("email");
-        String redirectUrl = body.get("redirectUrl");
-        if (!StringUtils.hasText(redirectUrl)) {
-            throw new IllegalArgumentException("Thiếu tham số redirectUrl.");
+        if (!StringUtils.hasText(email)) {
+            throw new IllegalArgumentException("Email không được để trống.");
         }
 
         User user = userDAO.findByEmail(email);
         if (user == null) {
-            throw new IllegalArgumentException("Email không tồn tại!");
+            // Không tiết lộ email có tồn tại trong hệ thống hay không.
+            return forgotPasswordAccepted();
         }
 
         PasswordResetToken existingToken = tokenDAO.findByUser(user);
@@ -57,12 +66,19 @@ public class ForgotPasswordController {
         resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
         tokenDAO.save(resetToken);
 
-        String resetLink = redirectUrl + "?token=" + token;
+        String resetLink = UriComponentsBuilder.fromUriString(resetPasswordUrl)
+                .queryParam("token", token)
+                .build()
+                .toUriString();
         sendEmail(user.getEmail(), resetLink);
 
+        return forgotPasswordAccepted();
+    }
+
+    private ResponseEntity<ApiResponse<String>> forgotPasswordAccepted() {
         return ResponseEntity.ok(ApiResponse.<String>builder()
                 .status(200)
-                .message("Liên kết đặt lại mật khẩu đã được gửi đến email.")
+                .message("Nếu email tồn tại, liên kết đặt lại mật khẩu sẽ được gửi.")
                 .data(null).build());
     }
 
@@ -76,17 +92,15 @@ public class ForgotPasswordController {
 
     @Transactional
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<String>> handleReset(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        String password = body.get("password");
-
-        PasswordResetToken resetToken = tokenDAO.findByToken(token);
+    public ResponseEntity<ApiResponse<String>> handleReset(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        PasswordResetToken resetToken = tokenDAO.findByToken(request.getToken());
         if (resetToken == null || resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Token không hợp lệ hoặc đã hết hạn.");
         }
 
         User user = resetToken.getUser();
-        user.setPassword(passwordEncoder.encode(password));
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         userDAO.update(user);
         tokenDAO.delete(resetToken);
 

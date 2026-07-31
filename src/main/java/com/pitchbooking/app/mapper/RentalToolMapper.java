@@ -18,5 +18,7 @@ public interface RentalToolMapper {
     @Mapping(target = "updateAt", ignore = true)
     @Mapping(target = "rentalToolCode", ignore = true)
     @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "onSiteStockReserved", ignore = true)
+    @Mapping(target = "dailyStockReserved", ignore = true)
     RentalTool toEntity(RentalToolDTO rentalToolDTO);
 }

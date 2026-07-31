@@ -2,6 +2,7 @@ package com.pitchbooking.app.controller.admin;
 
 import com.pitchbooking.app.domain.Product;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.ProductUpsertRequest;
 import com.pitchbooking.app.domain.dto.ProductResponseDTO;
 import com.pitchbooking.app.service.BookingStatsService;
 import com.pitchbooking.app.service.ProductService;
@@ -9,6 +10,7 @@ import com.pitchbooking.app.service.UploadService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -56,20 +59,28 @@ public class ProductController {
 
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
-            @RequestPart("product") Product product,
+            @Valid @RequestPart("product") ProductUpsertRequest request,
             @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
+        Product product = new Product();
+        applyCreateRequest(product, request);
         if (file != null && !file.isEmpty()) {
             product.setImage(uploadService.handleSaveUploadFile(file, "product"));
         }
-        product.setDetailDesc(product.getDetailDesc() != null
-                ? product.getDetailDesc().replace("\n", "<br>")
-                : "");
         product.setStatus("ACTIVE");
         ProductResponseDTO savedProduct = productService.handSaveProduct(product);
 
         return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
                 .status(200).message("Tạo sân thành công").data(savedProduct).build());
+    }
+
+    @GetMapping("/options")
+    public ResponseEntity<ApiResponse<List<ProductResponseDTO>>> getProductOptions() {
+        return ResponseEntity.ok(ApiResponse.<List<ProductResponseDTO>>builder()
+                .status(200)
+                .message("Thành công")
+                .data(productService.getAllProductOptions())
+                .build());
     }
 
     @GetMapping("/{productId}")
@@ -82,42 +93,52 @@ public class ProductController {
     @PutMapping(value = "/{productId}", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
             @PathVariable long productId,
-            @RequestPart("product") Product product,
+            @Valid @RequestPart("product") ProductUpsertRequest request,
             @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
-        ProductResponseDTO existingDTO = productService.getProductByID(productId);
-        if (existingDTO == null) {
-            throw new IllegalArgumentException("Không tìm thấy sân id=" + productId);
+        Product existing = productService.getRawProductById(productId);
+        existing.setName(request.getName().trim());
+        existing.setDetailDesc(normalizeDescription(request.getDetailDesc()));
+        existing.setAddress(request.getAddress());
+        existing.setAddressDetail(request.getAddressDetail());
+        existing.setSale(request.getSale());
+        existing.setPrice(request.getPrice());
+        if (request.getStatus() != null) {
+            existing.setStatus(request.getStatus());
         }
-
-        // Cần lấy Entity để update
-        Product existing = new Product();
-        existing.setId(productId);
-        existing.setName(product.getName());
-        existing.setDetailDesc(product.getDetailDesc());
-        existing.setAddress(product.getAddress());
-        existing.setAddressDetail(product.getAddressDetail());
-        existing.setSale(product.getSale());
-        existing.setPrice(product.getPrice());
-        existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
-        existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
-        existing.setShortDesc(product.getShortDesc());
-        existing.setPitchType(product.getPitchType() != null
-                ? product.getPitchType()
-                : existingDTO.getPitchType());
+        existing.setShortDesc(request.getShortDesc());
+        existing.setPitchType(request.getPitchType());
 
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "product"));
-        } else if (product.getImage() != null && !product.getImage().isEmpty()) {
-            existing.setImage(product.getImage());
-        } else {
-            existing.setImage(existingDTO.getImage());
+        } else if (request.getImage() != null && !request.getImage().isEmpty()) {
+            existing.setImage(request.getImage());
         }
 
         ProductResponseDTO updatedProduct = productService.handSaveProduct(existing);
 
         return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
                 .status(200).message("Cập nhật sân thành công").data(updatedProduct).build());
+    }
+
+    private void applyCreateRequest(Product product, ProductUpsertRequest request) {
+        product.setName(request.getName().trim());
+        product.setDetailDesc(normalizeDescription(request.getDetailDesc()));
+        product.setAddress(request.getAddress());
+        product.setAddressDetail(request.getAddressDetail());
+        product.setSale(request.getSale());
+        product.setPrice(request.getPrice());
+        product.setQuantity(request.getQuantity());
+        product.setShortDesc(request.getShortDesc());
+        product.setPitchType(request.getPitchType());
+        product.setSubPitchNames(request.getSubPitchNames());
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            product.setImage(request.getImage());
+        }
+    }
+
+    private String normalizeDescription(String description) {
+        return description.replace("\n", "<br>");
     }
 
     @DeleteMapping("/{productId}")

@@ -24,7 +24,9 @@ public class RentalTool implements Serializable {
     private double price;
     private double rentalPrice;
     @Enumerated(EnumType.STRING)
-    private RentalToolStatus status;  // PENDING,
+    private RentalToolStatus status;
+    @Enumerated(EnumType.STRING)
+    private RentalPaymentStatus paymentStatus = RentalPaymentStatus.UNPAID;
     private Integer quantity;
     private Integer quantityDay;
     private LocalDate rentalDate;
@@ -37,6 +39,12 @@ public class RentalTool implements Serializable {
     private RefundStatus refundStatus = RefundStatus.NONE;
     private double depositAmount;
     private LocalDateTime cancelledAt;
+
+    @Column(nullable = false)
+    private boolean onSiteStockReserved = false;
+
+    @Column(nullable = false)
+    private boolean dailyStockReserved = false;
 
     private Long userId;
     // user id

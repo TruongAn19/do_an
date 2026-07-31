@@ -20,7 +20,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
         // Lấy định danh người dùng (IP hoặc User ID từ JWT/Session)
-        String key = request.getRemoteAddr(); // Đơn giản nhất là dùng IP
+        String key = request.getRemoteAddr() + ":" + request.getRequestURI();
 
         Bucket bucket = rateLimitService.resolveBucket(key);
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);

@@ -7,12 +7,15 @@ import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.EquipmentStockByDate;
 import com.pitchbooking.app.domain.Product;
+import com.pitchbooking.app.domain.RentalPaymentStatus;
+import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.RentalType;
 import com.pitchbooking.app.domain.User;
 import com.pitchbooking.app.domain.dto.CreateRentalRequest;
 import com.pitchbooking.app.domain.dto.RentalToolDTO;
+import com.pitchbooking.app.exception.BusinessConflictException;
 import com.pitchbooking.app.exception.ForbiddenOperationException;
 import com.pitchbooking.app.mapper.RentalToolMapper;
 import com.pitchbooking.app.repository.BookingDetailRepository;
@@ -73,6 +76,7 @@ class RentalToolServicePhase8Test {
         equipment.setId(5L);
         equipment.setProduct(product);
         equipment.setPrice(1_200_000d);
+        equipment.setBookingStockQuantity(5);
     }
 
     private CreateRentalRequest buildOnSiteRequest() {
@@ -162,6 +166,8 @@ class RentalToolServicePhase8Test {
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(bookingRepository.findByBookingCodeWithLock("BK123"))
                 .thenReturn(Optional.of(booking));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
         when(bookingDetailRepository.findByBookingId(booking.getId()))
                 .thenReturn(java.util.List.of(bookingDetail));
         when(rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId())))
@@ -181,6 +187,9 @@ class RentalToolServicePhase8Test {
         assertThat(savedRt.getBookingId()).isEqualTo(String.valueOf(booking.getId()));
         assertThat(savedRt.getType()).isEqualTo(RentalType.ON_SITE);
         assertThat(savedRt.getEquipmentId()).isEqualTo(equipment.getId());
+        assertThat(savedRt.isOnSiteStockReserved()).isTrue();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(3);
+        verify(equipmentRepository).save(equipment);
 
         ArgumentCaptor<Booking> bookingCap = ArgumentCaptor.forClass(Booking.class);
         verify(bookingRepository).save(bookingCap.capture());
@@ -201,7 +210,7 @@ class RentalToolServicePhase8Test {
 
         RentalTool previousRental = new RentalTool();
         previousRental.setType(RentalType.ON_SITE);
-        previousRental.setStatus(RentalToolStatus.PAID);
+        previousRental.setStatus(RentalToolStatus.RENTING);
         previousRental.setRentalPrice(40_000d);
 
         RentalTool cancelledRental = new RentalTool();
@@ -215,6 +224,8 @@ class RentalToolServicePhase8Test {
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(bookingRepository.findByBookingCodeWithLock("BK123"))
                 .thenReturn(Optional.of(booking));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
         when(bookingDetailRepository.findByBookingId(booking.getId()))
                 .thenReturn(java.util.List.of(bookingDetail));
         when(rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId())))
@@ -232,6 +243,70 @@ class RentalToolServicePhase8Test {
         verify(bookingRepository).save(bookingCaptor.capture());
         assertThat(bookingCaptor.getValue().getTotalPrice())
                 .isEqualTo(500_000d + 40_000d + 80_000d);
+    }
+
+    @Test
+    @DisplayName("ON_SITE rental rejects quantity greater than locked booking stock")
+    void onSiteRental_insufficientLockedStock_rejectsWithoutSaving() {
+        CreateRentalRequest req = buildOnSiteRequest();
+        Booking booking = buildOnSiteBooking(
+                LocalDate.now().plusDays(1), LocalTime.of(18, 0), BookingStatus.DA_DAT);
+        equipment.setBookingStockQuantity(1);
+
+        when(equipmentRepository.findById(equipment.getId())).thenReturn(Optional.of(equipment));
+        when(rentalPricingService.totalPrice(RentalType.ON_SITE, equipment, 2, 0))
+                .thenReturn(80_000d);
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(bookingRepository.findByBookingCodeWithLock("BK123"))
+                .thenReturn(Optional.of(booking));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
+
+        assertThatThrownBy(() -> rentalToolService.handleSubmitRental(req, user))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Không đủ phụ kiện tại sân. Số lượng còn lại: 1");
+
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(1);
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    @DisplayName("Cancelling ON_SITE rental releases reserved booking stock once")
+    void cancelOnSiteRental_releasesReservedStock() {
+        RentalTool rental = buildReservedOnSiteRental();
+        when(rentalToolRepository.findByIdWithLock(rental.getId())).thenReturn(Optional.of(rental));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
+        when(rentalToolRepository.save(rental)).thenReturn(rental);
+        when(rentalToolMapper.toDTO(rental)).thenReturn(new RentalToolDTO());
+
+        rentalToolService.changeStatus(rental.getId(), RentalToolStatus.CANCELLED);
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.CANCELLED);
+        assertThat(rental.isOnSiteStockReserved()).isFalse();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(7);
+        verify(equipmentRepository).save(equipment);
+    }
+
+    @Test
+    @DisplayName("Completing ON_SITE rental releases reserved booking stock")
+    void completeOnSiteRental_releasesReservedStock() {
+        RentalTool rental = buildReservedOnSiteRental();
+        rental.setStatus(RentalToolStatus.RENTING);
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
+
+        rentalToolService.completeRental(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.COMPLETED);
+        assertThat(rental.getPaymentStatus()).isEqualTo(RentalPaymentStatus.PAID);
+        assertThat(rental.isOnSiteStockReserved()).isFalse();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(7);
+        verify(equipmentRepository).save(equipment);
     }
 
     @Test
@@ -275,9 +350,10 @@ class RentalToolServicePhase8Test {
 
         when(equipmentRepository.findById(equipment.getId())).thenReturn(Optional.of(equipment));
         when(rentalPricingService.totalPrice(RentalType.DAILY, equipment, 1, 2)).thenReturn(40_000d);
-        when(equipmentStockByDateRepository.findByEquipmentIdAndDate(equipment.getId(), req.getRentalDate()))
+        when(equipmentStockByDateRepository.findByEquipmentIdAndDateWithLock(equipment.getId(), req.getRentalDate()))
                 .thenReturn(Optional.of(stockDay1));
-        when(equipmentStockByDateRepository.findByEquipmentIdAndDate(equipment.getId(), req.getRentalDate().plusDays(1)))
+        when(equipmentStockByDateRepository.findByEquipmentIdAndDateWithLock(
+                equipment.getId(), req.getRentalDate().plusDays(1)))
                 .thenReturn(Optional.of(stockDay2));
         when(rentalToolRepository.save(any(RentalTool.class))).thenAnswer(inv -> {
             RentalTool rt = inv.getArgument(0);
@@ -293,59 +369,54 @@ class RentalToolServicePhase8Test {
         RentalTool saved = rtCap.getValue();
         assertThat(saved.getType()).isEqualTo(RentalType.DAILY);
         assertThat(saved.getStatus()).isEqualTo(RentalToolStatus.PENDING);
+        assertThat(saved.getPaymentStatus()).isEqualTo(RentalPaymentStatus.UNPAID);
+        assertThat(saved.isDailyStockReserved()).isTrue();
         assertThat(saved.getRentalPrice()).isEqualTo(40_000d);
         assertThat(saved.getPrice()).isEqualTo(equipment.getPrice() * req.getQuantity());
+        assertThat(stockDay1.getAvailableStock()).isEqualTo(9);
+        assertThat(stockDay1.getReservedStock()).isEqualTo(1);
+        assertThat(stockDay2.getAvailableStock()).isEqualTo(9);
+        assertThat(stockDay2.getReservedStock()).isEqualTo(1);
         verify(bookingRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("DAILY payment locks stock and reserves every rental date")
-    void dailyPayment_sufficientStock_reservesAllDatesWithLock() {
+    @DisplayName("DAILY payment updates payment status without reserving stock twice")
+    void dailyPayment_doesNotReserveStockAgain() {
         LocalDate rentalDate = LocalDate.now().plusDays(1);
         RentalTool rental = buildPendingDailyRental(rentalDate, 2, 2);
-        EquipmentStockByDate stockDay1 = stockWithAvailableQuantity(3);
-        EquipmentStockByDate stockDay2 = stockWithAvailableQuantity(4);
 
         when(rentalToolRepository.findByIdWithLock(rental.getId()))
                 .thenReturn(Optional.of(rental));
-        when(equipmentStockByDateRepository
-                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
-                .thenReturn(Optional.of(stockDay1));
-        when(equipmentStockByDateRepository
-                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate.plusDays(1)))
-                .thenReturn(Optional.of(stockDay2));
+        when(rentalToolRepository.save(rental)).thenReturn(rental);
 
         rentalToolService.confirmCashPayment(rental.getId());
 
-        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.PAID);
-        assertThat(stockDay1.getAvailableStock()).isEqualTo(1);
-        assertThat(stockDay1.getReservedStock()).isEqualTo(2);
-        assertThat(stockDay2.getAvailableStock()).isEqualTo(2);
-        assertThat(stockDay2.getReservedStock()).isEqualTo(2);
-        verify(equipmentStockByDateRepository)
-                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate);
-        verify(equipmentStockByDateRepository)
-                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate.plusDays(1));
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.PENDING);
+        assertThat(rental.getPaymentStatus()).isEqualTo(RentalPaymentStatus.PAID);
+        verify(equipmentStockByDateRepository, never())
+                .findByEquipmentIdAndDateWithLock(any(), any());
+        verify(equipmentStockByDateRepository, never()).save(any(EquipmentStockByDate.class));
     }
 
     @Test
-    @DisplayName("DAILY payment rechecks locked stock and rejects overselling")
-    void dailyPayment_insufficientLockedStock_rejectsWithoutChangingStatus() {
+    @DisplayName("DAILY creation rejects insufficient locked stock")
+    void dailyCreation_insufficientLockedStock_rejectsWithoutSaving() {
         LocalDate rentalDate = LocalDate.now().plusDays(1);
-        RentalTool rental = buildPendingDailyRental(rentalDate, 2, 1);
+        CreateRentalRequest req = buildDailyRequest(rentalDate, 2, 1);
         EquipmentStockByDate stock = stockWithAvailableQuantity(1);
 
-        when(rentalToolRepository.findByIdWithLock(rental.getId()))
-                .thenReturn(Optional.of(rental));
+        when(equipmentRepository.findById(equipment.getId())).thenReturn(Optional.of(equipment));
+        when(rentalPricingService.totalPrice(RentalType.DAILY, equipment, 2, 1))
+                .thenReturn(40_000d);
         when(equipmentStockByDateRepository
                 .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
                 .thenReturn(Optional.of(stock));
 
-        assertThatThrownBy(() -> rentalToolService.confirmCashPayment(rental.getId()))
+        assertThatThrownBy(() -> rentalToolService.handleSubmitRental(req, user))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Không đủ thiết bị vào ngày " + rentalDate);
 
-        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.PENDING);
         assertThat(stock.getAvailableStock()).isEqualTo(1);
         assertThat(stock.getReservedStock()).isZero();
         verify(equipmentStockByDateRepository, never()).save(any(EquipmentStockByDate.class));
@@ -353,10 +424,129 @@ class RentalToolServicePhase8Test {
     }
 
     @Test
-    @DisplayName("Repeated successful VNPay callback does not reserve DAILY stock twice")
-    void repeatedVnpayCallback_doesNotReserveStockAgain() {
+    @DisplayName("Starting DAILY rental moves reserved stock to rental stock")
+    void startDailyRental_movesReservedStockToRentalStock() {
+        LocalDate rentalDate = LocalDate.now().plusDays(1);
+        RentalTool rental = buildPendingDailyRental(rentalDate, 2, 1);
+        EquipmentStockByDate stock = stockWithAvailableQuantity(1);
+        stock.setReservedStock(2);
+
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+        when(equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
+                .thenReturn(Optional.of(stock));
+        when(rentalToolRepository.save(rental)).thenReturn(rental);
+
+        rentalToolService.changeStatus(rental.getId(), RentalToolStatus.RENTING);
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.RENTING);
+        assertThat(stock.getReservedStock()).isZero();
+        assertThat(stock.getRentalStock()).isEqualTo(2);
+        assertThat(stock.getAvailableStock()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Completing DAILY rental returns held stock and records cash payment")
+    void completeDailyRental_returnsStockAndMarksPaid() {
+        LocalDate rentalDate = LocalDate.now().plusDays(1);
+        RentalTool rental = buildPendingDailyRental(rentalDate, 2, 1);
+        rental.setStatus(RentalToolStatus.RENTING);
+        EquipmentStockByDate stock = stockWithAvailableQuantity(1);
+        stock.setRentalStock(2);
+
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+        when(equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
+                .thenReturn(Optional.of(stock));
+
+        rentalToolService.completeRental(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.COMPLETED);
+        assertThat(rental.getPaymentStatus()).isEqualTo(RentalPaymentStatus.PAID);
+        assertThat(rental.isDailyStockReserved()).isFalse();
+        assertThat(stock.getAvailableStock()).isEqualTo(3);
+        assertThat(stock.getRentalStock()).isZero();
+    }
+
+    @Test
+    @DisplayName("Completing DAILY rental never inflates stock when rental bucket is missing")
+    void completeDailyRental_missingHeldStock_rejectsWithoutInflatingAvailableStock() {
+        LocalDate rentalDate = LocalDate.now().plusDays(1);
+        RentalTool rental = buildPendingDailyRental(rentalDate, 2, 1);
+        rental.setStatus(RentalToolStatus.RENTING);
+        EquipmentStockByDate stock = stockWithAvailableQuantity(5);
+
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+        when(equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
+                .thenReturn(Optional.of(stock));
+
+        assertThatThrownBy(() -> rentalToolService.completeRental(rental.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Tồn kho không còn giữ đủ số lượng của đơn thuê vào ngày "
+                        + rentalDate + ".");
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.RENTING);
+        assertThat(stock.getAvailableStock()).isEqualTo(5);
+        verify(equipmentStockByDateRepository, never()).save(any(EquipmentStockByDate.class));
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
+    }
+
+    @Test
+    @DisplayName("Cancelling paid DAILY rental releases stock and requests refund")
+    void cancelPaidDailyRental_releasesReservedStockAndRequestsRefund() {
+        LocalDate rentalDate = LocalDate.now().plusDays(1);
+        RentalTool rental = buildPendingDailyRental(rentalDate, 2, 1);
+        rental.setPaymentStatus(RentalPaymentStatus.PAID);
+        rental.setRentalPrice(80_000d);
+        EquipmentStockByDate stock = stockWithAvailableQuantity(1);
+        stock.setReservedStock(2);
+
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+        when(equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipment.getId(), rentalDate))
+                .thenReturn(Optional.of(stock));
+        when(rentalToolRepository.save(rental)).thenReturn(rental);
+
+        rentalToolService.changeStatus(rental.getId(), RentalToolStatus.CANCELLED);
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.CANCELLED);
+        assertThat(rental.getPaymentStatus()).isEqualTo(RentalPaymentStatus.PAID);
+        assertThat(rental.getRefundStatus()).isEqualTo(RefundStatus.PENDING_REFUND);
+        assertThat(rental.getDepositAmount()).isEqualTo(80_000d);
+        assertThat(rental.isDailyStockReserved()).isFalse();
+        assertThat(stock.getAvailableStock()).isEqualTo(3);
+        assertThat(stock.getReservedStock()).isZero();
+    }
+
+    @Test
+    @DisplayName("Pending rental cannot skip handover and complete directly")
+    void pendingRental_cannotCompleteDirectly() {
         RentalTool rental = buildPendingDailyRental(LocalDate.now().plusDays(1), 2, 1);
-        rental.setStatus(RentalToolStatus.DEPOSITED);
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+
+        assertThatThrownBy(() -> rentalToolService.changeStatus(
+                rental.getId(), RentalToolStatus.COMPLETED))
+                .isInstanceOf(BusinessConflictException.class)
+                .hasMessage("Không thể chuyển đơn thuê từ PENDING sang COMPLETED.");
+
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.PENDING);
+        verify(equipmentStockByDateRepository, never())
+                .findByEquipmentIdAndDateWithLock(any(), any());
+        verify(equipmentStockByDateRepository, never()).save(any(EquipmentStockByDate.class));
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
+    }
+
+    @Test
+    @DisplayName("Repeated successful VNPay callback only keeps payment status paid")
+    void repeatedVnpayCallback_isIdempotent() {
+        RentalTool rental = buildPendingDailyRental(LocalDate.now().plusDays(1), 2, 1);
+        rental.setPaymentStatus(RentalPaymentStatus.PAID);
         when(rentalToolRepository.findByIdWithLock(rental.getId()))
                 .thenReturn(Optional.of(rental));
 
@@ -367,6 +557,38 @@ class RentalToolServicePhase8Test {
                 .findByEquipmentIdAndDateWithLock(any(), any());
         verify(equipmentStockByDateRepository, never()).save(any(EquipmentStockByDate.class));
         verify(rentalToolRepository, never()).save(any(RentalTool.class));
+    }
+
+    @Test
+    @DisplayName("Confirming a rental refund outside pending-refund is a business conflict")
+    void confirmRentalRefund_invalidRefundStatus_returnsBusinessConflict() {
+        RentalTool rental = new RentalTool();
+        rental.setId(93L);
+        rental.setRefundStatus(RefundStatus.NONE);
+        when(rentalToolRepository.findByIdWithLock(rental.getId()))
+                .thenReturn(Optional.of(rental));
+
+        assertThatThrownBy(() -> rentalToolService.confirmRentalRefund(rental.getId()))
+                .isInstanceOf(BusinessConflictException.class)
+                .hasMessage("Đơn thuê không ở trạng thái chờ hoàn cọc");
+
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
+    }
+
+    private CreateRentalRequest buildDailyRequest(
+            LocalDate rentalDate,
+            int quantity,
+            int quantityDay) {
+        CreateRentalRequest req = new CreateRentalRequest();
+        req.setFullName("Renter");
+        req.setEmail(user.getEmail());
+        req.setPhone("0900000000");
+        req.setType(RentalType.DAILY);
+        req.setEquipmentId(equipment.getId());
+        req.setQuantity(quantity);
+        req.setQuantityDay(quantityDay);
+        req.setRentalDate(rentalDate);
+        return req;
     }
 
     private RentalTool buildPendingDailyRental(
@@ -381,6 +603,18 @@ class RentalToolServicePhase8Test {
         rental.setRentalDate(rentalDate);
         rental.setQuantity(quantity);
         rental.setQuantityDay(quantityDay);
+        rental.setDailyStockReserved(true);
+        return rental;
+    }
+
+    private RentalTool buildReservedOnSiteRental() {
+        RentalTool rental = new RentalTool();
+        rental.setId(92L);
+        rental.setType(RentalType.ON_SITE);
+        rental.setStatus(RentalToolStatus.PENDING);
+        rental.setEquipmentId(equipment.getId());
+        rental.setQuantity(2);
+        rental.setOnSiteStockReserved(true);
         return rental;
     }
 

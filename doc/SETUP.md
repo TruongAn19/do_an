@@ -35,6 +35,15 @@ Dự án sử dụng **Flyway**, vì vậy cấu trúc bảng và dữ liệu m�
 ---
 
 ## 4. Cài đặt và chạy Backend (Spring Boot)
+Trước khi chạy backend, cấu hình các biến môi trường sau trong IDE, Docker hoặc terminal (xem `.env.example`). Không đưa các khóa thật vào Git:
+
+```text
+JWT_SECRET=<chuỗi ngẫu nhiên tối thiểu 32 ký tự>
+VNPAY_TMN_CODE=<mã terminal VNPay>
+VNPAY_SECRET_KEY=<khóa bí mật VNPay>
+VNPAY_RETURN_URL=http://localhost:4200/payments/vnpay-callback
+```
+
 1. Mở terminal và di chuyển vào thư mục `refactor_do_an`.
 2. Tải các dependencies và build project:
    ```bash

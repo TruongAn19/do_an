@@ -16,6 +16,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // Chỉ áp dụng Rate Limit cho các endpoint quan trọng như Hold và Place Booking
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/v1/client/bookings/hold")
-                .addPathPatterns("/api/v1/client/bookings/place");
+                .addPathPatterns("/api/v1/client/bookings/place")
+                .addPathPatterns("/api/v1/auth/login")
+                .addPathPatterns("/api/v1/auth/forgot-password")
+                .addPathPatterns("/api/v1/ai/chat");
     }
 }

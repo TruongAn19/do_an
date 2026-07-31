@@ -17,23 +17,23 @@ INSERT IGNORE INTO `roles` (`id`, `name`, `description`) VALUES
 -- 2. USERS
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `user`
-  (`id`, `email`, `password`, `full_name`, `phone`, `member_level`, `role_id`)
+  (`id`, `email`, `password`, `full_name`, `address`,  `phone`, `member_level`, `role_id`)
 VALUES
 -- Admin
 (1, 'admin@antigravity.vn',
     '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Admin Hệ Thống', '0901000001', 'NORMAL', 1),
+    'Admin Hệ Thống', 'Hà Nội', '0901000001', 'NORMAL', 1),
 -- Nhân viên
 (2, 'staff@antigravity.vn',
     '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Nguyễn Văn Nhân', '0901000002', 'NORMAL', 2),
+    'Nguyễn Văn Nhân', 'Hà Nội', '0901000002', 'NORMAL', 2),
 -- Demo users
 (3, 'alice@gmail.com',
     '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Trần Thị Alice', '0901000003', 'SILVER', 3),
+    'Trần Thị Alice', 'Hà Nội', '0901000003', 'SILVER', 3),
 (4, 'bob@gmail.com',
     '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Lê Văn Bob', '0901000004', 'NORMAL', 3);
+    'Lê Văn Bob', 'Hà Nội', '0901000004', 'NORMAL', 3);
 
 -- ----------------------------------------------------------------
 -- 3. AVAILABLE TIMES  (khung giờ chia theo từng tiếng, 05:00–22:00)

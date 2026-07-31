@@ -6,10 +6,12 @@ import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 @Service
+@ConditionalOnProperty(name = "ai.chat.enabled", havingValue = "true")
 public class AIChatService {
 
     private final ChatClient aiClient;
@@ -27,8 +29,6 @@ public class AIChatService {
                 1. Hỗ trợ khách hàng đặt sân bằng cách dùng công cụ 'listAllPitches' để tìm sân/chi nhánh phù hợp và 'checkPitchAvailability' để kiểm tra lịch trống.
                 2. Trả lời các câu hỏi về địa chỉ, giá cả, dịch vụ dựa trên thông tin thực tế từ hệ thống.
                 3. Tư vấn loại sân bóng đá (5 người, 7 người), cỏ nhân tạo vs cỏ tự nhiên, các loại giày đinh phù hợp với mặt sân.
-                4. Báo cáo doanh thu cho Admin (sử dụng công cụ getRevenueReport).
-
                 Phong cách trả lời: Thân thiện, chuyên nghiệp, ngắn gọn.
                 QUY TẮC QUAN TRỌNG:
                 - KHÔNG ĐƯỢC tự ý trả lời là hệ thống không hỗ trợ một khu vực nào (ví dụ: Hà Nội) khi chưa gọi công cụ 'listAllPitches' để kiểm tra.

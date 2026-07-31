@@ -4,6 +4,9 @@ import com.pitchbooking.app.config.VnpayConfig;
 import com.pitchbooking.app.config.VnpayUtil;
 import com.pitchbooking.app.domain.dto.PaymentRequest;
 import com.pitchbooking.app.domain.dto.VnpayResponse;
+import com.pitchbooking.app.domain.PaymentTransaction;
+import com.pitchbooking.app.exception.ResourceNotFoundException;
+import com.pitchbooking.app.repository.PaymentTransactionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ import java.util.TreeMap;
 public class PaymentService {
 
     VnpayConfig vnpayConfig;
+    PaymentTransactionRepository paymentTransactionRepository;
 
     @Transactional
     public VnpayResponse createVnPayPayment(PaymentRequest paymentRequest, HttpServletRequest request) {
@@ -41,6 +45,15 @@ public class PaymentService {
         if (bankCode != null && !bankCode.isEmpty()) {
             vnpParamsMap.put("vnp_BankCode", bankCode);
         }
+
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.setTxnRef(transactionId);
+        transaction.setPaymentType(paymentRequest.getType());
+        transaction.setEntityId(paymentRequest.getId());
+        transaction.setExpectedAmount(amount);
+        transaction.setOrderInfo(vnpParamsMap.get("vnp_OrderInfo"));
+        transaction.setCreatedAt(java.time.LocalDateTime.now());
+        paymentTransactionRepository.save(transaction);
 
         // Chế độ mock: trả về trang thanh toán giả chạy local, không cần VNPay thật
         if (vnpayConfig.isMockEnabled()) {
@@ -101,5 +114,24 @@ public class PaymentService {
         String hashData = VnpayUtil.getPaymentURL(fields, false);
         String calculatedHash = VnpayUtil.hmacSHA512(vnpayConfig.getSecretKey(), hashData);
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
+    }
+
+    @Transactional
+    public PaymentTransaction validateCallbackTransaction(HttpServletRequest request) {
+        String txnRef = request.getParameter("vnp_TxnRef");
+        String orderInfo = request.getParameter("vnp_OrderInfo");
+        String amount = request.getParameter("vnp_Amount");
+        if (!StringUtils.hasText(txnRef) || !StringUtils.hasText(orderInfo) || !StringUtils.hasText(amount)) throw new IllegalArgumentException("Callback thanh toán thiếu thông tin giao dịch");
+        PaymentTransaction transaction = paymentTransactionRepository.findByTxnRefWithLock(txnRef).orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy giao dịch thanh toán"));
+        long callbackAmount;
+        try { callbackAmount = Long.parseLong(amount); } catch (NumberFormatException ex) { throw new IllegalArgumentException("Số tiền callback không hợp lệ"); }
+        if (!transaction.getOrderInfo().equals(orderInfo) || callbackAmount != transaction.getExpectedAmount() * 100) throw new IllegalArgumentException("Thông tin callback không khớp giao dịch đã tạo");
+        return transaction;
+    }
+
+    @Transactional
+    public void recordCallback(PaymentTransaction transaction, String responseCode, boolean successful) {
+        transaction.setResponseCode(responseCode); transaction.setSuccessful(successful);
+        transaction.setCallbackAt(java.time.LocalDateTime.now()); paymentTransactionRepository.save(transaction);
     }
 }

@@ -1,11 +1,13 @@
 package com.pitchbooking.app.controller;
 
 import com.pitchbooking.app.domain.PaymentType;
+import com.pitchbooking.app.domain.PaymentTransaction;
 import com.pitchbooking.app.domain.RentalTool;
-import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.dto.ApiResponse;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
 import com.pitchbooking.app.domain.dto.PendingBookingData;
+import com.pitchbooking.app.exception.BusinessConflictException;
+import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.repository.RentalToolRepository;
 import com.pitchbooking.app.service.BookingService;
 import com.pitchbooking.app.service.EmailService;
@@ -74,6 +76,11 @@ public class PaymentController {
                             .status(400).message("ID trong OrderInfo không hợp lệ").data(null).build());
         }
 
+        PaymentTransaction transaction = paymentService.validateCallbackTransaction(request);
+        if (transaction.isSuccessful()) {
+            return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder().status(200)
+                    .message("Giao dịch đã được ghi nhận").data(Map.of("status", "SUCCESS")).build());
+        }
         boolean paymentSuccess = "00".equals(responseCode);
 
         PaymentType paymentType;
@@ -86,9 +93,13 @@ public class PaymentController {
         }
 
         if (paymentType == PaymentType.RENTAL_TOOL) {
-            return handleRentalToolCallback(entityId, paymentSuccess);
+            ResponseEntity<ApiResponse<Map<String, Object>>> response = handleRentalToolCallback(entityId, paymentSuccess);
+            paymentService.recordCallback(transaction, responseCode, paymentSuccess);
+            return response;
         } else {
-            return handlePendingBookingCallback(entityId, paymentSuccess);
+            ResponseEntity<ApiResponse<Map<String, Object>>> response = handlePendingBookingCallback(entityId, paymentSuccess);
+            paymentService.recordCallback(transaction, responseCode, paymentSuccess);
+            return response;
         }
     }
 
@@ -98,8 +109,8 @@ public class PaymentController {
 
         if (!success) {
             log.info("Thanh toán RENTAL_TOOL id={} thất bại", rentalToolId);
-            rentalTool.setStatus(RentalToolStatus.CANCELLED);
-            rentalToolRepository.save(rentalTool);
+            rentalToolService.changeStatus(
+                    rentalToolId, com.pitchbooking.app.domain.RentalToolStatus.CANCELLED);
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán thất bại")
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());
@@ -151,13 +162,16 @@ public class PaymentController {
                     .status(200).message("Thanh toán đặt sân thành công")
                     .data(Map.of("type", "BOOKING", "bookingId", booking.getId(), "bookingCode", booking.getBookingCode()))
                     .build());
-        } catch (IllegalStateException e) {
+        } catch (BusinessConflictException e) {
             // Slot was taken by another user during payment — rare race condition
             pendingBookingCache.remove(pendingId);
             log.error("Xung đột lịch sau thanh toán thành công (pendingId={}): {}", pendingId, e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.<Map<String, Object>>builder()
                             .status(409).message(e.getMessage()).data(null).build());
+        } catch (ResourceNotFoundException e) {
+            pendingBookingCache.remove(pendingId);
+            throw e;
         }
     }
 }

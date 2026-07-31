@@ -25,6 +25,8 @@ import com.pitchbooking.app.domain.RefundStatus;
 import com.pitchbooking.app.domain.PaymentType;
 import com.pitchbooking.app.domain.dto.PaymentRequest;
 import com.pitchbooking.app.domain.dto.PlaceBookingRequest;
+import com.pitchbooking.app.domain.dto.EstimatePriceRequest;
+import com.pitchbooking.app.domain.dto.EstimatePriceResponse;
 import com.pitchbooking.app.domain.dto.ProductResponseDTO;
 import jakarta.validation.Valid;
 import com.pitchbooking.app.domain.dto.VnpayResponse;
@@ -95,8 +97,17 @@ public class BookingClientController {
                         @PathVariable long productId) {
 
                 ProductResponseDTO product = productService.getProductByID(productId);
-                List<AvailableTime> allTimes = productService.getAllTime();
                 List<SubPitch> courts = productService.getAllCourtsByProduct(productId);
+                // A product may have sub-pitches with different schedules. Do not expose
+                // global slots here; return the configured union and let /available-times
+                // return the exact schedule after the user selects a sub-pitch.
+                List<AvailableTime> configuredTimes = courts.stream()
+                                .flatMap(court -> subPitchAvailableTimeRepository
+                                                .findAvailableTimesBySubPitch(court).stream())
+                                .collect(Collectors.toMap(AvailableTime::getId, time -> time, (left, right) -> left))
+                                .values().stream()
+                                .sorted(java.util.Comparator.comparing(AvailableTime::getTime))
+                                .toList();
 
                 double price = product.getPrice();
                 double totalPrice = price - (price * product.getSale() / 100.0);
@@ -104,7 +115,7 @@ public class BookingClientController {
                 Map<String, Object> data = Map.of(
                                 "product", product,
                                 "courts", courts,
-                                "availableTimes", allTimes,
+                                "availableTimes", configuredTimes,
                                 "totalPrice", totalPrice);
 
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
@@ -138,7 +149,8 @@ public class BookingClientController {
                 LocalTime now = LocalTime.now();
                 log.info("Date: {}, CourtId: {}", date, courtId);
 
-                List<AvailableTimeDTO> result = timeRepository.findAll().stream()
+                List<AvailableTimeDTO> result = subPitchAvailableTimeRepository
+                                .findAvailableTimesBySubPitch(court).stream()
                                 .filter(time -> {
                                         if (date.equals(today) && time.getTime().isBefore(now))
                                                 return false;
@@ -164,7 +176,9 @@ public class BookingClientController {
                 temporaryBookingRepository.deleteExpiredHolds();
                 temporaryBookingRepository.flush();
 
-                SubPitch court = subPitchRepository.findById(holdRequest.getSubPitchId())
+                // Lock an existing, stable row. Locking TemporaryBooking alone cannot
+                // serialize two first-time inserts because no hold row exists yet.
+                SubPitch court = subPitchRepository.findByIdWithLock(holdRequest.getSubPitchId())
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
                 AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
@@ -239,50 +253,27 @@ public class BookingClientController {
         }
 
         @PostMapping("/estimate")
-        public ResponseEntity<ApiResponse<Map<String, Object>>> estimatePrice(
-                        @RequestBody Map<String, Object> body) {
-
-                try {
-                        long productId = Long.parseLong(body.get("productId").toString());
-                        long timeId = Long.parseLong(body.get("availableTimeId").toString());
-                        String dateStr = body.get("bookingDate").toString();
-                        String bookingTypeStr = body.getOrDefault("bookingType", "ONE_TIME").toString();
-                        LocalDate bookingDate = LocalDate.parse(dateStr);
-                        BookingType bookingType = BookingType.valueOf(bookingTypeStr);
-
-                        Integer durationMonths = body.containsKey("durationMonths")
-                                        ? Integer.parseInt(body.get("durationMonths").toString())
-                                        : null;
-                        List<Integer> daysOfWeek = body.containsKey("daysOfWeek")
-                                        ? (List<Integer>) body.get("daysOfWeek")
-                                        : null;
-
-                        Product product = productService.getRawProductById(productId);
-                        AvailableTime time = timeRepository.findById(timeId)
+        public ResponseEntity<ApiResponse<EstimatePriceResponse>> estimatePrice(
+                        @Valid @RequestBody EstimatePriceRequest request) {
+                        Product product = productService.getRawProductById(request.getProductId());
+                        AvailableTime time = timeRepository.findById(request.getAvailableTimeId())
                                         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ"));
 
                         com.pitchbooking.app.domain.dto.BookingPriceBreakdown breakdown = pricingService
-                                        .calculateBookingPriceBreakdown(getCurrentUser(), product, time,
-                                                        bookingType, bookingDate, null, daysOfWeek, durationMonths);
+                                .calculateBookingPriceBreakdown(getCurrentUser(), product, time,
+                                                        request.getBookingType(), request.getBookingDate(),
+                                                        request.getRecurringEndDate(), request.getDaysOfWeek(),
+                                                        request.getDurationMonths());
 
                         double basePrice = product.getPrice() - (product.getPrice() * product.getSale() / 100.0);
 
-                        Map<String, Object> data = new java.util.LinkedHashMap<>();
-                        data.put("basePrice", basePrice);
-                        data.put("sessions", breakdown.getSlots().size());
-                        data.put("totalPrice", breakdown.getTotalPrice());
-                        data.put("depositPrice", breakdown.getDepositPrice());
-                        data.put("savings", breakdown.getSavings());
-                        data.put("discountRate", breakdown.getDiscountRate() * 100);
-
-                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                        EstimatePriceResponse data = EstimatePriceResponse.builder()
+                                        .basePrice(basePrice).sessions(breakdown.getSlots().size())
+                                        .totalPrice(breakdown.getTotalPrice()).depositPrice(breakdown.getDepositPrice())
+                                        .savings(breakdown.getSavings()).discountRate(breakdown.getDiscountRate() * 100)
+                                        .remainingPrice(breakdown.getTotalPrice() - breakdown.getDepositPrice()).build();
+                        return ResponseEntity.ok(ApiResponse.<EstimatePriceResponse>builder()
                                         .status(200).message("Ước tính giá thành công").data(data).build());
-                } catch (Exception e) {
-                        log.error("Lỗi estimate: ", e);
-                        return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
-                                        .status(400).message("Không thể tính giá: " + e.getMessage()).data(null)
-                                        .build());
-                }
         }
 
         @PostMapping("/place")

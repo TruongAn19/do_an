@@ -2,9 +2,13 @@ package com.pitchbooking.app.controller.admin;
 
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.EquipmentUpsertRequest;
 import com.pitchbooking.app.service.EquipmentService;
 import com.pitchbooking.app.service.EquipmentStockByDateService;
+import com.pitchbooking.app.service.ProductService;
 import com.pitchbooking.app.service.UploadService;
+import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +26,7 @@ public class EquipmentController {
     private final EquipmentService equipmentService;
     private final UploadService uploadService;
     private final EquipmentStockByDateService equipmentStockByDateService;
+    private final ProductService productService;
 
     @GetMapping("/api/v1/admin/equipments")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEquipments(
@@ -49,14 +54,17 @@ public class EquipmentController {
     }
 
     @PostMapping(value = "/api/v1/admin/equipments", consumes = "multipart/form-data")
+    @Transactional
     public ResponseEntity<ApiResponse<Equipment>> createEquipment(
-            @RequestPart("equipment") Equipment equipment,
+            @Valid @RequestPart("equipment") EquipmentUpsertRequest request,
             @RequestPart(value = "equipmentImg", required = false) MultipartFile file) {
 
+        validateStock(request);
+        Equipment equipment = new Equipment();
+        applyRequest(equipment, request);
         if (file != null && !file.isEmpty()) {
             equipment.setImage(uploadService.handleSaveUploadFile(file, "equipment"));
         }
-        equipment.setStatus("ACTIVE");
         Equipment saved = equipmentService.handSaveEquipment(equipment);
         equipmentStockByDateService.generateStockForEquipment(saved);
 
@@ -65,30 +73,45 @@ public class EquipmentController {
     }
 
     @PutMapping(value = "/api/v1/admin/equipments/{equipmentId}", consumes = "multipart/form-data")
+    @Transactional
     public ResponseEntity<ApiResponse<Equipment>> updateEquipment(
             @PathVariable long equipmentId,
-            @RequestPart("equipment") Equipment equipment,
+            @Valid @RequestPart("equipment") EquipmentUpsertRequest request,
             @RequestPart(value = "equipmentImg", required = false) MultipartFile file) {
 
+        validateStock(request);
         Equipment existing = equipmentService.getEquipmentById(equipmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị id=" + equipmentId));
 
-        existing.setName(equipment.getName());
-        existing.setPrice(equipment.getPrice());
-        existing.setFactory(equipment.getFactory());
-        existing.setAvailable(equipment.isAvailable());
-        existing.setRentalPricePerDay(equipment.getRentalPricePerDay());
-        existing.setRentalPricePerPlay(equipment.getRentalPricePerPlay());
-        existing.setBookingStockQuantity(equipment.getBookingStockQuantity());
-        existing.setQuantity(equipment.getQuantity());
-        existing.setStatus(equipment.getStatus());
-        existing.setProduct(equipment.getProduct());
+        equipmentStockByDateService.updateFutureStockCapacity(
+                existing.getId(), request.getQuantity());
+        applyRequest(existing, request);
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "equipment"));
         }
-        equipmentService.handSaveEquipment(existing);
+        Equipment saved = equipmentService.handSaveEquipment(existing);
 
         return ResponseEntity.ok(ApiResponse.<Equipment>builder()
-                .status(200).message("Cập nhật thiết bị thành công").data(existing).build());
+                .status(200).message("Cập nhật thiết bị thành công").data(saved).build());
+    }
+
+    private void applyRequest(Equipment equipment, EquipmentUpsertRequest request) {
+        equipment.setName(request.getName().trim());
+        equipment.setFactory(request.getFactory());
+        equipment.setPrice(request.getPrice());
+        equipment.setAvailable(request.getAvailable());
+        equipment.setRentalPricePerDay(request.getRentalPricePerDay());
+        equipment.setRentalPricePerPlay(request.getRentalPricePerPlay());
+        equipment.setBookingStockQuantity(request.getBookingStockQuantity());
+        equipment.setQuantity(request.getQuantity());
+        equipment.setStatus(request.getStatus());
+        equipment.setProduct(productService.getRawProductById(request.getProductId()));
+    }
+
+    private void validateStock(EquipmentUpsertRequest request) {
+        if (request.getBookingStockQuantity() > request.getQuantity()) {
+            throw new IllegalArgumentException(
+                    "Tồn kho cho thuê tại sân không được lớn hơn tổng tồn kho.");
+        }
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface EquipmentStockByDateRepository extends JpaRepository<EquipmentStockByDate, Long> {
@@ -25,6 +26,18 @@ public interface EquipmentStockByDateRepository extends JpaRepository<EquipmentS
     Optional<EquipmentStockByDate> findByEquipmentIdAndDateWithLock(
             @Param("equipmentId") Long equipmentId,
             @Param("date") LocalDate date);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT stock
+            FROM EquipmentStockByDate stock
+            WHERE stock.equipmentId = :equipmentId
+              AND stock.date >= :fromDate
+            ORDER BY stock.date
+            """)
+    List<EquipmentStockByDate> findFutureStocksWithLock(
+            @Param("equipmentId") Long equipmentId,
+            @Param("fromDate") LocalDate fromDate);
 
     @Query("SELECT SUM(rsbd.rentalStock)\n" +
             "FROM EquipmentStockByDate rsbd\n" +

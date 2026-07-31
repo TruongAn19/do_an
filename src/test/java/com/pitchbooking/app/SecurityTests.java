@@ -106,6 +106,25 @@ class SecurityTests {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("USER role không được gửi thông báo Ntfy")
+    @WithMockUser(roles = "USER")
+    void whenUserRoleSendsNtfy_thenForbidden() throws Exception {
+        mockMvc.perform(post("/api/v1/notify")
+                        .param("topic", "system")
+                        .param("message", "test"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Gửi thông báo Ntfy không có token → 401")
+    void whenSendNtfyWithoutToken_thenUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/notify")
+                        .param("topic", "system")
+                        .param("message", "test"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // =========================================================================
     // Validation: thiếu field bắt buộc → 400 với field errors
     // =========================================================================
@@ -176,6 +195,57 @@ class SecurityTests {
                 .andExpect(jsonPath("$.data.receiverName").exists());
     }
 
+    @Test
+    @DisplayName("POST /api/v1/auth/register với mật khẩu dưới 6 ký tự → 400")
+    void whenRegisterWithShortPassword_thenBadRequest() throws Exception {
+        String body = """
+                {
+                  "firstName": "Nguyen",
+                  "lastName": "Van A",
+                  "email": "short-password@test.com",
+                  "phone": "0901234567",
+                  "password": "123",
+                  "confirmPassword": "123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.data.password").value("Mật khẩu phải có tối thiểu 6 ký tự"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/reset-password với mật khẩu dưới 6 ký tự → 400")
+    void whenResetWithShortPassword_thenBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "token": "unused-token",
+                                  "password": "123"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.data.password").value("Mật khẩu phải có tối thiểu 6 ký tự"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/client/change-password với mật khẩu dưới 6 ký tự → 400")
+    @WithMockUser(username = "password-test@test.com", roles = "USER")
+    void whenChangeWithShortPassword_thenBadRequest() throws Exception {
+        mockMvc.perform(put("/api/v1/client/change-password")
+                        .param("oldPassword", "old-password")
+                        .param("newPassword", "123")
+                        .param("confirmPassword", "123"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Mật khẩu phải có tối thiểu 6 ký tự"));
+    }
+
     // =========================================================================
     // VNPay callback: chữ ký không hợp lệ → 400
     // =========================================================================
@@ -238,5 +308,14 @@ class SecurityTests {
                 .andReturn().getResponse().getStatus();
         assertNotEquals(401, status);
         assertNotEquals(403, status);
+    }
+
+    @Test
+    @DisplayName("AI chat mặc định bị tắt và không đăng ký endpoint")
+    void whenAiChatDisabled_thenEndpointIsNotExposed() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"test\"}"))
+                .andExpect(status().isNotFound());
     }
 }

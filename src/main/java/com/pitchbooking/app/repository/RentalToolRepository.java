@@ -26,34 +26,22 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
 
     List<RentalTool> findByType(RentalType type);
 
-    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.rentalDate BETWEEN :startDate AND :endDate AND r.status IN (com.pitchbooking.app.domain.RentalToolStatus.PAID, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR r.productId = :courtId)")
+    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = com.pitchbooking.app.domain.RentalType.DAILY AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status IN (com.pitchbooking.app.domain.RentalToolStatus.RENTING, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR r.productId = :courtId)")
     int countDailyRentalByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.rentalDate BETWEEN :startDate AND :endDate AND r.status IN (com.pitchbooking.app.domain.RentalToolStatus.PAID, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR r.productId = :courtId) and r.id = :equipmentId")
+    @Query("SELECT COUNT(r) FROM RentalTool r WHERE r.type = com.pitchbooking.app.domain.RentalType.DAILY AND r.rentalDate BETWEEN :startDate AND :endDate AND r.status IN (com.pitchbooking.app.domain.RentalToolStatus.RENTING, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR r.productId = :courtId) AND r.equipmentId = :equipmentId")
     int countEquipmentDailyRentalByCourtAndDateRange(@Param("equipmentId") Long equipmentId, @Param("courtId") Long courtId,
             @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     // lay doanh thu trong khoảng thời gian
-    @Query("SELECT COALESCE(SUM(r.rentalPrice), 0) FROM RentalTool r WHERE  r.rentalDate BETWEEN :startDate AND :endDate AND r.status IN (com.pitchbooking.app.domain.RentalToolStatus.PAID, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR r.productId = :courtId)")
+    @Query("SELECT COALESCE(SUM(r.rentalPrice), 0) FROM RentalTool r WHERE r.type = com.pitchbooking.app.domain.RentalType.DAILY AND r.rentalDate BETWEEN :startDate AND :endDate AND r.paymentStatus = com.pitchbooking.app.domain.RentalPaymentStatus.PAID AND r.status <> com.pitchbooking.app.domain.RentalToolStatus.CANCELLED AND (:courtId IS NULL OR r.productId = :courtId)")
     double sumDailyRevenueByCourtAndDateRange(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT rkt, SUM(rt.quantity), SUM(rt.rentalPrice) FROM RentalTool rt JOIN Equipment rkt ON rt.equipmentId = rkt.id WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status IN (com.pitchbooking.app.domain.RentalToolStatus.PAID, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR rkt.product.id = :courtId) GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
+    @Query("SELECT rkt, SUM(rt.quantity), SUM(CASE WHEN rt.paymentStatus = com.pitchbooking.app.domain.RentalPaymentStatus.PAID THEN rt.rentalPrice ELSE 0.0 END) FROM RentalTool rt JOIN Equipment rkt ON rt.equipmentId = rkt.id WHERE rt.type = com.pitchbooking.app.domain.RentalType.DAILY AND rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status IN (com.pitchbooking.app.domain.RentalToolStatus.RENTING, com.pitchbooking.app.domain.RentalToolStatus.COMPLETED) AND (:courtId IS NULL OR rkt.product.id = :courtId) GROUP BY rkt ORDER BY SUM(rt.quantity) DESC")
     List<Object[]> findTopDailyRentedEquipments(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate, Pageable pageable);
-
-    @Query("SELECT COUNT(rt) FROM RentalTool rt WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = :status AND (:courtId IS NULL OR rt.productId = :courtId)")
-    int countByRentalDateBetweenAndStatus(@Param("courtId") Long courtId, @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
-            @Param("status") RentalToolStatus status);
-
-    // Tính tổng doanh thu trong khoảng thời gian
-    @Query("SELECT SUM(rt.rentalPrice) FROM RentalTool rt WHERE rt.rentalDate BETWEEN :startDate AND :endDate AND rt.status = :status AND (:courtId IS NULL OR rt.productId = :courtId)")
-    Double sumRevenueByRentalDateBetweenAndStatus(@Param("courtId") Long courtId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate,
-            @Param("status") RentalToolStatus status);
 
     List<RentalTool> findByRentalToolCodeContainingIgnoreCase(String rentalToolCode);
 
@@ -74,8 +62,13 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
                 FROM RentalTool r
                 WHERE MONTH(r.rentalDate) = :month
                   AND YEAR(r.rentalDate) = :year
+                  AND r.status IN (
+                      com.pitchbooking.app.domain.RentalToolStatus.RENTING,
+                      com.pitchbooking.app.domain.RentalToolStatus.COMPLETED
+                  )
+                  AND r.equipmentId IS NOT NULL
                 GROUP BY r.equipmentId
-                ORDER BY COUNT(r.id) DESC
+                ORDER BY SUM(r.quantity) DESC
             """)
     List<Long> findTop4EquipmentIdsByMonth(@Param("year") int year, @Param("month") int month, Pageable pageable);
 

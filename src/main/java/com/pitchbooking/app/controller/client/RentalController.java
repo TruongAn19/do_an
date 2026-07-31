@@ -3,6 +3,7 @@ package com.pitchbooking.app.controller.client;
 import com.pitchbooking.app.domain.NotificationType;
 import com.pitchbooking.app.domain.PaymentMethod;
 import com.pitchbooking.app.domain.PaymentType;
+import com.pitchbooking.app.domain.RentalPaymentStatus;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.RentalType;
 import com.pitchbooking.app.domain.RentalToolStatus;
@@ -78,10 +79,16 @@ public class RentalController {
             throw new ForbiddenOperationException("Bạn không có quyền truy cập đơn thuê này");
         }
 
-        if (rentalTool.getStatus() != RentalToolStatus.PENDING) {
+        if (rentalTool.getStatus() != RentalToolStatus.PENDING
+                && rentalTool.getStatus() != RentalToolStatus.RENTING) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.<Map<String, Object>>builder()
-                            .status(409).message("Đơn thuê không ở trạng thái chờ thanh toán").build());
+                            .status(409).message("Đơn thuê không ở trạng thái có thể thanh toán").build());
+        }
+        if (rentalTool.getPaymentStatus() != RentalPaymentStatus.UNPAID) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(409).message("Đơn thuê đã được thanh toán").build());
         }
 
         if (paymentReq.getPaymentMethod() == PaymentMethod.VNPAY) {
@@ -97,9 +104,8 @@ public class RentalController {
                     .data(Map.of("paymentUrl", vnpayResponse.getPaymentUrl())).build());
         }
 
-        rentalToolService.confirmCashPayment(id);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
-                .status(200).message("Thuê thiết bị thành công")
+                .status(200).message("Đơn thuê đã được giữ, vui lòng thanh toán tại sân")
                 .data(Map.of("rentalToolId", id)).build());
     }
 
@@ -113,19 +119,16 @@ public class RentalController {
             throw new ForbiddenOperationException("Bạn không có quyền huỷ đơn thuê này");
         }
 
-        if (rentalTool.getStatus() != RentalToolStatus.PENDING
-                && rentalTool.getStatus() != RentalToolStatus.DEPOSITED) {
+        if (rentalTool.getStatus() != RentalToolStatus.PENDING) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.<Map<String, Object>>builder()
-                            .status(409).message("Chỉ có thể huỷ đơn chưa nhận thiết bị").build());
+                            .status(409).message("Chỉ có thể hủy đơn trước khi nhận phụ kiện").build());
         }
 
-        // Chụp status trước khi đổi sang CANCELLED để biết có cần hoàn cọc không.
-        RentalToolStatus statusBeforeCancel = rentalTool.getStatus();
+        RentalPaymentStatus paymentStatusBeforeCancel = rentalTool.getPaymentStatus();
         rentalToolService.changeStatus(id, RentalToolStatus.CANCELLED);
 
-        boolean needsRefund = statusBeforeCancel == RentalToolStatus.DEPOSITED
-                || statusBeforeCancel == RentalToolStatus.PAID;
+        boolean needsRefund = paymentStatusBeforeCancel == RentalPaymentStatus.PAID;
         double depositAmount = needsRefund ? rentalTool.getRentalPrice() : 0;
 
         // Thông báo cho user

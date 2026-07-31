@@ -1,7 +1,6 @@
 package com.pitchbooking.app.service;
 
 import com.pitchbooking.app.domain.Equipment;
-import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.dto.TopEquipmentDto;
 import com.pitchbooking.app.repository.EquipmentRepository;
 import com.pitchbooking.app.repository.EquipmentStockByDateRepository;
@@ -97,8 +96,8 @@ public class EquipmentStatisticsService {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
 
-            int rentalCount = rentalToolRepository.countByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd,
-                    (RentalToolStatus.COMPLETED));
+            int rentalCount = rentalToolRepository.countDailyRentalByCourtAndDateRange(
+                    courtId, monthStart, monthEnd);
 
             rentalCountMap.put(current, rentalCount);
 
@@ -115,11 +114,8 @@ public class EquipmentStatisticsService {
         while (!current.isAfter(endMonth)) {
             LocalDate monthStart = current.atDay(1);
             LocalDate monthEnd = current.atEndOfMonth();
-            Double revenue = rentalToolRepository.sumRevenueByRentalDateBetweenAndStatus(courtId, monthStart, monthEnd,
-                    (RentalToolStatus.COMPLETED));
-            if (revenue == null) {
-                revenue = 0.0;
-            }
+            Double revenue = rentalToolRepository.sumDailyRevenueByCourtAndDateRange(
+                    courtId, monthStart, monthEnd);
             revenueMap.put(current, revenue);
             current = current.plusMonths(1); // sang tháng tiếp theo
         }

@@ -86,12 +86,12 @@ public class BookingController {
         }
 
         @DeleteMapping("/{id}")
-        public ResponseEntity<ApiResponse<String>> deleteBooking(@PathVariable long id) {
-                bookingService.deleteBookingById(id);
-                return ResponseEntity.ok(ApiResponse.<String>builder()
+        public ResponseEntity<ApiResponse<CancelBookingResponse>> deleteBooking(@PathVariable long id) {
+                CancelBookingResponse cancelled = bookingService.deleteBookingById(id);
+                return ResponseEntity.ok(ApiResponse.<CancelBookingResponse>builder()
                                 .status(200)
-                                .message("Xóa booking thành công")
-                                .data(null)
+                                .message("Hủy booking thành công")
+                                .data(cancelled)
                                 .build());
         }
 

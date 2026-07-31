@@ -7,6 +7,9 @@ import com.pitchbooking.app.service.UserService;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.util.StringUtils;
+
+import java.util.Objects;
 
 @Service
 public class RegisterValidator implements ConstraintValidator<RegisterChecked, RegisterDTO> {
@@ -18,10 +21,14 @@ public class RegisterValidator implements ConstraintValidator<RegisterChecked, R
 
     @Override
     public boolean isValid(RegisterDTO user, ConstraintValidatorContext context) {
+        if (user == null) {
+            return true;
+        }
+
         boolean valid = true;
 
         // Check if password fields match
-        if (!user.getPassword().equals(user.getConfirmPassword())) {
+        if (!Objects.equals(user.getPassword(), user.getConfirmPassword())) {
             context.buildConstraintViolationWithTemplate("Passwords must match")
                     .addPropertyNode("confirmPassword")
                     .addConstraintViolation()
@@ -29,7 +36,7 @@ public class RegisterValidator implements ConstraintValidator<RegisterChecked, R
             valid = false;
         }
 
-        if(this.userService.checkEmailExist(user.getEmail())) {
+        if (StringUtils.hasText(user.getEmail()) && this.userService.checkEmailExist(user.getEmail())) {
             context.buildConstraintViolationWithTemplate("email đã tồn tài")
                     .addPropertyNode("email")
                     .addConstraintViolation()

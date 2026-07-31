@@ -23,6 +23,7 @@ import com.pitchbooking.app.mapper.BookingMapper;
 import com.pitchbooking.app.repository.*;
 import com.pitchbooking.app.service.pricing.PricingService;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
+import com.pitchbooking.app.exception.BusinessConflictException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -80,22 +81,39 @@ public class BookingService {
     }
 
     @Transactional
-    public void deleteBookingById(long id) {
-        Optional<Booking> bookingOptional = this.bookingRepository.findById(id);
-        if (bookingOptional.isPresent()) {
-            List<BookingDetail> bookingDetails = bookingOptional.get().getBookingDetails();
-            this.bookingDetailRepository.deleteAllInBatch(bookingDetails);
+    public CancelBookingResponse deleteBookingById(long id) {
+        Booking booking = bookingRepository.findByIdWithLock(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn đặt sân ID: " + id));
+        if (booking.getUser() == null) {
+            throw new IllegalStateException("Booking không có người sở hữu, không thể thực hiện hủy an toàn.");
         }
-        this.bookingRepository.deleteById(id);
+
+        // Giữ endpoint cũ tương thích với FE, nhưng chuyển thành hủy mềm để toàn bộ
+        // logic hoàn kho phụ kiện và hoàn cọc được thực thi.
+        return cancelByUser(id, booking.getUser().getId(), "Hủy bởi quản trị viên");
     }
 
+    @Transactional
     public void updateBooking(long id, String status) {
-        Optional<Booking> bOptional = this.bookingRepository.findById(id);
-        if (bOptional.isEmpty())
+        Booking currentBooking = bookingRepository.findByIdWithLock(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking ID: " + id));
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Trạng thái booking không được để trống.");
+        }
+
+        BookingStatus target = BookingStatus.fromLabel(status);
+        if (currentBooking.getStatus() == target) {
             return;
-        Booking currentBooking = bOptional.get();
-        currentBooking.setStatus(BookingStatus.fromLabel(status));
-        this.bookingRepository.save(currentBooking);
+        }
+        if (currentBooking.getStatus() != BookingStatus.DA_DAT
+                || target != BookingStatus.DA_THANH_TOAN) {
+            throw new BusinessConflictException(
+                    "Không thể chuyển booking từ " + currentBooking.getStatus() + " sang " + target
+                            + ". Hủy booking phải đi qua luồng hủy để hoàn kho và xử lý hoàn cọc.");
+        }
+
+        currentBooking.setStatus(target);
+        bookingRepository.save(currentBooking);
     }
 
     public List<RentalTool> getRentalToolsByBookingId(long id) {
@@ -130,7 +148,7 @@ public class BookingService {
         // 2. Lấy thông tin sân, khung giờ
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm ID: " + productId));
-        SubPitch subPitch = subPitchRepository.findById(subPitchId)
+        SubPitch subPitch = subPitchRepository.findByIdWithLock(subPitchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subPitchId));
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
@@ -292,14 +310,15 @@ public class BookingService {
         // round-tripped through Redis (no JPA proxy / lazy-collection issues).
         User user = userRepository.findUserById(data.getUserId());
         if (user == null) {
-            throw new IllegalStateException("Không tìm thấy người dùng (id=" + data.getUserId() + ")");
+            throw new ResourceNotFoundException("Không tìm thấy người dùng (id=" + data.getUserId() + ")");
         }
         Product product = productRepository.findById(data.getProductId())
-                .orElseThrow(() -> new IllegalStateException("Không tìm thấy sân (id=" + data.getProductId() + ")"));
-        SubPitch subPitch = subPitchRepository.findById(data.getSubPitchId())
-                .orElseThrow(() -> new IllegalStateException("Không tìm thấy sân phụ (id=" + data.getSubPitchId() + ")"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân (id=" + data.getProductId() + ")"));
+        SubPitch subPitch = subPitchRepository.findByIdWithLock(data.getSubPitchId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ (id=" + data.getSubPitchId() + ")"));
         AvailableTime availableTime = timeRepository.findById(data.getAvailableTimeId())
-                .orElseThrow(() -> new IllegalStateException("Không tìm thấy khung giờ (id=" + data.getAvailableTimeId() + ")"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy khung giờ (id=" + data.getAvailableTimeId() + ")"));
 
         // Final collision check — guard against a race where the hold expired
         for (PendingBookingData.SlotData slot : data.getSlots()) {
@@ -308,7 +327,7 @@ public class BookingService {
             if (conflict.isPresent()) {
                 log.error("Xung đột lịch sau khi thanh toán thành công: SubPitch={}, time={}, date={}",
                         subPitch.getId(), availableTime.getId(), slot.getDate());
-                throw new IllegalStateException("Sân đã bị đặt bởi người khác trong lúc thanh toán (ngày "
+                throw new BusinessConflictException("Sân đã bị đặt bởi người khác trong lúc thanh toán (ngày "
                         + slot.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ").");
             }
         }
@@ -401,7 +420,7 @@ public class BookingService {
      */
     @Transactional
     public CancelBookingResponse cancelByUser(long bookingId, long userId, String reason) {
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findByIdWithLock(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn đặt sân ID: " + bookingId));
 
         // E6 — ownership
@@ -411,14 +430,14 @@ public class BookingService {
 
         // E1 — already cancelled → 409 (caller may map this exception)
         if (booking.getStatus() == BookingStatus.DA_HUY) {
-            throw new IllegalStateException("Đơn đặt sân này đã được hủy trước đó.");
+            throw new BusinessConflictException("Đơn đặt sân này đã được hủy trước đó.");
         }
 
         // D0.1 — only cancellable while CHO_THANH_TOAN or DA_DAT.
         // E2 — DA_THANH_TOAN is terminal; reject.
         if (booking.getStatus() != BookingStatus.CHO_THANH_TOAN
                 && booking.getStatus() != BookingStatus.DA_DAT) {
-            throw new IllegalStateException("Đơn đã hoàn thành hoặc không ở trạng thái cho phép huỷ.");
+            throw new BusinessConflictException("Đơn đã hoàn thành hoặc không ở trạng thái cho phép huỷ.");
         }
 
         LocalDate today = LocalDate.now();
@@ -487,9 +506,9 @@ public class BookingService {
         List<RentalTool> bundled = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId()));
         for (RentalTool rt : bundled) {
             if (rt.getType() == RentalType.DAILY) {
-                if (rt.getStatus() == RentalToolStatus.PAID) {
+                if (rt.isDailyStockReserved()) {
                     throw new IllegalStateException(
-                            "DAILY rental PAID không được phép gắn booking (vi phạm invariant unbundled §E7). "
+                            "DAILY rental đang giữ tồn kho không được phép gắn booking (vi phạm invariant unbundled §E7). "
                                     + "RentalTool id=" + rt.getId() + ", bookingId=" + rt.getBookingId()
                                     + ". Cần điều tra code path nào đã gán bookingId trước khi cho phép huỷ booking này.");
                 }
@@ -499,13 +518,14 @@ public class BookingService {
             if (rt.getStatus() == RentalToolStatus.CANCELLED) continue;
             rt.setStatus(RentalToolStatus.CANCELLED);
             rt.setUpdateAt(now);
-            // Restock racket: bookingStockQuantity += rt.quantity
-            if (rt.getEquipmentId() != null && rt.getQuantity() != null) {
-                Optional<Equipment> eqOpt = equipmentRepository.findById(rt.getEquipmentId());
-                eqOpt.ifPresent(eq -> {
-                    eq.setBookingStockQuantity(eq.getBookingStockQuantity() + rt.getQuantity());
-                    equipmentRepository.save(eq);
-                });
+            if (rt.isOnSiteStockReserved()) {
+                Equipment equipment = equipmentRepository.findByIdWithLock(rt.getEquipmentId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy thiết bị ID: " + rt.getEquipmentId()));
+                equipment.setBookingStockQuantity(
+                        equipment.getBookingStockQuantity() + rt.getQuantity());
+                equipmentRepository.save(equipment);
+                rt.setOnSiteStockReserved(false);
             }
             rentalToolRepository.save(rt);
         }
@@ -542,14 +562,14 @@ public class BookingService {
      */
     @Transactional
     public CancelBookingResponse confirmRefund(long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findByIdWithLock(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn đặt sân ID: " + bookingId));
 
         if (booking.getStatus() != BookingStatus.DA_HUY) {
-            throw new IllegalStateException("Chỉ huỷ rồi mới hoàn cọc được.");
+            throw new BusinessConflictException("Chỉ huỷ rồi mới hoàn cọc được.");
         }
         if (booking.getRefundStatus() != RefundStatus.PENDING_REFUND) {
-            throw new IllegalStateException("Trạng thái hoàn cọc hiện tại không hợp lệ: "
+            throw new BusinessConflictException("Trạng thái hoàn cọc hiện tại không hợp lệ: "
                     + booking.getRefundStatus());
         }
 

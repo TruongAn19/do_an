@@ -33,6 +33,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE b.bookingCode = :bookingCode")
     Optional<Booking> findByBookingCodeWithLock(@Param("bookingCode") String bookingCode);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Booking b WHERE b.id = :id")
+    Optional<Booking> findByIdWithLock(@Param("id") Long id);
+
     @Query("SELECT b FROM Booking b WHERE b.status = :status and b.bookingDate = :date")
     List<Booking> findBookingsByStatusAndDate(BookingStatus status, LocalDate date);
 

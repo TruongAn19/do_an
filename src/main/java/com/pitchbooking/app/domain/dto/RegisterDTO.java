@@ -1,8 +1,10 @@
 package com.pitchbooking.app.domain.dto;
 
 import com.pitchbooking.app.service.validator.RegisterChecked;
+import com.pitchbooking.app.service.validator.PasswordPolicy;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
@@ -14,9 +16,11 @@ public class RegisterDTO {
     private String lastName;
     @Email(message = "Email không hợp lệ", regexp = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$")
     private String email;
-    @Size(min = 3, message = "Password phải có tối thiểu 3 ký tự")
+    @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = PasswordPolicy.MIN_LENGTH, message = PasswordPolicy.MIN_LENGTH_MESSAGE)
     private String password;
-    @Size(min = 3, message = "ConfirmPassword phải có tối thiểu 3 ký tự")
+    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
+    @Size(min = PasswordPolicy.MIN_LENGTH, message = "Xác nhận mật khẩu phải có tối thiểu 6 ký tự")
     private String confirmPassword;
     @NotEmpty(message = "PhoneNumber cannot be empty")
     private String phone;

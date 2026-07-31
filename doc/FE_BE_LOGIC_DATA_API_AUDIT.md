@@ -2,6 +2,27 @@
 
 Ngày kiểm tra: 2026-07-27
 
+## Trạng thái cập nhật sau sửa ngày 2026-07-28
+
+Các mục mức cao và trung bình sau đã được sửa trong mã nguồn hiện tại:
+
+- `LOGIC-01`: create/update thiết bị dùng DTO có validation; FE gửi đủ giá thuê, tồn kho, trạng thái khả dụng và sân quản lý. Khi thay đổi tổng tồn kho, backend giữ nguyên số đang đặt/đang thuê và từ chối giảm kho nếu gây âm.
+- `LOGIC-02`: cập nhật sân sửa trực tiếp entity hiện có, không tạo entity mới để merge; owner, khung giờ và danh sách thiết bị không bị đưa về `null`.
+- `LOGIC-03`: API chi tiết sân, thông tin booking, danh sách giờ trống, API gợi ý và công cụ AI chỉ dùng khung giờ cấu hình theo product/sub-pitch.
+- `LOGIC-04` và `DATA-03`: FE không còn tự lấy toàn bộ tiền cọc làm tiền hoàn, không tự gán booking thiếu loại thành `ONE_TIME`; tiền hoàn chỉ hiển thị từ `CancelBookingResponse`.
+- `LOGIC-05`: FE gửi Ntfy bằng đúng các request parameter `topic` và `message`; endpoint gửi Ntfy chỉ cho role `ADMIN`.
+- `LOGIC-06`: feature ghép kèo và các lời gọi API không tồn tại đã được loại khỏi FE; giao diện không còn quảng bá chức năng này.
+- `LOGIC-08`: bộ lọc giá mặc định là `null`, không còn tự giới hạn sân ở 2.000.000 đồng.
+- `LOGIC-09`: đăng ký, đặt lại mật khẩu và đổi mật khẩu cùng dùng tối thiểu 6 ký tự.
+- `LOGIC-10`: model equipment, tồn kho và product của FE đã khớp tên field DTO backend.
+- `DATA-04` và `DATA-05`: status hoặc dữ liệu form sửa bị thiếu được hiển thị/validate là thiếu dữ liệu, không tự biến thành trạng thái hay giá trị nghiệp vụ có thật.
+- `DATA-07`: đã bỏ “Ghi nhớ đăng nhập” và đăng nhập Google vì project chưa có luồng xử lý tương ứng.
+- `DATA-08`: bỏ credential dummy trong cấu hình chạy thật; JWT bắt buộc lấy từ biến môi trường, các biến mail/VAPID không còn mang giá trị giả.
+
+`LOGIC-07` không phải lỗi theo nghiệp vụ đã xác nhận: chức năng tìm đơn thuê chỉ tìm theo mã đơn. Nhãn FE hiện đã ghi đúng “Tìm kiếm theo mã đơn”.
+
+Danh sách API backend chưa được màn hình FE sử dụng ở mục 6 được giữ làm thông tin kiểm kê, không tự động xem là lỗi. Không xóa hoặc nối API vào giao diện nếu chưa có nhu cầu nghiệp vụ tương ứng.
+
 ## 1. Phạm vi và nguyên tắc kiểm tra
 
 Báo cáo này được lập từ mã nguồn hiện tại của hai project:
@@ -266,7 +287,6 @@ Hiện một số component tự map thủ công nên chưa phải tất cả đ
 - Mật khẩu: `123456`
 - Số điện thoại: `0963931420`
 - Địa chỉ: `Hà Nội`
-- Ba role mới
 
 Bằng chứng:
 

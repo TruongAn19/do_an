@@ -9,6 +9,7 @@ import com.pitchbooking.app.domain.dto.UserResponseDTO;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.RentalToolRepository;
 import com.pitchbooking.app.service.*;
+import com.pitchbooking.app.service.validator.PasswordPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
@@ -186,6 +187,8 @@ public class HomePageController {
                         Principal principal,
                         HttpServletRequest request,
                         HttpServletResponse response) {
+
+                PasswordPolicy.validate(newPassword);
 
                 User currentUser = userService.findByEmail(principal.getName());
 

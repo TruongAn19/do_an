@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Comparator;
+import java.util.Set;
 
 @Slf4j
 @RestController
@@ -65,7 +67,12 @@ public class ItemController {
     @GetMapping("/api/v1/products/{productId}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProduct(@PathVariable long productId) {
         ProductResponseDTO product = productService.getProductByID(productId);
-        List<AvailableTime> availableTime = productService.getAllTime();
+        List<AvailableTime> availableTime = Optional.ofNullable(
+                        productService.getRawProductById(productId).getAvailableTimes())
+                .orElseGet(Set::of)
+                .stream()
+                .sorted(Comparator.comparing(AvailableTime::getTime))
+                .toList();
         double discountPrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
         List<Equipment> equipments = equipmentService.getEquipmentsByProductId(productId);
 

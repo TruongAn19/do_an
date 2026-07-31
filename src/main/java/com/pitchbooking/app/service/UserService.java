@@ -38,16 +38,7 @@ public class UserService {
             admin.setPhone("0963931420");
             admin.setAddress("Hà Nội");
             admin.setPassword(passwordEncoder.encode("123456"));
-            Role adminRole = new Role();
-            adminRole.setName("ADMIN");
-            Role userRole = new Role();
-            userRole.setName("USER");
-            Role staffRole = new Role();
-            staffRole.setName("STAFF");
-            roleRepository.save(adminRole);
-            roleRepository.save(userRole);
-            roleRepository.save(staffRole);
-            admin.setRole(adminRole);
+            admin.setRole(getRoleByName("ADMIN"));
             userRepository.save(admin);
         }
     }

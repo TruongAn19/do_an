@@ -110,6 +110,8 @@ public class SecurityConfiguration {
                                                                 "/api/v1/admin/bookings/**",
                                                                 "/api/v1/admin/rentals/**")
                                                 .hasAnyRole("STAFF", "ADMIN")
+                                                .requestMatchers(HttpMethod.POST, "/api/v1/notify")
+                                                .hasRole("ADMIN")
                                                 // Toàn bộ admin còn lại chỉ ADMIN
                                                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                                                 // Mọi request khác phải xác thực

@@ -28,7 +28,7 @@ public class User {
     private String email;
 
     @NotBlank(message = "Password không được để trống")
-    @Size(min = 3, message = "Password ít nhất có 3 ký tự")
+    @Size(min = 6, message = "Password ít nhất có 6 ký tự")
     private String password;
 
     @NotEmpty(message = "Full Name cannot be empty")

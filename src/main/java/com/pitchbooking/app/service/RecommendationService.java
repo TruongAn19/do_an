@@ -6,8 +6,9 @@ import com.pitchbooking.app.domain.SubPitch;
 import com.pitchbooking.app.domain.dto.AvailableTimeDTO;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.BookingRepository;
+import com.pitchbooking.app.repository.SubPitchAvailableTimeRepository;
 import com.pitchbooking.app.repository.SubPitchRepository;
-import com.pitchbooking.app.repository.TimeRepository;
+import com.pitchbooking.app.repository.TemporaryBookingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,9 +24,10 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final BookingRepository bookingRepository;
-    private final TimeRepository timeRepository;
     private final BookingDetailRepository bookingDetailRepository;
     private final SubPitchRepository subPitchRepository;
+    private final SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
+    private final TemporaryBookingRepository temporaryBookingRepository;
 
     public List<AvailableTimeDTO> recommendSlots(Long userId, Long productId) {
         // 1. Tìm khung giờ hay đặt nhất
@@ -37,9 +40,18 @@ public class RecommendationService {
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
 
-        List<AvailableTime> allTimes = timeRepository.findAll();
+        List<AvailableTime> configuredTimes = courts.stream()
+                .flatMap(court -> subPitchAvailableTimeRepository
+                        .findAvailableTimesBySubPitch(court).stream())
+                .collect(Collectors.toMap(
+                        AvailableTime::getId,
+                        time -> time,
+                        (left, right) -> left,
+                        LinkedHashMap::new))
+                .values().stream()
+                .toList();
 
-        return allTimes.stream()
+        return configuredTimes.stream()
                 .filter(t -> {
                     // Ưu tiên khung giờ hay đặt nhất
                     if (frequentTimeId != null && t.getId().equals(frequentTimeId))
@@ -53,9 +65,18 @@ public class RecommendationService {
                         return false;
 
                     for (SubPitch court : courts) {
+                        if (subPitchAvailableTimeRepository
+                                .findBySubPitchAndAvailableTime(court, t)
+                                .isEmpty()) {
+                            continue;
+                        }
                         Optional<BookingDetail> opt = bookingDetailRepository
                                 .findBySubPitchAndAvailableTimeAndDate(court, t, today);
-                        if (opt.isEmpty())
+                        boolean held = temporaryBookingRepository
+                                .findBySubPitchAndBookingDate(court, today).stream()
+                                .anyMatch(temporary -> !temporary.isExpired()
+                                        && temporary.getAvailableTime().getId().equals(t.getId()));
+                        if (opt.isEmpty() && !held)
                             return true; // Còn ít nhất 1 sân trống
                     }
                     return false;

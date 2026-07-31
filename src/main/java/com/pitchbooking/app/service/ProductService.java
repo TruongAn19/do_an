@@ -44,6 +44,13 @@ public class ProductService {
         return this.productRepository.findAll(pageable).map(this::enrichAndMap);
     }
 
+    public List<ProductResponseDTO> getAllProductOptions() {
+        return productRepository.findAll().stream()
+                .filter(product -> !"DELETED".equals(product.getStatus()))
+                .map(this::enrichAndMap)
+                .toList();
+    }
+
     public ProductResponseDTO getCourtById(Long id) {
         return productRepository.findById(id).map(this::enrichAndMap).orElse(null);
     }

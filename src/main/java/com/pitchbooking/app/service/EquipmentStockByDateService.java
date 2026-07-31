@@ -3,6 +3,8 @@ package com.pitchbooking.app.service;
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.EquipmentStockByDate;
 import com.pitchbooking.app.domain.dto.CheckStockRequest;
+import com.pitchbooking.app.domain.dto.EquipmentStockAvailabilityResponse;
+import com.pitchbooking.app.exception.BusinessConflictException;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.repository.EquipmentRepository;
 import com.pitchbooking.app.repository.EquipmentStockByDateRepository;
@@ -87,29 +89,53 @@ public class EquipmentStockByDateService {
         equipmentStockByDateRepository.saveAll(stocks);
     }
 
-    /**
-     * Trả tồn kho của 1 thiết bị vào 1 ngày. Nếu row chưa tồn tại (cron midnight
-     * miss, hoặc ngày nằm ngoài cửa sổ 7-ngày), tạo on-demand với
-     * `availableStock = equipment.quantity` rồi trả về. Tránh được trường hợp
-     * controller trả null làm FE rơi vào nhánh "Hết hàng".
-     */
     @Transactional
-    public EquipmentStockByDate getStock(CheckStockRequest request) {
-        return equipmentStockByDateRepository
-                .findByEquipmentIdAndDate(request.getEquipmentId(), request.getDate())
-                .orElseGet(() -> createStockForDate(request.getEquipmentId(), request.getDate()));
+    public void updateFutureStockCapacity(Long equipmentId, int newTotalStock) {
+        List<EquipmentStockByDate> stocks = equipmentStockByDateRepository
+                .findFutureStocksWithLock(equipmentId, LocalDate.now());
+
+        for (EquipmentStockByDate stock : stocks) {
+            int unavailableStock = stock.getReservedStock() + stock.getRentalStock();
+            if (newTotalStock < unavailableStock) {
+                throw new BusinessConflictException(
+                        "Không thể giảm tồn kho xuống " + newTotalStock
+                                + " vào ngày " + stock.getDate()
+                                + " vì đang có " + unavailableStock
+                                + " thiết bị được giữ hoặc đang cho thuê.");
+            }
+            stock.setTotalStock(newTotalStock);
+            stock.setAvailableStock(newTotalStock - unavailableStock);
+        }
+        equipmentStockByDateRepository.saveAll(stocks);
     }
 
-    private EquipmentStockByDate createStockForDate(Long equipmentId, java.time.LocalDate date) {
-        Equipment equipment = equipmentRepository.findById(equipmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thiết bị id=" + equipmentId));
-        EquipmentStockByDate stock = new EquipmentStockByDate();
-        stock.setEquipmentId(equipmentId);
-        stock.setDate(date);
-        stock.setTotalStock(equipment.getQuantity());
-        stock.setAvailableStock(equipment.getQuantity());
-        stock.setReservedStock(0);
-        stock.setRentalStock(0);
-        return equipmentStockByDateRepository.save(stock);
+    @Transactional(readOnly = true)
+    public EquipmentStockAvailabilityResponse getStock(CheckStockRequest request) {
+        Equipment equipment = equipmentRepository.findById(request.getEquipmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy thiết bị id=" + request.getEquipmentId()));
+
+        return equipmentStockByDateRepository
+                .findByEquipmentIdAndDate(request.getEquipmentId(), request.getDate())
+                .map(this::toAvailabilityResponse)
+                .orElseGet(() -> EquipmentStockAvailabilityResponse.builder()
+                        .equipmentId(equipment.getId())
+                        .date(request.getDate())
+                        .availableStock(equipment.getQuantity())
+                        .reservedStock(0)
+                        .rentalStock(0)
+                        .totalStock(equipment.getQuantity())
+                        .build());
+    }
+
+    private EquipmentStockAvailabilityResponse toAvailabilityResponse(EquipmentStockByDate stock) {
+        return EquipmentStockAvailabilityResponse.builder()
+                .equipmentId(stock.getEquipmentId())
+                .date(stock.getDate())
+                .availableStock(stock.getAvailableStock())
+                .reservedStock(stock.getReservedStock())
+                .rentalStock(stock.getRentalStock())
+                .totalStock(stock.getTotalStock())
+                .build();
     }
 }

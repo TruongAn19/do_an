@@ -6,9 +6,8 @@ import com.pitchbooking.app.domain.BookingDetail;
 import com.pitchbooking.app.domain.TemporaryBooking;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.SubPitchRepository;
+import com.pitchbooking.app.repository.SubPitchAvailableTimeRepository;
 import com.pitchbooking.app.repository.TemporaryBookingRepository;
-import com.pitchbooking.app.repository.TimeRepository;
-import com.pitchbooking.app.service.BookingStatsService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +15,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,20 +22,17 @@ import java.util.stream.Collectors;
 public class AIToolsConfig {
 
     private final SubPitchRepository subPitchRepository;
-    private final TimeRepository timeRepository;
+    private final SubPitchAvailableTimeRepository subPitchAvailableTimeRepository;
     private final BookingDetailRepository bookingDetailRepository;
     private final TemporaryBookingRepository temporaryBookingRepository;
-    private final BookingStatsService bookingStatsService;
-
-    public AIToolsConfig(SubPitchRepository subPitchRepository, TimeRepository timeRepository,
+    public AIToolsConfig(SubPitchRepository subPitchRepository,
+            SubPitchAvailableTimeRepository subPitchAvailableTimeRepository,
             BookingDetailRepository bookingDetailRepository,
-            TemporaryBookingRepository temporaryBookingRepository,
-            BookingStatsService bookingStatsService) {
+            TemporaryBookingRepository temporaryBookingRepository) {
         this.subPitchRepository = subPitchRepository;
-        this.timeRepository = timeRepository;
+        this.subPitchAvailableTimeRepository = subPitchAvailableTimeRepository;
         this.bookingDetailRepository = bookingDetailRepository;
         this.temporaryBookingRepository = temporaryBookingRepository;
-        this.bookingStatsService = bookingStatsService;
     }
 
     public record PitchInfo(String clusterName, String pitchName, String region, String addressDetail) {}
@@ -69,11 +64,12 @@ public class AIToolsConfig {
             LocalTime now = LocalTime.now();
 
             List<SubPitch> allPitches = subPitchRepository.findAll();
-            List<AvailableTime> allTimes = timeRepository.findAll();
 
             List<String> availableSlots = new ArrayList<>();
 
             for (SubPitch pitch : allPitches) {
+                List<AvailableTime> configuredTimes =
+                        subPitchAvailableTimeRepository.findAvailableTimesBySubPitch(pitch);
                 List<BookingDetail> bookings = bookingDetailRepository.findBySubPitchAndDate(pitch, date);
                 Set<Long> bookedTimeIds = bookings.stream()
                         .map(b -> b.getAvailableTime().getId())
@@ -86,7 +82,7 @@ public class AIToolsConfig {
                         .map(tb -> tb.getAvailableTime().getId())
                         .collect(Collectors.toSet());
 
-                for (AvailableTime time : allTimes) {
+                for (AvailableTime time : configuredTimes) {
                     if (date.equals(today) && time.getTime().isBefore(now))
                         continue;
 
@@ -113,36 +109,4 @@ public class AIToolsConfig {
         }
     }
 
-    public record RevenueRequest(String startDate, String endDate) {
-    }
-
-    public record RevenueResponse(String report) {
-    }
-
-    @Tool(description = "Lấy báo cáo doanh thu theo khoảng thời gian. Truyền startDate và endDate theo định dạng YYYY-MM-DD.")
-    public RevenueResponse getRevenueReport(RevenueRequest request) {
-        try {
-            LocalDate start = LocalDate.parse(request.startDate());
-            LocalDate end = LocalDate.parse(request.endDate());
-
-            Map<String, Double> revenueData = bookingStatsService.getRevenueBetweenDates(start, end);
-
-            if (revenueData.isEmpty()) {
-                return new RevenueResponse("Không có dữ liệu doanh thu trong khoảng thời gian này.");
-            }
-
-            StringBuilder report = new StringBuilder();
-            double total = 0;
-            for (Map.Entry<String, Double> entry : revenueData.entrySet()) {
-                report.append("- ").append(entry.getKey()).append(": ")
-                        .append(String.format("%,.0f", entry.getValue())).append(" VNĐ\n");
-                total += entry.getValue();
-            }
-            report.append("\nTổng doanh thu: ").append(String.format("%,.0f", total)).append(" VNĐ");
-
-            return new RevenueResponse(report.toString());
-        } catch (Exception e) {
-            return new RevenueResponse("Lỗi định dạng ngày. Vui lòng cung cấp ngày theo định dạng YYYY-MM-DD.");
-        }
-    }
 }

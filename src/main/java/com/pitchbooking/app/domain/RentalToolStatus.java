@@ -1,10 +1,11 @@
 package com.pitchbooking.app.domain;
 
+import java.util.Locale;
+
 public enum RentalToolStatus {
-    PENDING("Chờ thanh toán"),
-    DEPOSITED("Đã đặt cọc"),
-    PAID("Đã thanh toán"),
-    COMPLETED("Đã trả"),
+    PENDING("Chờ nhận phụ kiện"),
+    RENTING("Đang thuê"),
+    COMPLETED("Đã trả phụ kiện"),
     CANCELLED("Đã hủy");
 
     private final String label;
@@ -18,16 +19,19 @@ public enum RentalToolStatus {
     }
 
     public static RentalToolStatus fromLabel(String input) {
-        if (input == null || input.isEmpty()) return PENDING;
-        
-        // Try matching by label first
-        for (RentalToolStatus s : values()) {
-            if (s.label.equalsIgnoreCase(input)) return s;
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("Trạng thái thuê không được để trống.");
         }
-        
-        // Try matching by enum name
+
+        String normalizedInput = input.trim();
+        for (RentalToolStatus s : values()) {
+            if (s.label.equalsIgnoreCase(normalizedInput)) {
+                return s;
+            }
+        }
+
         try {
-            return RentalToolStatus.valueOf(input.toUpperCase());
+            return RentalToolStatus.valueOf(normalizedInput.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Trạng thái thuê không hợp lệ: " + input);
         }

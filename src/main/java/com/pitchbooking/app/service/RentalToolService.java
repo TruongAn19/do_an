@@ -3,6 +3,7 @@ package com.pitchbooking.app.service;
 import com.pitchbooking.app.domain.*;
 import com.pitchbooking.app.domain.dto.CreateRentalRequest;
 import com.pitchbooking.app.domain.dto.RentalToolDTO;
+import com.pitchbooking.app.exception.BusinessConflictException;
 import com.pitchbooking.app.exception.ForbiddenOperationException;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.mapper.RentalToolMapper;
@@ -15,8 +16,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -25,11 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@EnableScheduling
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class RentalToolService {
@@ -115,8 +114,10 @@ public class RentalToolService {
             Map<Long, Equipment> equipmentMap,
             Map<Long, Booking> bookingMap) {
         RentalToolDTO dto = rentalToolMapper.toDTO(rt);
-        // status giữ nguyên enum name (PENDING, DEPOSITED, PAID, COMPLETED, CANCELLED)
-        // do MapStruct set sẵn — FE so sánh với enum name và tự render label.
+        // FE receives enum names and renders the Vietnamese labels.
+        if (rt.getPaymentStatus() != null) {
+            dto.setPaymentStatus(rt.getPaymentStatus().name());
+        }
         if (rt.getRefundStatus() != null) {
             dto.setRefundStatus(rt.getRefundStatus().name());
         }
@@ -162,7 +163,7 @@ public class RentalToolService {
      * Tạo mới đơn thuê thiết bị từ request DTO.
      * Giá được tính hoàn toàn tại backend từ Equipment entity — client không thể tự khai giá.
      *  - ON_SITE : liên kết booking, lưu ngay.
-     *  - DAILY   : kiểm tra tồn kho → lưu PENDING, client gọi POST /{id}/pay tiếp theo.
+     *  - DAILY   : khóa và giữ tồn kho ngay khi tạo, sau đó lưu PENDING.
      */
     @Transactional
     public RentalToolDTO handleSubmitRental(CreateRentalRequest request, User user) {
@@ -174,7 +175,7 @@ public class RentalToolService {
         if (request.getType() == RentalType.ON_SITE) {
             return handleOnSiteRental(rentalTool, request.getBookingCode());
         } else {
-            validateDailyRentalAvailable(rentalTool);
+            reserveDailyStock(rentalTool);
             return rentalToolMapper.toDTO(rentalToolRepository.save(rentalTool));
         }
     }
@@ -193,6 +194,7 @@ public class RentalToolService {
         rentalTool.setQuantity(request.getQuantity());
         rentalTool.setUserId(user.getId());
         rentalTool.setStatus(RentalToolStatus.PENDING);
+        rentalTool.setPaymentStatus(RentalPaymentStatus.UNPAID);
         rentalTool.setCreateAt(LocalDateTime.now());
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalTool.setRentalPrice(rentalPricingService.totalPrice(
@@ -219,6 +221,11 @@ public class RentalToolService {
         validateBookingOwnership(booking, user);
         validateBookingActiveForRental(booking);
 
+        Equipment equipment = equipmentRepository.findByIdWithLock(rentalTool.getEquipmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy thiết bị id=" + rentalTool.getEquipmentId()));
+        reserveOnSiteStock(rentalTool, equipment);
+
         rentalTool.setRentalDate(booking.getBookingDate());
         rentalTool.setBookingId(String.valueOf(booking.getId()));
 
@@ -240,6 +247,36 @@ public class RentalToolService {
         bookingRepository.save(booking);
 
         return rentalToolMapper.toDTO(rentalTool);
+    }
+
+    private void reserveOnSiteStock(RentalTool rentalTool, Equipment equipment) {
+        Integer quantity = rentalTool.getQuantity();
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng phụ kiện thuê phải lớn hơn 0.");
+        }
+        if (equipment.getBookingStockQuantity() < quantity) {
+            throw new IllegalArgumentException(
+                    "Không đủ phụ kiện tại sân. Số lượng còn lại: "
+                            + equipment.getBookingStockQuantity());
+        }
+
+        equipment.setBookingStockQuantity(equipment.getBookingStockQuantity() - quantity);
+        equipmentRepository.save(equipment);
+        rentalTool.setOnSiteStockReserved(true);
+    }
+
+    private void releaseOnSiteStock(RentalTool rentalTool) {
+        if (rentalTool.getType() != RentalType.ON_SITE || !rentalTool.isOnSiteStockReserved()) {
+            return;
+        }
+
+        Equipment equipment = equipmentRepository.findByIdWithLock(rentalTool.getEquipmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy thiết bị id=" + rentalTool.getEquipmentId()));
+        equipment.setBookingStockQuantity(
+                equipment.getBookingStockQuantity() + rentalTool.getQuantity());
+        equipmentRepository.save(equipment);
+        rentalTool.setOnSiteStockReserved(false);
     }
 
     private void validateBookingOwnership(Booking booking, User user) {
@@ -277,36 +314,76 @@ public class RentalToolService {
 
     @Transactional
     public RentalToolDTO changeStatus(Long rentalToolId, RentalToolStatus status) {
-        RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
+        RentalTool rentalTool = rentalToolRepository.findByIdWithLock(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
-        if (status == RentalToolStatus.COMPLETED) {
-            completeRental(rentalToolId);
-        } else if (status == RentalToolStatus.CANCELLED) {
-            RentalToolStatus prev = rentalTool.getStatus();
-            rentalTool.setStatus(status);
-            rentalTool.setCancelledAt(LocalDateTime.now());
-            if (prev == RentalToolStatus.DEPOSITED || prev == RentalToolStatus.PAID) {
-                rentalTool.setRefundStatus(RefundStatus.PENDING_REFUND);
-                // rentalPrice = tổng tiền đã thanh toán (cho cả số lượng + số ngày).
-                // price * quantity là giá tham chiếu nhân số lượng, không phải tiền cọc thực.
-                rentalTool.setDepositAmount(rentalTool.getRentalPrice());
-            } else {
-                rentalTool.setRefundStatus(RefundStatus.NOT_APPLICABLE);
-            }
-        } else {
-            rentalTool.setStatus(status);
+        if (status == null) {
+            throw new IllegalArgumentException("Trạng thái thuê không được để trống.");
         }
+        if (rentalTool.getStatus() == status) {
+            return rentalToolMapper.toDTO(rentalTool);
+        }
+
+        switch (status) {
+            case RENTING -> startRental(rentalTool);
+            case COMPLETED -> completeRentalState(rentalTool);
+            case CANCELLED -> cancelRentalState(rentalTool);
+            case PENDING -> throw new BusinessConflictException(
+                    "Không thể chuyển đơn thuê trở lại trạng thái chờ nhận phụ kiện.");
+        }
+
+        rentalTool.setUpdateAt(LocalDateTime.now());
         return rentalToolMapper.toDTO(rentalToolRepository.save(rentalTool));
+    }
+
+    private void startRental(RentalTool rentalTool) {
+        requireCurrentStatus(rentalTool, RentalToolStatus.PENDING, RentalToolStatus.RENTING);
+        if (rentalTool.getType() == RentalType.DAILY) {
+            moveDailyStockToRental(rentalTool);
+        }
+        rentalTool.setStatus(RentalToolStatus.RENTING);
+    }
+
+    private void completeRentalState(RentalTool rentalTool) {
+        requireCurrentStatus(rentalTool, RentalToolStatus.RENTING, RentalToolStatus.COMPLETED);
+        releaseReservedStock(rentalTool);
+        if (rentalTool.getPaymentStatus() == RentalPaymentStatus.UNPAID) {
+            rentalTool.setPaymentStatus(RentalPaymentStatus.PAID);
+        }
+        rentalTool.setStatus(RentalToolStatus.COMPLETED);
+    }
+
+    private void cancelRentalState(RentalTool rentalTool) {
+        requireCurrentStatus(rentalTool, RentalToolStatus.PENDING, RentalToolStatus.CANCELLED);
+        releaseReservedStock(rentalTool);
+        rentalTool.setStatus(RentalToolStatus.CANCELLED);
+        rentalTool.setCancelledAt(LocalDateTime.now());
+        if (rentalTool.getPaymentStatus() == RentalPaymentStatus.PAID) {
+            rentalTool.setRefundStatus(RefundStatus.PENDING_REFUND);
+            rentalTool.setDepositAmount(rentalTool.getRentalPrice());
+        } else {
+            rentalTool.setRefundStatus(RefundStatus.NOT_APPLICABLE);
+        }
+    }
+
+    private void requireCurrentStatus(
+            RentalTool rentalTool,
+            RentalToolStatus expected,
+            RentalToolStatus target) {
+        if (rentalTool.getStatus() != expected) {
+            throw new BusinessConflictException(
+                    "Không thể chuyển đơn thuê từ " + rentalTool.getStatus() + " sang " + target + ".");
+        }
     }
 
     @Transactional
     public RentalToolDTO confirmRentalRefund(Long rentalToolId) {
-        RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
+        RentalTool rentalTool = rentalToolRepository.findByIdWithLock(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
         if (rentalTool.getRefundStatus() != RefundStatus.PENDING_REFUND) {
-            throw new IllegalStateException("Đơn thuê không ở trạng thái chờ hoàn cọc");
+            throw new BusinessConflictException("Đơn thuê không ở trạng thái chờ hoàn cọc");
         }
         rentalTool.setRefundStatus(RefundStatus.REFUNDED);
+        rentalTool.setPaymentStatus(RentalPaymentStatus.REFUNDED);
         rentalTool.setUpdateAt(LocalDateTime.now());
         return enrichDTO(rentalToolRepository.save(rentalTool));
     }
@@ -324,52 +401,40 @@ public class RentalToolService {
     // Stock operations
     // -------------------------------------------------------------------------
 
-    /**
-     * Xác nhận thanh toán CASH cho đơn thuê: set PAID + trừ tồn kho
-     * EquipmentStockByDate trong cùng một transaction. Nếu thiếu tồn kho,
-     * trạng thái PAID và mọi thay đổi tồn kho đều được rollback.
-     */
     @Transactional
     public void confirmCashPayment(Long rentalToolId) {
         RentalTool rentalTool = rentalToolRepository.findByIdWithLock(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
-        confirmPendingRental(rentalTool, RentalToolStatus.PAID);
+        confirmRentalPayment(rentalTool);
     }
 
-    /**
-     * Xác nhận VNPay và trừ tồn kho trong cùng transaction. Callback thành công
-     * được phép gọi lại nhưng không trừ kho lần thứ hai.
-     */
     @Transactional
     public RentalTool confirmVnpayPayment(Long rentalToolId) {
         RentalTool rentalTool = rentalToolRepository.findByIdWithLock(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
-        if (rentalTool.getStatus() == RentalToolStatus.DEPOSITED) {
+        if (rentalTool.getPaymentStatus() == RentalPaymentStatus.PAID) {
             return rentalTool;
         }
-        confirmPendingRental(rentalTool, RentalToolStatus.DEPOSITED);
+        confirmRentalPayment(rentalTool);
         return rentalTool;
     }
 
-    private void confirmPendingRental(RentalTool rentalTool, RentalToolStatus confirmedStatus) {
-        if (rentalTool.getStatus() != RentalToolStatus.PENDING) {
-            throw new IllegalStateException("Đơn thuê không ở trạng thái chờ thanh toán");
+    private void confirmRentalPayment(RentalTool rentalTool) {
+        if (rentalTool.getStatus() != RentalToolStatus.PENDING
+                && rentalTool.getStatus() != RentalToolStatus.RENTING) {
+            throw new BusinessConflictException("Đơn thuê không ở trạng thái có thể thanh toán.");
         }
 
-        if (rentalTool.getType() != RentalType.DAILY) {
-            rentalTool.setStatus(confirmedStatus);
-            rentalTool.setUpdateAt(LocalDateTime.now());
-            rentalToolRepository.save(rentalTool);
-            return;
-        }
-
-        reserveDailyStock(rentalTool);
-        rentalTool.setStatus(confirmedStatus);
+        rentalTool.setPaymentStatus(RentalPaymentStatus.PAID);
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
     }
 
     private void reserveDailyStock(RentalTool rentalTool) {
+        if (rentalTool.isDailyStockReserved()) {
+            return;
+        }
+
         int quantity = rentalTool.getQuantity();
         LocalDate rentalDate = rentalTool.getRentalDate();
         int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
@@ -378,116 +443,128 @@ public class RentalToolService {
 
         for (int i = 0; i < quantityDay; i++) {
             LocalDate date = rentalDate.plusDays(i);
-            EquipmentStockByDate stock = equipmentStockByDateRepository
-                    .findByEquipmentIdAndDateWithLock(equipmentId, date)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
+            EquipmentStockByDate stock = getOrCreateDailyStockWithLock(equipmentId, date);
             if (stock.getAvailableStock() < quantity) {
                 throw new IllegalArgumentException("Không đủ thiết bị vào ngày " + date);
             }
             stocks.add(stock);
         }
 
-        LocalDate today = LocalDate.now();
-        for (int i = 0; i < stocks.size(); i++) {
-            LocalDate date = rentalDate.plusDays(i);
-            EquipmentStockByDate stock = stocks.get(i);
+        for (EquipmentStockByDate stock : stocks) {
             stock.setAvailableStock(stock.getAvailableStock() - quantity);
             stock.setReservedStock(stock.getReservedStock() + quantity);
-            if (date.equals(today)) {
-                stock.setReservedStock(stock.getReservedStock() - quantity);
-                stock.setRentalStock(stock.getRentalStock() + quantity);
-            }
             equipmentStockByDateRepository.save(stock);
         }
+        rentalTool.setDailyStockReserved(true);
+    }
+
+    private EquipmentStockByDate getOrCreateDailyStockWithLock(Long equipmentId, LocalDate date) {
+        Optional<EquipmentStockByDate> existing = equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipmentId, date);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        Equipment equipment = equipmentRepository.findByIdWithLock(equipmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy thiết bị id=" + equipmentId));
+
+        return equipmentStockByDateRepository
+                .findByEquipmentIdAndDateWithLock(equipmentId, date)
+                .orElseGet(() -> {
+                    EquipmentStockByDate stock = new EquipmentStockByDate();
+                    stock.setEquipmentId(equipmentId);
+                    stock.setDate(date);
+                    stock.setTotalStock(equipment.getQuantity());
+                    stock.setAvailableStock(equipment.getQuantity());
+                    stock.setReservedStock(0);
+                    stock.setRentalStock(0);
+                    return equipmentStockByDateRepository.save(stock);
+                });
+    }
+
+    private void moveDailyStockToRental(RentalTool rentalTool) {
+        if (!rentalTool.isDailyStockReserved()) {
+            throw new IllegalStateException("Đơn thuê DAILY chưa giữ tồn kho.");
+        }
+
+        int quantity = rentalTool.getQuantity();
+        LocalDate rentalDate = rentalTool.getRentalDate();
+        int quantityDay = rentalTool.getQuantityDay() != null ? rentalTool.getQuantityDay() : 1;
+        List<EquipmentStockByDate> stocks = new ArrayList<>(quantityDay);
+
+        for (int i = 0; i < quantityDay; i++) {
+            LocalDate date = rentalDate.plusDays(i);
+            EquipmentStockByDate stock = equipmentStockByDateRepository
+                    .findByEquipmentIdAndDateWithLock(rentalTool.getEquipmentId(), date)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy tồn kho cho ngày " + date));
+            if (stock.getReservedStock() < quantity) {
+                throw new IllegalStateException(
+                        "Tồn kho giữ chỗ không đủ cho đơn thuê vào ngày " + date + ".");
+            }
+            stocks.add(stock);
+        }
+
+        for (EquipmentStockByDate stock : stocks) {
+            stock.setReservedStock(stock.getReservedStock() - quantity);
+            stock.setRentalStock(stock.getRentalStock() + quantity);
+            equipmentStockByDateRepository.save(stock);
+        }
+    }
+
+    private void releaseReservedStock(RentalTool rentalTool) {
+        if (rentalTool.getType() == RentalType.DAILY) {
+            releaseDailyStock(rentalTool);
+        } else if (rentalTool.getType() == RentalType.ON_SITE) {
+            releaseOnSiteStock(rentalTool);
+        }
+    }
+
+    private void releaseDailyStock(RentalTool rentalTool) {
+        if (!rentalTool.isDailyStockReserved()) {
+            return;
+        }
+
+        int quantity = rentalTool.getQuantity();
+        LocalDate rentalDate = rentalTool.getRentalDate();
+        int quantityDay = rentalTool.getQuantityDay() != null ? rentalTool.getQuantityDay() : 1;
+        List<EquipmentStockByDate> stocks = new ArrayList<>(quantityDay);
+        boolean renting = rentalTool.getStatus() == RentalToolStatus.RENTING;
+
+        for (int i = 0; i < quantityDay; i++) {
+            LocalDate date = rentalDate.plusDays(i);
+            EquipmentStockByDate stock = equipmentStockByDateRepository
+                    .findByEquipmentIdAndDateWithLock(rentalTool.getEquipmentId(), date)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy tồn kho cho ngày " + date));
+            int heldStock = renting ? stock.getRentalStock() : stock.getReservedStock();
+            if (heldStock < quantity) {
+                throw new IllegalStateException(
+                        "Tồn kho không còn giữ đủ số lượng của đơn thuê vào ngày " + date + ".");
+            }
+            stocks.add(stock);
+        }
+
+        for (EquipmentStockByDate stock : stocks) {
+            if (renting) {
+                stock.setRentalStock(stock.getRentalStock() - quantity);
+            } else {
+                stock.setReservedStock(stock.getReservedStock() - quantity);
+            }
+            stock.setAvailableStock(stock.getAvailableStock() + quantity);
+            equipmentStockByDateRepository.save(stock);
+        }
+        rentalTool.setDailyStockReserved(false);
     }
 
     @Transactional
     public void completeRental(Long rentalToolId) {
         RentalTool rentalTool = rentalToolRepository.findByIdWithLock(rentalToolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + rentalToolId));
-
-        if (rentalTool.getStatus() != RentalToolStatus.PENDING
-                && rentalTool.getStatus() != RentalToolStatus.PAID
-                && rentalTool.getStatus() != RentalToolStatus.DEPOSITED) {
-            throw new IllegalStateException("Đơn thuê không ở trạng thái có thể hoàn thành");
-        }
-
-        if (rentalTool.getType() == RentalType.DAILY) {
-            Long equipmentId = rentalTool.getEquipmentId();
-            int quantity = rentalTool.getQuantity();
-            LocalDate rentalDate = rentalTool.getRentalDate();
-            int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
-
-            for (int i = 0; i < quantityDay; i++) {
-                LocalDate date = rentalDate.plusDays(i);
-                EquipmentStockByDate stock = equipmentStockByDateRepository
-                        .findByEquipmentIdAndDateWithLock(equipmentId, date)
-                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tồn kho cho ngày " + date));
-                stock.setAvailableStock(stock.getAvailableStock() + quantity);
-                // Bucket nào hiện đang giữ qty phụ thuộc vào việc ngày này đã được
-                // handleDailyRental/updateRentalStockForToday chuyển reserved→rental
-                // chưa: rentalStock cho ngày đã/đang diễn ra, reservedStock cho
-                // ngày còn ở tương lai. Ưu tiên rentalStock vì admin thường mark
-                // COMPLETED sau khi rental đã bắt đầu.
-                if (stock.getRentalStock() >= quantity) {
-                    stock.setRentalStock(stock.getRentalStock() - quantity);
-                } else if (stock.getReservedStock() >= quantity) {
-                    stock.setReservedStock(stock.getReservedStock() - quantity);
-                }
-                equipmentStockByDateRepository.save(stock);
-            }
-        }
-
-        rentalTool.setStatus(RentalToolStatus.COMPLETED);
+        completeRentalState(rentalTool);
         rentalTool.setUpdateAt(LocalDateTime.now());
         rentalToolRepository.save(rentalTool);
     }
 
-    @Transactional
-    @Scheduled(cron = "0 5 0 * * ?")
-    public void updateRentalStockForToday() {
-        LocalDate today = LocalDate.now();
-        List<RentalTool> rentals = rentalToolRepository
-                .findByStatusIn(List.of(RentalToolStatus.PENDING, RentalToolStatus.PAID, RentalToolStatus.DEPOSITED));
-
-        for (RentalTool rental : rentals) {
-            if (rental.getType() != RentalType.DAILY) continue;
-
-            Long equipmentId = rental.getEquipmentId();
-            int quantity = rental.getQuantity();
-            LocalDate rentalDate = rental.getRentalDate();
-            int quantityDay = (rental.getQuantityDay() != null) ? rental.getQuantityDay() : 1;
-
-            if (!today.isBefore(rentalDate) && today.isBefore(rentalDate.plusDays(quantityDay))) {
-                EquipmentStockByDate stock = equipmentStockByDateRepository
-                        .findByEquipmentIdAndDateWithLock(equipmentId, today)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "Không tìm thấy tồn kho cho ngày " + today));
-
-                if (stock.getReservedStock() >= quantity) {
-                    stock.setReservedStock(stock.getReservedStock() - quantity);
-                    stock.setRentalStock(stock.getRentalStock() + quantity);
-                    equipmentStockByDateRepository.save(stock);
-                }
-            }
-        }
-    }
-
-    private void validateDailyRentalAvailable(RentalTool rentalTool) {
-        if (rentalTool.getType() != RentalType.DAILY) return;
-
-        int quantity = rentalTool.getQuantity();
-        LocalDate rentalDate = rentalTool.getRentalDate();
-        int quantityDay = (rentalTool.getQuantityDay() != null) ? rentalTool.getQuantityDay() : 1;
-        Long equipmentId = rentalTool.getEquipmentId();
-
-        for (int i = 0; i < quantityDay; i++) {
-            LocalDate date = rentalDate.plusDays(i);
-            EquipmentStockByDate stock = equipmentStockByDateRepository.findByEquipmentIdAndDate(equipmentId, date)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không đủ tồn kho cho ngày " + date));
-            if (stock.getAvailableStock() < quantity) {
-                throw new IllegalArgumentException("Không đủ thiết bị vào ngày " + date);
-            }
-        }
-    }
 }

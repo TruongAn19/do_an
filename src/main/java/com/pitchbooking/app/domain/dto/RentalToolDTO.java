@@ -20,6 +20,7 @@ public class RentalToolDTO {
     private double price;
     private double rentalPrice;
     private String status;
+    private String paymentStatus;
     private int quantity;
     private int quantityDay;
     private String rentalDate;

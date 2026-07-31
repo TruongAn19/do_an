@@ -4,9 +4,11 @@ import com.pitchbooking.app.domain.AvailableTime;
 import com.pitchbooking.app.domain.Booking;
 import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.BookingType;
+import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.Product;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.RentalToolStatus;
+import com.pitchbooking.app.domain.RentalType;
 import com.pitchbooking.app.domain.SubPitch;
 import com.pitchbooking.app.domain.SubPitchAvailableTime;
 import com.pitchbooking.app.domain.TemporaryBooking;
@@ -15,9 +17,12 @@ import com.pitchbooking.app.domain.dto.BookingPriceBreakdown;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
 import com.pitchbooking.app.domain.dto.PendingBookingData;
 import com.pitchbooking.app.domain.dto.PreparedBookingResult;
+import com.pitchbooking.app.config.ContactProperties;
+import com.pitchbooking.app.exception.BusinessConflictException;
 import com.pitchbooking.app.mapper.BookingMapper;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.BookingRepository;
+import com.pitchbooking.app.repository.EquipmentRepository;
 import com.pitchbooking.app.repository.ProductRepository;
 import com.pitchbooking.app.repository.RentalToolRepository;
 import com.pitchbooking.app.repository.SubPitchRepository;
@@ -77,6 +82,7 @@ class BookingServicePhase8Test {
     @Mock BookingRepository bookingRepository;
     @Mock BookingDetailRepository bookingDetailRepository;
     @Mock RentalToolRepository rentalToolRepository;
+    @Mock EquipmentRepository equipmentRepository;
     @Mock UserRepository userRepository;
     @Mock ProductRepository productRepository;
     @Mock TimeRepository timeRepository;
@@ -86,6 +92,7 @@ class BookingServicePhase8Test {
     @Mock BookingMapper bookingMapper;
     @Mock PricingService pricingService;
     @Mock PendingBookingCache pendingBookingCache;
+    @Mock ContactProperties contactProperties;
 
     @InjectMocks BookingService bookingService;
 
@@ -131,9 +138,9 @@ class BookingServicePhase8Test {
         RentalTool rental = new RentalTool();
         rental.setId(99L);
         rental.setBookingId(String.valueOf(booking.getId()));
-        rental.setStatus(RentalToolStatus.DEPOSITED);
+        rental.setStatus(RentalToolStatus.RENTING);
 
-        when(bookingRepository.findById(booking.getId())).thenReturn(Optional.of(booking));
+        when(bookingRepository.findByIdWithLock(booking.getId())).thenReturn(Optional.of(booking));
         org.mockito.Mockito.lenient()
                 .when(rentalToolRepository.findRentalToolsByBookingId(
                         String.valueOf(booking.getId())))
@@ -142,11 +149,90 @@ class BookingServicePhase8Test {
         bookingService.updateBooking(booking.getId(), BookingStatus.DA_THANH_TOAN.name());
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_THANH_TOAN);
-        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.DEPOSITED);
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.RENTING);
         verify(bookingRepository).save(booking);
         verify(rentalToolRepository, never())
                 .findRentalToolsByBookingId(String.valueOf(booking.getId()));
         verify(rentalToolRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("Admin cannot bypass cancellation flow by updating booking status")
+    void updateBooking_cancelledToPaid_returnsBusinessConflict() {
+        Booking booking = new Booking();
+        booking.setId(88L);
+        booking.setStatus(BookingStatus.DA_HUY);
+
+        when(bookingRepository.findByIdWithLock(booking.getId())).thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> bookingService.updateBooking(
+                booking.getId(), BookingStatus.DA_THANH_TOAN.name()))
+                .isInstanceOf(BusinessConflictException.class)
+                .hasMessageContaining("Không thể chuyển booking");
+
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_HUY);
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    @DisplayName("Cancelling booking releases only stock reserved by its ON_SITE rental")
+    void cancelBooking_releasesReservedOnSiteStock() {
+        Booking booking = new Booking();
+        booking.setId(88L);
+        booking.setStatus(BookingStatus.DA_DAT);
+        booking.setBookingType(BookingType.ONE_TIME);
+        booking.setBookingDate(LocalDate.now().plusDays(1));
+        booking.setAvailableTime(availableTime);
+        booking.setUser(user);
+        booking.setDepositPrice(100_000d);
+
+        availableTime.setTime(java.time.LocalTime.of(18, 0));
+
+        Equipment equipment = new Equipment();
+        equipment.setId(5L);
+        equipment.setBookingStockQuantity(3);
+
+        RentalTool rental = new RentalTool();
+        rental.setId(99L);
+        rental.setBookingId(String.valueOf(booking.getId()));
+        rental.setType(RentalType.ON_SITE);
+        rental.setStatus(RentalToolStatus.PENDING);
+        rental.setEquipmentId(equipment.getId());
+        rental.setQuantity(2);
+        rental.setOnSiteStockReserved(true);
+
+        when(bookingRepository.findByIdWithLock(booking.getId()))
+                .thenReturn(Optional.of(booking));
+        when(rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId())))
+                .thenReturn(List.of(rental));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
+
+        bookingService.cancelByUser(booking.getId(), user.getId(), "Đổi lịch");
+
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_HUY);
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.CANCELLED);
+        assertThat(rental.isOnSiteStockReserved()).isFalse();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(5);
+        verify(equipmentRepository).save(equipment);
+        verify(rentalToolRepository).save(rental);
+    }
+
+    @Test
+    @DisplayName("Cancelling an already cancelled booking is a business conflict")
+    void cancelBooking_alreadyCancelled_returnsBusinessConflict() {
+        Booking booking = new Booking();
+        booking.setId(88L);
+        booking.setStatus(BookingStatus.DA_HUY);
+        booking.setUser(user);
+
+        when(bookingRepository.findByIdWithLock(booking.getId()))
+                .thenReturn(Optional.of(booking));
+
+        assertThatThrownBy(() -> bookingService.cancelByUser(
+                booking.getId(), user.getId(), "Hủy lại"))
+                .isInstanceOf(BusinessConflictException.class)
+                .hasMessage("Đơn đặt sân này đã được hủy trước đó.");
     }
 
     @Test
@@ -158,7 +244,7 @@ class BookingServicePhase8Test {
 
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
-        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
         when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
 
         assertThatThrownBy(() -> bookingService.preparePendingBooking(
@@ -181,7 +267,7 @@ class BookingServicePhase8Test {
     void prepareBooking_timeNotConfiguredForSubPitch_rejects() {
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
-        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
         when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
         when(subPitchAvailableTimeRepository.findBySubPitchAndAvailableTime(
                 subPitch, availableTime)).thenReturn(Optional.empty());
@@ -227,7 +313,7 @@ class BookingServicePhase8Test {
 
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
-        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
         when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
         mockAvailableTimeForSubPitch();
         when(pricingService.calculateBookingPriceBreakdown(
@@ -273,6 +359,7 @@ class BookingServicePhase8Test {
                 .containsExactly(anchorDate, secondDate, thirdDate);
         assertThat(result.pendingId()).isEqualTo(1234L);
         assertThat(result.depositPrice()).isEqualTo(300_000d);
+        verify(subPitchRepository).findByIdWithLock(subPitch.getId());
     }
 
     @Test
@@ -300,7 +387,7 @@ class BookingServicePhase8Test {
 
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
-        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
         when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
         mockAvailableTimeForSubPitch();
         when(pricingService.calculateBookingPriceBreakdown(
@@ -354,7 +441,7 @@ class BookingServicePhase8Test {
 
         when(userRepository.findUserById(user.getId())).thenReturn(user);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
-        when(subPitchRepository.findById(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
         when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
         when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(any(), any(), any()))
                 .thenReturn(Optional.empty());
