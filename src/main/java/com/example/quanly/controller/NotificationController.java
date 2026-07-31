@@ -30,7 +30,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = securityUtils.getCurrentUser().getId();
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         return ResponseEntity.ok(ApiResponse.<Page<NotificationDTO>>builder()
                 .status(200).message("Thành công")
                 .data(notificationService.listByUser(userId, pageable)).build());
@@ -67,7 +67,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         User current = securityUtils.getCurrentUser();
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         return ResponseEntity.ok(ApiResponse.<Page<NotificationDTO>>builder()
                 .status(200).message("Thành công")
                 .data(notificationService.listByUser(current.getId(), pageable)).build());

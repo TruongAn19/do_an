@@ -29,6 +29,7 @@ public class RentalTool implements Serializable {
     private Integer quantityDay;
     private LocalDate rentalDate;
     private LocalDate returnDate;
+    private LocalDate lastStockActivatedDate;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
     private String rentalToolCode;

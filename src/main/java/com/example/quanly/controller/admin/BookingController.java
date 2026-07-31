@@ -33,6 +33,8 @@ public class BookingController {
                         @RequestParam(value = "page", defaultValue = "1") int page,
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
+                page = Math.max(page, 1);
+                size = Math.min(Math.max(size, 1), 100);
                 Pageable pageable = PageRequest.of(page - 1, size, Sort.by("id").descending());
                 Page<BookingResponseDTO> bookingPage;
 

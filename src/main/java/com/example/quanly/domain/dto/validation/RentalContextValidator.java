@@ -19,6 +19,10 @@ public class RentalContextValidator implements ConstraintValidator<ValidRentalCo
                 ctx.buildConstraintViolationWithTemplate("Ngày thuê không được để trống với loại DAILY")
                         .addPropertyNode("rentalDate").addConstraintViolation();
                 valid = false;
+            } else if (req.getRentalDate().isBefore(java.time.LocalDate.now())) {
+                ctx.buildConstraintViolationWithTemplate("Ngày thuê không thể ở trong quá khứ")
+                        .addPropertyNode("rentalDate").addConstraintViolation();
+                valid = false;
             }
             if (req.getQuantityDay() < 1) {
                 ctx.buildConstraintViolationWithTemplate("Số ngày thuê phải ít nhất là 1 với loại DAILY")

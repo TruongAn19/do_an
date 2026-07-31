@@ -44,6 +44,8 @@ public class User {
 
     private String memberLevel = "NORMAL"; // NORMAL, SILVER, GOLD
 
+    private boolean active = true;
+
     @ManyToOne
 
     @JoinColumn(name = "role_id")

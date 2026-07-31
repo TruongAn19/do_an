@@ -5,9 +5,10 @@
 -- 1. roles  (Role.java → @Table("roles"))
 CREATE TABLE `roles` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT,
-  `name`        VARCHAR(255),
+  `name`        VARCHAR(255) NOT NULL,
   `description` TEXT,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_roles_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 2. user  (User.java → @Table("user"))
@@ -20,6 +21,7 @@ CREATE TABLE `user` (
   `phone`        VARCHAR(20)  NOT NULL,
   `avatar`       VARCHAR(500),
   `member_level` VARCHAR(20)  NOT NULL DEFAULT 'NORMAL',
+  `active`       BIT(1)       NOT NULL DEFAULT b'1',
   `role_id`      BIGINT,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_email` (`email`),
@@ -44,6 +46,7 @@ CREATE TABLE `products` (
   `quantity`     BIGINT,
   `sale`         BIGINT,
   `address`      VARCHAR(500),
+  `address_detail` VARCHAR(255),
   `deposit_price` DOUBLE,
   `status`       VARCHAR(50),
   `user_id`      BIGINT,
@@ -78,7 +81,7 @@ CREATE TABLE `racket` (
   CONSTRAINT `fk_racket_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 8. sub_courts  (SubCourt.java → @Table("sub_courts"))
+-- 7. sub_courts  (SubCourt.java -> @Table("sub_courts"))
 CREATE TABLE `sub_courts` (
   `id`         BIGINT       NOT NULL AUTO_INCREMENT,
   `name`       VARCHAR(255),
@@ -87,7 +90,7 @@ CREATE TABLE `sub_courts` (
   CONSTRAINT `fk_subcourt_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 9. subcourt_available_time  (SubCourtAvailableTime.java → @Table("subcourt_available_time"))
+-- 8. subcourt_available_time  (SubCourtAvailableTime.java -> @Table("subcourt_available_time"))
 CREATE TABLE `subcourt_available_time` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
   `sub_court_id`      BIGINT,
@@ -98,8 +101,7 @@ CREATE TABLE `subcourt_available_time` (
   CONSTRAINT `fk_sat_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 10. booking  (Booking.java → @Table("booking"))
---     booking_type & recurring_end_date are added by V3
+-- 9. booking  (Booking.java -> @Table("booking"))
 CREATE TABLE `booking` (
   `id`               BIGINT       NOT NULL AUTO_INCREMENT,
   `total_price`      DOUBLE,
@@ -110,15 +112,23 @@ CREATE TABLE `booking` (
   `status`           VARCHAR(100),
   `booking_date`     DATE,
   `deposit_price`    DOUBLE,
+  `booking_type`     VARCHAR(20) DEFAULT 'ONE_TIME',
+  `recurring_end_date` DATE,
   `user_id`          BIGINT,
   `available_time_id` BIGINT,
   `rental_tool_code` VARCHAR(255) DEFAULT 'KHONG_THUE',
+  `refund_status`    VARCHAR(32) DEFAULT 'NONE',
+  `refund_amount`    DOUBLE,
+  `cancelled_at`     DATETIME,
+  `used_sessions_at_cancel` INT,
+  `total_sessions_at_cancel` INT,
+  `cancel_reason`    VARCHAR(255),
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_booking_user` FOREIGN KEY (`user_id`)           REFERENCES `user`          (`id`),
   CONSTRAINT `fk_booking_time` FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 11. booking_detail  (BookingDetail.java → @Table("booking_detail"))
+-- 10. booking_detail  (BookingDetail.java -> @Table("booking_detail"))
 CREATE TABLE `booking_detail` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
   `price`             DOUBLE,
@@ -128,54 +138,17 @@ CREATE TABLE `booking_detail` (
   `available_time_id` BIGINT,
   `sub_court_id`      BIGINT,
   `date`              DATE,
+  `slot_active`       BIT(1) NULL DEFAULT b'1',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_active_booking_slot`
+    (`sub_court_id`, `available_time_id`, `date`, `slot_active`),
   CONSTRAINT `fk_bd_booking`  FOREIGN KEY (`booking_id`)        REFERENCES `booking`       (`id`),
   CONSTRAINT `fk_bd_product`  FOREIGN KEY (`product_id`)        REFERENCES `products`      (`id`),
   CONSTRAINT `fk_bd_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`),
   CONSTRAINT `fk_bd_subcourt` FOREIGN KEY (`sub_court_id`)      REFERENCES `sub_courts`    (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 12. match_posts  (MatchPost.java → @Table("match_posts"))
-CREATE TABLE `match_posts` (
-  `id`                  BIGINT       NOT NULL AUTO_INCREMENT,
-  `user_id`             BIGINT       NOT NULL,
-  `play_date`           DATE         NOT NULL,
-  `area`                VARCHAR(255) NOT NULL,
-  `time_slot`           VARCHAR(255) NOT NULL,
-  `skill_level`         VARCHAR(255),
-  `description`         TEXT,
-  `status`              VARCHAR(50)  DEFAULT 'open',
-  `created_at`          DATETIME,
-  `max_participants`    INT,
-  `current_participants` INT,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_mp_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 13. match_participants  (MatchParticipant.java → @Table("match_participants"))
-CREATE TABLE `match_participants` (
-  `id`            BIGINT NOT NULL AUTO_INCREMENT,
-  `match_post_id` BIGINT NOT NULL,
-  `user_id`       BIGINT NOT NULL,
-  `joined_at`     DATETIME,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_mpart_post` FOREIGN KEY (`match_post_id`) REFERENCES `match_posts` (`id`),
-  CONSTRAINT `fk_mpart_user` FOREIGN KEY (`user_id`)       REFERENCES `user`        (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 14. chat_messages  (ChatMessage.java → @Table("chat_messages"))
-CREATE TABLE `chat_messages` (
-  `id`            BIGINT NOT NULL AUTO_INCREMENT,
-  `match_post_id` BIGINT NOT NULL,
-  `sender_id`     BIGINT NOT NULL,
-  `content`       TEXT   NOT NULL,
-  `sent_at`       DATETIME,
-  PRIMARY KEY (`id`),
-  CONSTRAINT `fk_cm_post`   FOREIGN KEY (`match_post_id`) REFERENCES `match_posts` (`id`),
-  CONSTRAINT `fk_cm_sender` FOREIGN KEY (`sender_id`)     REFERENCES `user`        (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- 15. racket_stock_by_date  (RacketStockByDate.java → default table name)
+-- 11. racket_stock_by_date
 CREATE TABLE `racket_stock_by_date` (
   `id`              BIGINT NOT NULL AUTO_INCREMENT,
   `racket_id`       BIGINT,
@@ -190,7 +163,7 @@ CREATE TABLE `racket_stock_by_date` (
   UNIQUE KEY `uk_racket_date` (`racket_id`, `date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 16. rental_tool  (RentalTool.java → default table name)
+-- 12. rental_tool
 CREATE TABLE `rental_tool` (
   `id`               BIGINT       NOT NULL AUTO_INCREMENT,
   `full_name`        VARCHAR(255),
@@ -207,6 +180,7 @@ CREATE TABLE `rental_tool` (
   `quantity_day`     INT,
   `rental_date`      DATE,
   `return_date`      DATE,
+  `last_stock_activated_date` DATE,
   `create_at`        DATETIME,
   `update_at`        DATETIME,
   `rental_tool_code` VARCHAR(255),
@@ -214,7 +188,7 @@ CREATE TABLE `rental_tool` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 17. temporary_booking  (TemporaryBooking.java → @Table("temporary_booking"))
+-- 13. temporary_booking
 CREATE TABLE `temporary_booking` (
   `id`                BIGINT NOT NULL AUTO_INCREMENT,
   `user_id`           BIGINT,
@@ -222,12 +196,16 @@ CREATE TABLE `temporary_booking` (
   `available_time_id` BIGINT,
   `booking_date`      DATE,
   `hold_start_time`   DATETIME,
+  `expires_at`        DATETIME NOT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_temporary_booking_slot`
+    (`sub_court_id`, `available_time_id`, `booking_date`),
+  KEY `idx_temporary_booking_expiry` (`expires_at`),
   CONSTRAINT `fk_tb_subcourt` FOREIGN KEY (`sub_court_id`)      REFERENCES `sub_courts`    (`id`),
   CONSTRAINT `fk_tb_time`     FOREIGN KEY (`available_time_id`) REFERENCES `available_time` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 18. password_reset_token  (PasswordResetToken.java → default table name)
+-- 14. password_reset_token
 CREATE TABLE `password_reset_token` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT,
   `token`       VARCHAR(255),
@@ -235,4 +213,47 @@ CREATE TABLE `password_reset_token` (
   `user_id`     BIGINT,
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_prt_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 15. notification
+CREATE TABLE `notification` (
+  `id`                BIGINT       NOT NULL AUTO_INCREMENT,
+  `recipient_user_id` BIGINT,
+  `type`              VARCHAR(32),
+  `ref_type`          VARCHAR(32),
+  `ref_id`            BIGINT,
+  `title`             VARCHAR(255),
+  `message`           TEXT,
+  `is_read`           BIT(1)       NOT NULL DEFAULT b'0',
+  `created_at`        DATETIME,
+  PRIMARY KEY (`id`),
+  KEY `idx_notification_recipient_unread`
+    (`recipient_user_id`, `is_read`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 16. pending_booking_payment
+CREATE TABLE `pending_booking_payment` (
+  `id`                         BIGINT NOT NULL AUTO_INCREMENT,
+  `temporary_booking_id`       BIGINT,
+  `temporary_booking_ids_json` LONGTEXT,
+  `user_id`                    BIGINT NOT NULL,
+  `product_id`                 BIGINT NOT NULL,
+  `available_time_id`          BIGINT NOT NULL,
+  `sub_court_id`               BIGINT NOT NULL,
+  `receiver_name`              VARCHAR(255),
+  `receiver_address`           VARCHAR(500),
+  `receiver_phone`             VARCHAR(20),
+  `first_booking_date`         DATE NOT NULL,
+  `booking_type`               VARCHAR(30) NOT NULL,
+  `recurring_end_date`         DATE,
+  `total_booking_price`        DOUBLE NOT NULL,
+  `deposit_price`              DOUBLE NOT NULL,
+  `slots_json`                 LONGTEXT NOT NULL,
+  `rental_slots_json`          LONGTEXT,
+  `expires_at`                 DATETIME NOT NULL,
+  `processing_status`          VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  `completed_booking_id`       BIGINT,
+  `completed_booking_code`     VARCHAR(255),
+  PRIMARY KEY (`id`),
+  KEY `idx_pending_booking_expiry` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

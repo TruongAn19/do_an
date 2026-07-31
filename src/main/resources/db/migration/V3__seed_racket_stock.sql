@@ -1,5 +1,5 @@
 -- ============================================================
--- V5__seed_racket_stock.sql
+-- V3__seed_racket_stock.sql
 -- Khởi tạo kho paddle pickleball cho 7 ngày (hôm nay → hôm nay + 6).
 -- Window này đồng bộ với generateStockByDate() trong
 -- RacketStockByDateService (targetDate = today.plusDays(6)).

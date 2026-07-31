@@ -53,9 +53,10 @@ public class HomePageController {
         public ResponseEntity<ApiResponse<Map<String, Object>>> getHomePage(
                         @RequestParam(value = "page", defaultValue = "1") int page) {
 
+                page = Math.max(page, 1);
                 Pageable pageable = PageRequest.of(page - 1, 4);
                 Page<ProductResponseDTO> mainProducts = productService.getAllProductClient(pageable);
-                Page<Racket> byProducts = racketService.getAllRacket(pageable);
+                Page<Racket> byProducts = racketService.getRackets(null, null, null, pageable);
 
                 YearMonth currentMonth = YearMonth.now();
                 YearMonth previousMonth = currentMonth.minusMonths(1);
@@ -105,6 +106,8 @@ public class HomePageController {
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
                 long userId = userService.getUserByEmail(principal.getName()).getId();
+                page = Math.max(page, 0);
+                size = Math.min(Math.max(size, 1), 100);
                 Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
                 Page<BookingResponseDTO> bookingsPage = bookingService.fetchBookingByUserWithPaging(userId, pageable);
 
@@ -118,8 +121,10 @@ public class HomePageController {
 
         @GetMapping("/api/v1/client/booking-history/{id}")
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingHistoryDetail(
-                        @PathVariable Long id) {
-                BookingResponseDTO booking = bookingService.fetchBookingById(id)
+                        @PathVariable Long id,
+                        Principal principal) {
+                User currentUser = userService.getUserByEmail(principal.getName());
+                BookingResponseDTO booking = bookingService.fetchBookingByIdAndUser(id, currentUser.getId())
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy booking id=" + id));
                 List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
                 Map<String, Object> data = Map.of(
@@ -137,6 +142,8 @@ public class HomePageController {
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
                 User user = userService.getUserByEmail(principal.getName());
+                page = Math.max(page, 0);
+                size = Math.min(Math.max(size, 1), 100);
                 Pageable pageable = PageRequest.of(page, size);
                 Page<RentalToolDTO> rentals = rentalToolService.fetchRentalByUser(user, pageable);
 
@@ -163,11 +170,15 @@ public class HomePageController {
 
                 long id = userService.getUserByEmail(principal.getName()).getId();
                 User updateUser = userService.updateToUser(id);
+                if (user.getFullName() == null || user.getFullName().isBlank()
+                                || user.getPhone() == null || user.getPhone().isBlank()) {
+                        throw new IllegalArgumentException("Họ tên và số điện thoại không được để trống.");
+                }
                 if (file != null && !file.isEmpty()) {
                         updateUser.setAvatar(uploadService.handleSaveUploadFile(file, "avatar"));
                 }
                 updateUser.setFullName(user.getFullName());
-                updateUser.setEmail(user.getEmail());
+                // Email là định danh của JWT; thay đổi email cần một luồng xác minh riêng.
                 updateUser.setAddress(user.getAddress());
                 updateUser.setPhone(user.getPhone());
                 UserResponseDTO savedUser = userService.handleSaveUser(updateUser);

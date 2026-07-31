@@ -6,13 +6,20 @@ import com.example.quanly.domain.RentalType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RentalTool r WHERE r.id = :id")
+    Optional<RentalTool> findByIdForUpdate(@Param("id") Long id);
 
     List<RentalTool> findRentalToolsByBookingId(String id);
 
@@ -52,6 +59,8 @@ public interface RentalToolRepository extends JpaRepository<RentalTool, Long> {
     Page<RentalTool> findRentalByUserId(Long id, Pageable pageable);
 
     List<RentalTool> findByStatusIn(List<RentalToolStatus> status);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<RentalTool> findByTypeAndStatusIn(RentalType type, List<RentalToolStatus> status);
 
     Page<RentalTool> findByType(RentalType type, Pageable pageable);
 

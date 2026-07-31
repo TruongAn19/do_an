@@ -40,6 +40,24 @@ public class RentalController {
     PaymentService paymentService;
     SecurityUtils securityUtils;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<RentalToolDTO>> getRentalDetail(@PathVariable Long id) {
+        RentalTool rentalTool = rentalToolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn thuê id=" + id));
+
+        User currentUser = securityUtils.getCurrentUser();
+        if (rentalTool.getUserId() == null || !rentalTool.getUserId().equals(currentUser.getId())) {
+            throw new ForbiddenOperationException("Bạn không có quyền truy cập đơn thuê này");
+        }
+
+        RentalToolDTO detail = rentalToolService.getRentalToolById(id);
+        return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
+                .status(200)
+                .message("Thành công")
+                .data(detail)
+                .build());
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<RentalToolDTO>> createRental(
             @Valid @RequestBody CreateRentalRequest request) {
@@ -78,10 +96,17 @@ public class RentalController {
                     .body(ApiResponse.<Map<String, Object>>builder()
                             .status(409).message("Đơn thuê không ở trạng thái chờ thanh toán").build());
         }
+        if (rentalTool.getType() != RentalType.DAILY) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<Map<String, Object>>builder()
+                            .status(409).message("Đơn ON_SITE không sử dụng luồng thanh toán DAILY").build());
+        }
 
         if (paymentReq.getPaymentMethod() == PaymentMethod.VNPAY) {
             PaymentRequest payReq = PaymentRequest.builder()
                     .id(rentalTool.getId())
+                    // DAILY chỉ thanh toán tiền cọc thiết bị qua VNPay.
+                    // price được backend chốt khi tạo đơn = giá trị vợt × số lượng.
                     .amount(rentalTool.getPrice())
                     .type(PaymentType.RENTAL_TOOL)
                     .redirectUrl("")
@@ -92,8 +117,7 @@ public class RentalController {
                     .data(Map.of("paymentUrl", vnpayResponse.getPaymentUrl())).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.RENTING);
-        rentalToolService.handleDailyRental(rentalTool);
+        rentalToolService.confirmDailyRentalPayment(id);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Thuê vợt thành công")
                 .data(Map.of("rentalToolId", rentalTool.getId())).build());

@@ -29,7 +29,9 @@ public class RefundRequestController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("cancelledAt").descending());
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0), Math.min(Math.max(size, 1), 100),
+                Sort.by("cancelledAt").descending());
         Page<BookingResponseDTO> result = bookingService.fetchRefundRequests(status, pageable);
 
         Map<String, Object> data = Map.of(

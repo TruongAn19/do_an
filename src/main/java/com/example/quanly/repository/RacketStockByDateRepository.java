@@ -1,17 +1,32 @@
 package com.example.quanly.repository;
 
 import com.example.quanly.domain.RacketStockByDate;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface RacketStockByDateRepository extends JpaRepository<RacketStockByDate, Long> {
     boolean existsByRacketIdAndDate(Long id, LocalDate date);
 
     Optional<RacketStockByDate> findByRacketIdAndDate(Long racketId, LocalDate date);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rs FROM RacketStockByDate rs WHERE rs.racketId = :racketId AND rs.date = :date")
+    Optional<RacketStockByDate> findByRacketIdAndDateForUpdate(
+            @Param("racketId") Long racketId,
+            @Param("date") LocalDate date);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rs FROM RacketStockByDate rs WHERE rs.racketId = :racketId AND rs.date >= :date")
+    List<RacketStockByDate> findFutureByRacketIdForUpdate(
+            @Param("racketId") Long racketId,
+            @Param("date") LocalDate date);
 
     @Query("SELECT SUM(rsbd.rentalStock)\n" +
             "FROM RacketStockByDate rsbd\n" +

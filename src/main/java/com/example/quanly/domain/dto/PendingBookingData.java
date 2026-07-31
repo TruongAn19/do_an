@@ -3,6 +3,7 @@ package com.example.quanly.domain.dto;
 import com.example.quanly.domain.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,9 +31,11 @@ public class PendingBookingData {
      * giữ tương thích — được set sau khi tính toán trong preparePendingBooking.
      */
     private List<RentalSlot> rentalSlots;
+    private List<Long> temporaryBookingIds;
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class SlotData {
         private LocalDate date;
         private double price;
@@ -41,6 +44,7 @@ public class PendingBookingData {
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class RentalSlot {
         private Long racketId;
         private int quantity;

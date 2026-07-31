@@ -22,6 +22,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -47,6 +49,7 @@ public class BookingService {
     ProductRepository productRepository;
     TimeRepository timeRepository;
     SubCourtRepository subCourtRepository;
+    SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
     TemporaryBookingRepository temporaryBookingRepository;
     BookingMapper bookingMapper;
     PricingService pricingService;
@@ -70,28 +73,76 @@ public class BookingService {
         return this.bookingRepository.findById(id).map(bookingMapper::toDTO);
     }
 
-    @Transactional
-    public void deleteBookingById(long id) {
-        Optional<Booking> bookingOptional = this.bookingRepository.findById(id);
-        if (bookingOptional.isPresent()) {
-            List<BookingDetail> bookingDetails = bookingOptional.get().getBookingDetails();
-            this.bookingDetailRepository.deleteAllInBatch(bookingDetails);
-        }
-        this.bookingRepository.deleteById(id);
+    public Optional<BookingResponseDTO> fetchBookingByIdAndUser(Long id, Long userId) {
+        return bookingRepository.findByIdAndUserId(id, userId).map(bookingMapper::toDTO);
     }
 
-    public void updateBooking(long id, String status) {
-        Optional<Booking> bOptional = this.bookingRepository.findById(id);
-        if (bOptional.isEmpty())
+    @Transactional
+    public void deleteBookingById(long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + id));
+        if (booking.getStatus() == BookingStatus.DA_HUY) {
             return;
-        Booking currentBooking = bOptional.get();
-        currentBooking.setStatus(BookingStatus.fromLabel(status));
-        this.bookingRepository.save(currentBooking);
+        }
+        if (booking.getUser() == null) {
+            throw new BusinessConflictException("Booking không có người dùng để thực hiện hủy an toàn.");
+        }
+        cancelByUser(id, booking.getUser().getId(), "Được hủy bởi quản trị viên");
+    }
 
-        if (currentBooking.getStatus() == BookingStatus.DA_THANH_TOAN) {
-            List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(currentBooking.getId() + "");
-            rentalTools.forEach(rt -> rt.setStatus(RentalToolStatus.COMPLETED));
-            rentalToolRepository.saveAll(rentalTools);
+    @Transactional
+    public void updateBooking(long id, String status) {
+        Booking currentBooking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking id=" + id));
+        BookingStatus currentStatus = currentBooking.getStatus();
+        BookingStatus targetStatus = BookingStatus.fromLabel(status);
+
+        if (currentStatus == targetStatus) {
+            return;
+        }
+        if (!isAllowedStatusTransition(currentStatus, targetStatus)) {
+            throw new BusinessConflictException(
+                    "Không thể chuyển trạng thái booking từ " + currentStatus + " sang " + targetStatus + ".");
+        }
+
+        if (targetStatus == BookingStatus.DA_THANH_TOAN) {
+            completeOnSiteRentals(currentBooking.getId());
+        }
+        currentBooking.setStatus(targetStatus);
+        bookingRepository.save(currentBooking);
+    }
+
+    private boolean isAllowedStatusTransition(BookingStatus current, BookingStatus target) {
+        if (current == null || target == BookingStatus.DA_HUY) {
+            return false;
+        }
+        return switch (current) {
+            case CHO_THANH_TOAN -> target == BookingStatus.DA_DAT
+                    || target == BookingStatus.DA_DAT_COC;
+            case DA_DAT -> target == BookingStatus.DA_DAT_COC
+                    || target == BookingStatus.DA_THANH_TOAN;
+            case DA_DAT_COC -> target == BookingStatus.DA_THANH_TOAN;
+            case DA_THANH_TOAN, DA_HUY -> false;
+        };
+    }
+
+    private void completeOnSiteRentals(long bookingId) {
+        List<RentalTool> rentalTools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(bookingId));
+        LocalDateTime now = LocalDateTime.now();
+        for (RentalTool rental : rentalTools) {
+            if (rental.getType() != RentalType.ON_SITE
+                    || (rental.getStatus() != RentalToolStatus.PAID
+                    && rental.getStatus() != RentalToolStatus.RENTING)) {
+                continue;
+            }
+            Racket racket = racketRepository.findByIdForUpdate(rental.getRacketId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy vợt id=" + rental.getRacketId()));
+            racket.setBookingStockQuantity(racket.getBookingStockQuantity() + rental.getQuantity());
+            racketRepository.save(racket);
+            rental.setStatus(RentalToolStatus.COMPLETED);
+            rental.setUpdateAt(now);
+            rentalToolRepository.save(rental);
         }
     }
 
@@ -106,8 +157,8 @@ public class BookingService {
     }
 
     /**
-     * Validates and pre-computes booking data, caches it in memory, and extends the
-     * TemporaryBooking hold to cover the VNPay payment window. Nothing is written to DB.
+     * Validates and pre-computes booking data, persists the pending payment session,
+     * and extends the TemporaryBooking hold to cover the VNPay payment window.
      */
     @Transactional
     public PreparedBookingResult preparePendingBooking(User user,
@@ -152,6 +203,12 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân phụ ID: " + subCourtId));
         AvailableTime time = timeRepository.findById(timeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
+        if (subCourt.getProduct() == null || !Objects.equals(subCourt.getProduct().getId(), product.getId())) {
+            throw new IllegalArgumentException("Sân phụ không thuộc sân đã chọn.");
+        }
+        if (subCourtAvailableTimeRepository.findBySubCourtAndAvailableTime(subCourt, time).isEmpty()) {
+            throw new IllegalArgumentException("Khung giờ không được cấu hình cho sân phụ đã chọn.");
+        }
 
         // 5. Nếu đặt cho ngày hôm nay, kiểm tra khung giờ
         if (bookingDate.equals(today)) {
@@ -190,6 +247,9 @@ public class BookingService {
         }
 
         // 8. Tính toán giá linh hoạt cho từng slot + chiết khấu đặt sân tháng
+        List<TemporaryBooking> holds = holdRecurringSlots(
+                user.getId(), subCourt, time, datesToBook, hold);
+
         double totalBookingPrice = 0;
         List<PendingBookingData.SlotData> slots = new ArrayList<>();
 
@@ -252,29 +312,68 @@ public class BookingService {
             }
         }
 
-        // Gộp tiền thuê vợt vào tổng cọc và tổng tiền
+        // Luồng thuê kèm sân thu ngay cọc sân + phí thuê vợt qua VNPay.
         depositPrice += rentalTotal;
         totalBookingPrice += rentalTotal;
 
         // 9. Mở rộng thời gian giữ chỗ để đủ thời gian thanh toán VNPay (~18 phút từ lúc này)
-        hold.setHoldStartTime(LocalDateTime.now().plusMinutes(15));
-        temporaryBookingRepository.save(hold);
+        LocalDateTime paymentExpiry = LocalDateTime.now().plusMinutes(18);
+        holds.forEach(currentHold -> currentHold.setExpiresAt(paymentExpiry));
+        temporaryBookingRepository.saveAll(holds);
 
-        // 10. Lưu vào cache — KHÔNG ghi DB
+        // 10. Lưu phiên thanh toán bền vững trong DB, có TTL
         PendingBookingData data = new PendingBookingData(
                 hold.getId(), user,
                 receiverName, receiverAddress, receiverPhone,
                 product, time, subCourt,
                 bookingDate, type, recurringEndDate,
-                totalBookingPrice, depositPrice, slots, rentalSlots);
+                totalBookingPrice, depositPrice, slots, rentalSlots,
+                holds.stream().map(TemporaryBooking::getId).toList());
 
         long pendingId = pendingBookingCache.store(data);
         return new PreparedBookingResult(pendingId, depositPrice);
     }
 
+    private List<TemporaryBooking> holdRecurringSlots(
+            Long userId,
+            SubCourt subCourt,
+            AvailableTime time,
+            List<LocalDate> datesToBook,
+            TemporaryBooking firstHold) {
+        List<TemporaryBooking> holds = new ArrayList<>();
+        holds.add(firstHold);
+        for (int i = 1; i < datesToBook.size(); i++) {
+            LocalDate date = datesToBook.get(i);
+            Optional<TemporaryBooking> existing = temporaryBookingRepository
+                    .findBySubCourtAndAvailableTimeAndBookingDateWithLock(subCourt, time, date);
+            TemporaryBooking currentHold;
+            if (existing.isPresent() && !existing.get().isExpired()) {
+                currentHold = existing.get();
+                if (!currentHold.getUserId().equals(userId)) {
+                    throw new BusinessConflictException(
+                            "Sân đang được người khác giữ vào ngày "
+                                    + date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+                }
+            } else {
+                existing.ifPresent(temporaryBookingRepository::delete);
+                temporaryBookingRepository.flush();
+                currentHold = new TemporaryBooking();
+                currentHold.setSubCourt(subCourt);
+                currentHold.setAvailableTime(time);
+                currentHold.setBookingDate(date);
+                currentHold.setUserId(userId);
+                currentHold.setHoldStartTime(LocalDateTime.now());
+                currentHold.setExpiresAt(LocalDateTime.now().plusMinutes(18));
+                currentHold = temporaryBookingRepository.saveAndFlush(currentHold);
+            }
+            holds.add(currentHold);
+        }
+        return holds;
+    }
+
     /**
      * Called on successful VNPay payment. Performs a final collision check then
-     * writes the confirmed booking to DB with DA_THANH_TOAN status.
+     * writes the confirmed booking to DB with DA_DAT_COC status.
      */
     @Transactional
     public BookingResponseDTO confirmPendingBooking(PendingBookingData data) {
@@ -315,16 +414,22 @@ public class BookingService {
             detail.setDate(slot.getDate());
             detail.setSale(slot.getSale());
             detail.setAvailableTime(data.getAvailableTime());
+            detail.setSlotActive(Boolean.TRUE);
             details.add(detail);
         }
-        bookingDetailRepository.saveAll(details);
+        try {
+            bookingDetailRepository.saveAllAndFlush(details);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalStateException(
+                    "Sân đã bị đặt bởi người khác trong lúc thanh toán.", e);
+        }
 
         // Tạo RentalTool cho vợt thuê kèm (bundled rental) + trừ stock
         List<PendingBookingData.RentalSlot> rentalSlots = data.getRentalSlots();
         if (rentalSlots != null && !rentalSlots.isEmpty()) {
             LocalDateTime nowTs = LocalDateTime.now();
             for (PendingBookingData.RentalSlot slot : rentalSlots) {
-                Racket racket = racketRepository.findById(slot.getRacketId())
+                Racket racket = racketRepository.findByIdForUpdate(slot.getRacketId())
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Không tìm thấy vợt ID: " + slot.getRacketId()));
                 if (racket.getBookingStockQuantity() < slot.getQuantity()) {
@@ -359,10 +464,7 @@ public class BookingService {
             bookingRepository.save(savedBooking);
         }
 
-        Long tmpId = data.getTemporaryBookingId();
-        if (tmpId != null) {
-            temporaryBookingRepository.deleteById(tmpId);
-        }
+        releaseTemporaryBookings(data);
 
         return bookingMapper.toDTO(savedBooking);
     }
@@ -371,9 +473,15 @@ public class BookingService {
      * Called on failed VNPay payment. Frees the slot hold and removes the pending booking.
      */
     public void cancelPendingBooking(PendingBookingData data) {
-        Long tmpId = data.getTemporaryBookingId();
-        if (tmpId != null) {
-            temporaryBookingRepository.deleteById(tmpId);
+        releaseTemporaryBookings(data);
+    }
+
+    private void releaseTemporaryBookings(PendingBookingData data) {
+        List<Long> holdIds = data.getTemporaryBookingIds();
+        if (holdIds != null && !holdIds.isEmpty()) {
+            temporaryBookingRepository.deleteAllByIdInBatch(holdIds);
+        } else if (data.getTemporaryBookingId() != null) {
+            temporaryBookingRepository.deleteById(data.getTemporaryBookingId());
         }
     }
 
@@ -459,6 +567,10 @@ public class BookingService {
         booking.setRefundStatus(refundStatus);
         bookingRepository.save(booking);
 
+        // Giải phóng unique slot key nhưng vẫn giữ BookingDetail để phục vụ lịch sử/refund.
+        details.forEach(detail -> detail.setSlotActive(null));
+        bookingDetailRepository.saveAll(details);
+
         // 5. Cascade rental ON_SITE đính kèm → CANCELLED + trả stock
         List<RentalTool> tools = rentalToolRepository.findRentalToolsByBookingId(String.valueOf(bookingId));
         for (RentalTool rt : tools) {
@@ -467,7 +579,7 @@ public class BookingService {
             rt.setUpdateAt(LocalDateTime.now());
             rentalToolRepository.save(rt);
             if (rt.getRacketId() != null && rt.getQuantity() != null) {
-                racketRepository.findById(rt.getRacketId()).ifPresent(racket -> {
+                racketRepository.findByIdForUpdate(rt.getRacketId()).ifPresent(racket -> {
                     racket.setBookingStockQuantity(racket.getBookingStockQuantity() + rt.getQuantity());
                     racketRepository.save(racket);
                 });

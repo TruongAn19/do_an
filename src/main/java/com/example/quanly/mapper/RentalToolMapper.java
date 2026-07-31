@@ -10,6 +10,8 @@ public interface RentalToolMapper {
 
     @Mapping(target = "bookingCode", ignore = true)
     @Mapping(target = "racketName", ignore = true)
+    @Mapping(target = "bookingTime", ignore = true)
+    @Mapping(target = "accountName", ignore = true)
     RentalToolDTO toDTO(RentalTool rentalTool);
 
     @Mapping(target = "returnDate", ignore = true)
@@ -17,5 +19,6 @@ public interface RentalToolMapper {
     @Mapping(target = "updateAt", ignore = true)
     @Mapping(target = "rentalToolCode", ignore = true)
     @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "lastStockActivatedDate", ignore = true)
     RentalTool toEntity(RentalToolDTO rentalToolDTO);
 }

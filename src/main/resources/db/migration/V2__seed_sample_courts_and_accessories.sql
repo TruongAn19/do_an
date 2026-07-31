@@ -1,6 +1,7 @@
 -- ============================================================
--- V4__seed_data.sql  --  Dữ liệu khởi tạo hệ thống
--- Mật khẩu mặc định mọi tài khoản: 123456 (BCrypt)
+-- V2__seed_sample_courts_and_accessories.sql
+-- Role, khung giờ, sân, sân phụ và phụ kiện mẫu.
+-- Chỉ seed dữ liệu tham chiếu và dữ liệu demo, không tạo tài khoản.
 -- ============================================================
 
 -- ----------------------------------------------------------------
@@ -12,28 +13,6 @@ INSERT IGNORE INTO `roles` (`id`, `name`, `description`) VALUES
 (1, 'ADMIN', 'Quản trị viên hệ thống'),
 (2, 'STAFF', 'Nhân viên quản lý sân'),
 (3, 'USER',  'Khách hàng thường');
-
--- ----------------------------------------------------------------
--- 2. USERS
--- ----------------------------------------------------------------
-INSERT IGNORE INTO `user`
-  (`id`, `email`, `password`, `full_name`, `phone`, `member_level`, `role_id`)
-VALUES
--- Admin
-(1, 'admin@antigravity.vn',
-    '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Admin Hệ Thống', '0901000001', 'NORMAL', 1),
--- Nhân viên
-(2, 'staff@antigravity.vn',
-    '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Nguyễn Văn Nhân', '0901000002', 'NORMAL', 2),
--- Demo users
-(3, 'alice@gmail.com',
-    '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Trần Thị Alice', '0901000003', 'SILVER', 3),
-(4, 'bob@gmail.com',
-    '$2a$10$E2UPv7arXmp3q0gnuHXGDu3ZkgHNfuqy7WvjiW6NeJwzU6odigMFO',
-    'Lê Văn Bob', '0901000004', 'NORMAL', 3);
 
 -- ----------------------------------------------------------------
 -- 3. AVAILABLE TIMES  (khung giờ chia theo từng tiếng, 05:00–22:00)
@@ -54,7 +33,7 @@ INSERT IGNORE INTO `available_time` (`id`, `time`) VALUES
 -- ----------------------------------------------------------------
 INSERT IGNORE INTO `products`
   (`id`, `name`, `price`, `image`, `detail_desc`, `short_desc`,
-   `quantity`, `sale`, `address`, `deposit_price`, `status`, `user_id`)
+   `quantity`, `sale`, `address`, `address_detail`, `deposit_price`, `status`, `user_id`)
 VALUES
 (
   1,
@@ -64,8 +43,9 @@ VALUES
   'Cụm 5 sân pickleball tiêu chuẩn USAPA/IFP. Mặt sân acrylic chuyên dụng chống trơn trượt, hệ thống đèn LED 800 lux đảm bảo không bị chói mắt. Phòng thay đồ, tủ khóa và bãi đỗ xe miễn phí. Cho thuê paddle và bóng pickleball ngay tại sân.',
   'Cụm 5 sân chuẩn USAPA — trung tâm Quận 1',
   5, 0,
+  'TP.HCM',
   '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM',
-  20000, 'ACTIVE', 1
+  20000, 'ACTIVE', NULL
 ),
 (
   2,
@@ -75,8 +55,9 @@ VALUES
   'Cụm 4 sân pickleball cao cấp với mặt sân acrylic cushion nhập khẩu từ Mỹ. Hệ thống điều hoà trung tâm, ghế khán giả 50 chỗ, camera an ninh 24/7. Phù hợp tổ chức giải đấu cấp câu lạc bộ và thi đấu giao lưu.',
   'Cụm 4 sân acrylic cushion cao cấp — Quận 3',
   4, 0,
+  'TP.HCM',
   '456 Võ Văn Tần, Phường 5, Quận 3, TP.HCM',
-  25000, 'ACTIVE', 1
+  25000, 'ACTIVE', NULL
 ),
 (
   3,
@@ -86,8 +67,9 @@ VALUES
   'Cụm 3 sân thi đấu chuyên nghiệp theo tiêu chuẩn quốc tế PPA, nơi thường xuyên tổ chức các giải đấu cấp thành phố. Mặt sân DecoTurf Pro, đèn LED chuyên biệt 1000 lux, hệ thống tính điểm điện tử và phát sóng trực tiếp.',
   'Cụm 3 sân chuyên nghiệp chuẩn thi đấu PPA — Quận 7',
   3, 0,
+  'TP.HCM',
   '789 Lê Văn Lương, Phường Tân Hưng, Quận 7, TP.HCM',
-  35000, 'ACTIVE', 1
+  35000, 'ACTIVE', NULL
 );
 
 -- ----------------------------------------------------------------

@@ -40,6 +40,7 @@ public class ItemController {
             @RequestParam(value = "sort", required = false) String sort,
             @RequestParam(value = "page", defaultValue = "1") int page) {
 
+        page = Math.max(page, 1);
         Pageable pageable = PageRequest.of(page - 1, 6);
         
         if (sort != null && !sort.trim().isEmpty()) {
@@ -86,7 +87,8 @@ public class ItemController {
             @RequestParam(value = "page", defaultValue = "0") int page) {
 
         int size = 6;
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0), Math.min(Math.max(size, 1), 100));
         List<String> factoryList = (factories != null && factories.length > 0) ? Arrays.asList(factories) : null;
         List<String> priceList = (prices != null && prices.length > 0) ? Arrays.asList(prices) : null;
 
@@ -104,7 +106,7 @@ public class ItemController {
 
     @GetMapping("/api/v1/rackets/{racketId}")
     public ResponseEntity<ApiResponse<Racket>> getRacket(@PathVariable long racketId) {
-        Racket racket = racketService.getRacketById(racketId)
+        Racket racket = racketService.getActiveRacketById(racketId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vợt id=" + racketId));
         return ResponseEntity.ok(ApiResponse.<Racket>builder()
                 .status(200).message("Thành công").data(racket).build());

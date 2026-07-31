@@ -27,6 +27,7 @@ public class RacketController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRackets(
             @RequestParam(value = "page", defaultValue = "1") int page) {
 
+        page = Math.max(page, 1);
         Pageable pageable = PageRequest.of(page - 1, 4);
         Page<Racket> byProducts = racketService.getAllRacket(pageable);
 
@@ -85,10 +86,19 @@ public class RacketController {
         existing.setProduct(racket.getProduct());
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "racket"));
+        } else if (racket.getImage() != null && !racket.getImage().isBlank()) {
+            existing.setImage(racket.getImage());
         }
-        racketService.handSaveRacket(existing);
+        existing = racketService.updateRacket(racketId, existing);
 
         return ResponseEntity.ok(ApiResponse.<Racket>builder()
                 .status(200).message("Cập nhật vợt thành công").data(existing).build());
+    }
+
+    @DeleteMapping("/api/v1/admin/rackets/{racketId}")
+    public ResponseEntity<ApiResponse<Void>> deleteRacket(@PathVariable long racketId) {
+        racketService.deleteRacket(racketId);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .status(200).message("Xóa vợt thành công").data(null).build());
     }
 }

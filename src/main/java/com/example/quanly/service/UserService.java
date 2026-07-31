@@ -4,6 +4,7 @@ import com.example.quanly.domain.Role;
 import com.example.quanly.domain.User;
 import com.example.quanly.domain.dto.RegisterDTO;
 import com.example.quanly.domain.dto.UserResponseDTO;
+import com.example.quanly.exception.ResourceNotFoundException;
 import com.example.quanly.mapper.UserMapper;
 import com.example.quanly.repository.ProductRepository;
 import com.example.quanly.repository.RoleRepository;
@@ -12,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +26,14 @@ import java.util.stream.Collectors;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class UserService {
 
+    @Value("${app.bootstrap.admin.email:}")
+    @NonFinal
+    String bootstrapAdminEmail;
+
+    @Value("${app.bootstrap.admin.password:}")
+    @NonFinal
+    String bootstrapAdminPassword;
+
     PasswordEncoder passwordEncoder;
     UserRepository userRepository;
     RoleRepository roleRepository;
@@ -31,23 +42,17 @@ public class UserService {
 
     @PostConstruct
     public void initAdminUser() {
-        if (userRepository.findByEmail("admin@gmail.com") == null) {
+        if (bootstrapAdminEmail.isBlank() || bootstrapAdminPassword.isBlank()) {
+            return;
+        }
+        if (userRepository.findByEmail(bootstrapAdminEmail) == null) {
             User admin = new User();
             admin.setFullName("admin");
-            admin.setEmail("admin@gmail.com");
-            admin.setPhone("0963931420");
+            admin.setEmail(bootstrapAdminEmail);
+            admin.setPhone("0987654321");
             admin.setAddress("Hà Nội");
-            admin.setPassword(passwordEncoder.encode("123456"));
-            Role adminRole = new Role();
-            adminRole.setName("ADMIN");
-            Role userRole = new Role();
-            userRole.setName("USER");
-            Role staffRole = new Role();
-            staffRole.setName("STAFF");
-            roleRepository.save(adminRole);
-            roleRepository.save(userRole);
-            roleRepository.save(staffRole);
-            admin.setRole(adminRole);
+            admin.setPassword(passwordEncoder.encode(bootstrapAdminPassword));
+            admin.setRole(roleRepository.findByName("ADMIN"));
             userRepository.save(admin);
         }
     }
@@ -67,7 +72,10 @@ public class UserService {
     }
 
     public void deleteAUser(long id) {
-        this.userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user id=" + id));
+        user.setActive(false);
+        userRepository.save(user);
     }
 
     public Role getRoleByName(String name) {

@@ -88,4 +88,23 @@ public class PaymentService {
         String calculatedHash = VnpayUtil.hmacSHA512(vnpayConfig.getSecretKey(), hashData);
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
     }
+
+    /**
+     * Đối chiếu số tiền VNPay trả về với số tiền backend đã tính.
+     * VNPay biểu diễn số tiền theo đơn vị nhỏ nhất nên giá trị gửi đi được nhân 100.
+     */
+    public boolean hasExpectedAmount(HttpServletRequest request, double expectedAmount) {
+        String callbackAmount = request.getParameter("vnp_Amount");
+        if (callbackAmount == null || callbackAmount.isBlank() || expectedAmount < 0) {
+            return false;
+        }
+
+        try {
+            long actualAmount = Long.parseLong(callbackAmount);
+            long expectedVnpAmount = Math.multiplyExact((long) expectedAmount, 100L);
+            return actualAmount == expectedVnpAmount;
+        } catch (NumberFormatException | ArithmeticException e) {
+            return false;
+        }
+    }
 }

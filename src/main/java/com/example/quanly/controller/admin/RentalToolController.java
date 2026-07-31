@@ -1,6 +1,7 @@
 package com.example.quanly.controller.admin;
 
 import com.example.quanly.domain.Racket;
+import com.example.quanly.domain.RentalToolStatus;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.RentalToolDTO;
 import com.example.quanly.service.RacketService;
@@ -26,6 +27,8 @@ public class RentalToolController {
                         @RequestParam(value = "page", defaultValue = "0") int page,
                         @RequestParam(value = "size", defaultValue = "5") int size) {
 
+                page = Math.max(page, 0);
+                size = Math.min(Math.max(size, 1), 100);
                 Page<RentalToolDTO> rentals = (searchTerm != null && !searchTerm.isEmpty())
                                 ? rentalToolService.fetchRentalToolCode(searchTerm, page, size)
                                 : rentalToolService.getRentalByTypeDAILY(page, size);
@@ -57,8 +60,17 @@ public class RentalToolController {
                         @PathVariable Long id,
                         @RequestBody Map<String, String> body) {
 
-                RentalToolDTO updated = rentalToolService.changeStatus(id,
-                                com.example.quanly.domain.RentalToolStatus.valueOf(body.get("status")));
+                String requestedStatus = body.get("status");
+                if (requestedStatus == null || requestedStatus.isBlank()) {
+                        throw new IllegalArgumentException("Trạng thái rental không được để trống.");
+                }
+                RentalToolStatus status;
+                try {
+                        status = RentalToolStatus.valueOf(requestedStatus.trim().toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                        throw new IllegalArgumentException("Trạng thái rental không hợp lệ.");
+                }
+                RentalToolDTO updated = rentalToolService.changeStatus(id, status);
 
                 return ResponseEntity.ok(ApiResponse.<RentalToolDTO>builder()
                                 .status(200).message("Cập nhật trạng thái thành công").data(updated).build());

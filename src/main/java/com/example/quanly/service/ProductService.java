@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ public class ProductService {
     SubCourtRepository subCourtRepository;
     SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
     ProductMapper productMapper;
+    RacketRepository racketRepository;
 
     // Sân đấu
     public Page<ProductResponseDTO> getAllProductClient(Pageable pageable) {
@@ -173,6 +175,52 @@ public class ProductService {
         return productMapper.toDTO(savedProduct);
     }
 
+    @Transactional
+    public ProductResponseDTO updateProduct(long productId, Product updates) {
+        Product existing = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy sân với ID: " + productId));
+
+        int currentCourtCount = subCourtRepository.findByProduct(existing).size();
+        int requestedCourtCount = Math.toIntExact(updates.getQuantity());
+        if (requestedCourtCount < currentCourtCount) {
+            throw new IllegalArgumentException(
+                    "Không thể giảm số lượng sân phụ vì có thể làm mất lịch sử đặt sân.");
+        }
+
+        existing.setName(updates.getName());
+        existing.setPrice(updates.getPrice());
+        existing.setDetailDesc(updates.getDetailDesc());
+        existing.setShortDesc(updates.getShortDesc());
+        existing.setAddress(updates.getAddress());
+        existing.setAddressDetail(updates.getAddressDetail());
+        existing.setSale(updates.getSale());
+        existing.setDepositPrice(updates.getDepositPrice());
+        existing.setQuantity(updates.getQuantity());
+        existing.setStatus(updates.getStatus() != null ? updates.getStatus() : existing.getStatus());
+        if (updates.getImage() != null && !updates.getImage().isBlank()) {
+            existing.setImage(updates.getImage());
+        }
+
+        Product saved = productRepository.save(existing);
+        if (requestedCourtCount > currentCourtCount) {
+            List<AvailableTime> allTimes = timeRepository.findAll();
+            for (int i = currentCourtCount + 1; i <= requestedCourtCount; i++) {
+                SubCourt subCourt = new SubCourt();
+                subCourt.setName("Sân " + i);
+                subCourt.setProduct(saved);
+                subCourt = subCourtRepository.save(subCourt);
+                for (AvailableTime availableTime : allTimes) {
+                    SubCourtAvailableTime relation = new SubCourtAvailableTime();
+                    relation.setSubCourt(subCourt);
+                    relation.setAvailableTime(availableTime);
+                    subCourtAvailableTimeRepository.save(relation);
+                }
+            }
+        }
+        return productMapper.toDTO(saved);
+    }
+
     public ProductResponseDTO getProductByID(long productId) {
         return productRepository.findById(productId)
                 .map(productMapper::toDTO)
@@ -183,8 +231,19 @@ public class ProductService {
         return productRepository.findById(productId).map(productMapper::toDTO);
     }
 
+    @Transactional
     public void deleteAllProduct(long productId) {
-        this.productRepository.deleteById(productId);
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy sân với ID: " + productId));
+        product.setStatus("DELETED");
+        productRepository.save(product);
+        List<com.example.quanly.domain.Racket> rackets = racketRepository.findByProductId(productId);
+        rackets.forEach(racket -> {
+            racket.setAvailable(false);
+            racket.setStatus("DELETED");
+        });
+        racketRepository.saveAll(rackets);
     }
 
     public List<AvailableTime> getAllTime() {

@@ -2,10 +2,10 @@ package com.example.quanly.controller;
 
 import com.example.quanly.domain.PaymentType;
 import com.example.quanly.domain.RentalTool;
-import com.example.quanly.domain.RentalToolStatus;
 import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.BookingResponseDTO;
 import com.example.quanly.domain.dto.PendingBookingData;
+import com.example.quanly.domain.dto.PendingBookingClaim;
 import com.example.quanly.repository.RentalToolRepository;
 import com.example.quanly.service.BookingService;
 import com.example.quanly.service.EmailService;
@@ -13,6 +13,7 @@ import com.example.quanly.service.PaymentService;
 import com.example.quanly.service.PendingBookingCache;
 import com.example.quanly.service.RentalToolService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -43,10 +44,11 @@ public class PaymentController {
      * GET /api/v1/payments/vnpay-callback
      *
      * OrderInfo format: "{id}-{TYPE}"
-     *   PENDING_BOOKING: id is the in-memory pendingId (nothing saved to DB before payment)
+     *   PENDING_BOOKING: id is the persisted pending-payment id
      *   RENTAL_TOOL:     id is the RentalTool DB id
      */
     @GetMapping("/vnpay-callback")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleVnpayCallback(HttpServletRequest request) {
         if (!paymentService.verifyVnpayCallback(request)) {
             log.warn("VNPay callback bị từ chối: chữ ký không hợp lệ. IP={}", request.getRemoteAddr());
@@ -86,25 +88,33 @@ public class PaymentController {
         }
 
         if (paymentType == PaymentType.RENTAL_TOOL) {
-            return handleRentalToolCallback(entityId, paymentSuccess);
+            return handleRentalToolCallback(entityId, paymentSuccess, request);
         } else {
-            return handlePendingBookingCallback(entityId, paymentSuccess);
+            return handlePendingBookingCallback(entityId, paymentSuccess, request);
         }
     }
 
-    private ResponseEntity<ApiResponse<Map<String, Object>>> handleRentalToolCallback(long rentalToolId, boolean success) {
+    private ResponseEntity<ApiResponse<Map<String, Object>>> handleRentalToolCallback(
+            long rentalToolId, boolean success, HttpServletRequest request) {
         RentalTool rentalTool = rentalToolRepository.findById(rentalToolId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn thuê id=" + rentalToolId));
 
+        // Callback DAILY phải khớp với tiền cọc vợt đã chốt trong RentalTool.price,
+        // không phải phí thuê RentalTool.rentalPrice.
+        if (!paymentService.hasExpectedAmount(request, rentalTool.getPrice())) {
+            log.warn("Từ chối callback RENTAL_TOOL id={}: số tiền không khớp", rentalToolId);
+            return invalidPaymentAmountResponse();
+        }
+
         if (!success) {
+            rentalToolService.cancelFailedRentalPayment(rentalToolId);
             log.info("Thanh toán RENTAL_TOOL id={} thất bại", rentalToolId);
             return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                     .status(200).message("Thanh toán thất bại")
                     .data(Map.of("type", "RENTAL_TOOL", "status", "FAILED")).build());
         }
 
-        rentalTool.setStatus(RentalToolStatus.RENTING);
-        rentalToolService.handleDailyRental(rentalTool);
+        rentalTool = rentalToolService.confirmDailyRentalPayment(rentalToolId);
 
         log.info("Thanh toán RENTAL_TOOL id={} thành công", rentalToolId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
@@ -116,7 +126,8 @@ public class PaymentController {
                 )).build());
     }
 
-    private ResponseEntity<ApiResponse<Map<String, Object>>> handlePendingBookingCallback(long pendingId, boolean success) {
+    private ResponseEntity<ApiResponse<Map<String, Object>>> handlePendingBookingCallback(
+            long pendingId, boolean success, HttpServletRequest request) {
         PendingBookingData data = pendingBookingCache.get(pendingId)
                 .orElse(null);
 
@@ -125,6 +136,11 @@ public class PaymentController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.<Map<String, Object>>builder()
                             .status(400).message("Phiên đặt sân không tồn tại hoặc đã hết hạn").data(null).build());
+        }
+
+        if (!paymentService.hasExpectedAmount(request, data.getDepositPrice())) {
+            log.warn("Từ chối callback PENDING_BOOKING pendingId={}: số tiền không khớp", pendingId);
+            return invalidPaymentAmountResponse();
         }
 
         if (!success) {
@@ -137,8 +153,21 @@ public class PaymentController {
         }
 
         try {
+            PendingBookingClaim claim = pendingBookingCache.claim(pendingId)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Phiên đặt sân không tồn tại hoặc đã hết hạn."));
+            if (claim.completed()) {
+                return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                        .status(200).message("Thanh toán đặt sân đã được xử lý trước đó")
+                        .data(Map.of(
+                                "type", "BOOKING",
+                                "bookingId", claim.bookingId(),
+                                "bookingCode", claim.bookingCode()))
+                        .build());
+            }
+            data = claim.data();
             BookingResponseDTO booking = bookingService.confirmPendingBooking(data);
-            pendingBookingCache.remove(pendingId);
+            pendingBookingCache.markCompleted(pendingId, booking.getId(), booking.getBookingCode());
             log.info("Thanh toán PENDING_BOOKING pendingId={} thành công, bookingId={}", pendingId, booking.getId());
             try {
                 emailService.sendBookingConfirmationEmail(
@@ -151,6 +180,9 @@ public class PaymentController {
                     .data(Map.of("type", "BOOKING", "bookingId", booking.getId(), "bookingCode", booking.getBookingCode()))
                     .build());
         } catch (IllegalStateException e) {
+            if (data != null) {
+                bookingService.cancelPendingBooking(data);
+            }
             // Slot was taken by another user during payment — rare race condition
             pendingBookingCache.remove(pendingId);
             log.error("Xung đột lịch sau thanh toán thành công (pendingId={}): {}", pendingId, e.getMessage());
@@ -158,5 +190,11 @@ public class PaymentController {
                     .body(ApiResponse.<Map<String, Object>>builder()
                             .status(409).message(e.getMessage()).data(null).build());
         }
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> invalidPaymentAmountResponse() {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.<Map<String, Object>>builder()
+                        .status(400).message("Số tiền thanh toán không hợp lệ").data(null).build());
     }
 }

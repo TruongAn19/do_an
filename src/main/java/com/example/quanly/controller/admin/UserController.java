@@ -5,6 +5,9 @@ import com.example.quanly.domain.dto.ApiResponse;
 import com.example.quanly.domain.dto.UserResponseDTO;
 import com.example.quanly.service.UploadService;
 import com.example.quanly.service.UserService;
+import com.example.quanly.util.SecurityUtils;
+import com.example.quanly.exception.BusinessConflictException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +25,7 @@ public class UserController {
     private final UserService userService;
     private final UploadService uploadService;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserResponseDTO>>> getUsers() {
@@ -32,11 +36,15 @@ public class UserController {
 
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<UserResponseDTO>> createUser(
-            @RequestPart("user") User user,
+            @Valid @RequestPart("user") User user,
             @RequestPart(value = "avatarFile", required = false) MultipartFile file) {
 
         if (file != null && !file.isEmpty()) {
             user.setAvatar(uploadService.handleSaveUploadFile(file, "avatar"));
+        }
+        if (user.getRole() == null || user.getRole().getName() == null
+                || userService.getRoleByName(user.getRole().getName()) == null) {
+            throw new IllegalArgumentException("Role không hợp lệ.");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRole(userService.getRoleByName(user.getRole().getName()));
@@ -63,6 +71,10 @@ public class UserController {
         if (current == null)
             throw new IllegalArgumentException("Không tìm thấy user id=" + userId);
 
+        if (user.getFullName() == null || user.getFullName().isBlank()
+                || user.getPhone() == null || user.getPhone().isBlank()) {
+            throw new IllegalArgumentException("Họ tên và số điện thoại không được để trống.");
+        }
         current.setAddress(user.getAddress());
         current.setFullName(user.getFullName());
         current.setPhone(user.getPhone());
@@ -77,6 +89,9 @@ public class UserController {
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable long userId) {
+        if (securityUtils.getCurrentUser().getId() == userId) {
+            throw new BusinessConflictException("Không thể vô hiệu hóa chính tài khoản đang đăng nhập.");
+        }
         userService.deleteAUser(userId);
         return ResponseEntity.ok(ApiResponse.<String>builder()
                 .status(200).message("Xóa người dùng thành công").data(null).build());
@@ -89,7 +104,11 @@ public class UserController {
         User user = userService.updateToUser(userId);
         if (user == null)
             throw new IllegalArgumentException("Không tìm thấy user id=" + userId);
-        user.setRole(userService.getRoleByName(body.get("role")));
+        String roleName = body.get("role");
+        if (roleName == null || roleName.isBlank() || userService.getRoleByName(roleName) == null) {
+            throw new IllegalArgumentException("Role không hợp lệ.");
+        }
+        user.setRole(userService.getRoleByName(roleName));
         UserResponseDTO updatedUser = userService.handleSaveUser(user);
         return ResponseEntity.ok(ApiResponse.<UserResponseDTO>builder()
                 .status(200).message("Cập nhật role thành công").data(updatedUser).build());

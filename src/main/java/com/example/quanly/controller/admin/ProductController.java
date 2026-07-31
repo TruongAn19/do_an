@@ -6,6 +6,7 @@ import com.example.quanly.domain.dto.ProductResponseDTO;
 import com.example.quanly.service.BookingStatsService;
 import com.example.quanly.service.ProductService;
 import com.example.quanly.service.UploadService;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -35,6 +36,7 @@ public class ProductController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "search", required = false) String searchTerm) {
 
+        page = Math.max(page, 1);
         Pageable pageable = PageRequest.of(page - 1, 4);
         Page<ProductResponseDTO> mainProducts;
 
@@ -56,7 +58,7 @@ public class ProductController {
 
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> createProduct(
-            @RequestPart("product") Product product,
+            @Valid @RequestPart("product") Product product,
             @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
         if (file != null && !file.isEmpty()) {
@@ -82,7 +84,7 @@ public class ProductController {
     @PutMapping(value = "/{productId}", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ProductResponseDTO>> updateProduct(
             @PathVariable long productId,
-            @RequestPart("product") Product product,
+            @Valid @RequestPart("product") Product product,
             @RequestPart(value = "productImg", required = false) MultipartFile file) {
 
         ProductResponseDTO existingDTO = productService.getProductByID(productId);
@@ -96,12 +98,13 @@ public class ProductController {
         existing.setName(product.getName());
         existing.setDetailDesc(product.getDetailDesc());
         existing.setAddress(product.getAddress());
+        existing.setAddressDetail(product.getAddressDetail());
         existing.setSale(product.getSale());
         existing.setPrice(product.getPrice());
         existing.setStatus(product.getStatus() != null ? product.getStatus() : existingDTO.getStatus());
         existing.setQuantity(product.getQuantity() > 0 ? product.getQuantity() : existingDTO.getQuantity());
-        existing.setDepositPrice(existingDTO.getDepositPrice());
-        existing.setShortDesc(existingDTO.getShortDesc());
+        existing.setDepositPrice(product.getDepositPrice());
+        existing.setShortDesc(product.getShortDesc());
 
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "product"));
@@ -111,7 +114,7 @@ public class ProductController {
             existing.setImage(existingDTO.getImage());
         }
 
-        ProductResponseDTO updatedProduct = productService.handSaveProduct(existing);
+        ProductResponseDTO updatedProduct = productService.updateProduct(productId, existing);
 
         return ResponseEntity.ok(ApiResponse.<ProductResponseDTO>builder()
                 .status(200).message("Cập nhật sân thành công").data(updatedProduct).build());

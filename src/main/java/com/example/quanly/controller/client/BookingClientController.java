@@ -51,6 +51,7 @@ public class BookingClientController {
     ProductService productService;
     RacketService racketService;
     SubCourtRepository subCourtRepository;
+    SubCourtAvailableTimeRepository subCourtAvailableTimeRepository;
     TimeRepository timeRepository;
     BookingDetailRepository bookingDetailRepository;
     BookingService bookingService;
@@ -137,7 +138,7 @@ public class BookingClientController {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getId();
 
-        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(3);
+        LocalDateTime expiryTime = LocalDateTime.now();
         temporaryBookingRepository.deleteExpiredHolds(expiryTime);
         temporaryBookingRepository.flush();
 
@@ -145,6 +146,24 @@ public class BookingClientController {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sân phụ"));
         AvailableTime time = timeRepository.findById(holdRequest.getAvailableTimeId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khung giờ"));
+
+        if (court.getProduct() == null || "DELETED".equals(court.getProduct().getStatus())) {
+            throw new IllegalArgumentException("Sân không còn hoạt động.");
+        }
+        if (subCourtAvailableTimeRepository.findBySubCourtAndAvailableTime(court, time).isEmpty()) {
+            throw new IllegalArgumentException("Khung giờ không được cấu hình cho sân phụ đã chọn.");
+        }
+        if (holdRequest.getBookingDate().equals(LocalDate.now())
+                && !time.getTime().isAfter(LocalTime.now())) {
+            throw new IllegalArgumentException("Khung giờ đã bắt đầu hoặc đã qua.");
+        }
+
+        if (bookingDetailRepository.findBySubCourtAndAvailableTimeAndDate(
+                court, time, holdRequest.getBookingDate()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
+                    .<Map<String, Object>>builder()
+                    .status(409).message("Khung giờ này đã được đặt.").data(null).build());
+        }
 
         Optional<TemporaryBooking> existingOpt = temporaryBookingRepository
                 .findBySubCourtAndAvailableTimeAndBookingDateWithLock(court, time, holdRequest.getBookingDate());
@@ -158,8 +177,7 @@ public class BookingClientController {
                 temporaryBookingRepository.flush();
             } else {
                 if (!existing.getUserId().equals(userId)) {
-                    long elapsed = Duration.between(existing.getHoldStartTime(), now).getSeconds();
-                    long remaining = Math.max(180 - elapsed, 0);
+                    long remaining = Math.max(Duration.between(now, existing.getExpiresAt()).getSeconds(), 0);
                     return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse
                             .<Map<String, Object>>builder()
                             .status(409)
@@ -168,6 +186,7 @@ public class BookingClientController {
                             .build());
                 } else {
                     existing.setHoldStartTime(now);
+                    existing.setExpiresAt(now.plusMinutes(3));
                     temporaryBookingRepository.save(existing);
                     return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                             .status(200).message("Tiếp tục giữ sân tạm thời")
@@ -182,7 +201,8 @@ public class BookingClientController {
         newHold.setBookingDate(holdRequest.getBookingDate());
         newHold.setUserId(userId);
         newHold.setHoldStartTime(now);
-        temporaryBookingRepository.save(newHold);
+        newHold.setExpiresAt(now.plusMinutes(3));
+        temporaryBookingRepository.saveAndFlush(newHold);
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .status(200).message("Giữ sân tạm thời thành công")
