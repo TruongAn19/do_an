@@ -50,7 +50,8 @@ public interface BookingDetailRepository extends JpaRepository<BookingDetail, Lo
     return findActiveBySubCourtAndDate(court, date, BookingStatus.DA_HUY);
   }
 
-  @Query("SELECT bd.product.name, SUM(bd.price - bd.sale) " +
+  // bd.price đã là giá cuối cùng; bd.sale chỉ lưu metadata tỷ lệ giảm.
+  @Query("SELECT bd.product.name, SUM(bd.price) " +
       "FROM BookingDetail bd " +
       "JOIN bd.booking b " +
       "WHERE bd.date BETWEEN :start AND :end " +

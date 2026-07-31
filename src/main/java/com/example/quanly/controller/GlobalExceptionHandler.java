@@ -1,6 +1,7 @@
 package com.example.quanly.controller;
 
 import com.example.quanly.domain.dto.ApiResponse;
+import com.example.quanly.exception.AIProviderException;
 import com.example.quanly.exception.BusinessConflictException;
 import com.example.quanly.exception.ForbiddenOperationException;
 import com.example.quanly.exception.ResourceNotFoundException;
@@ -22,6 +23,19 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AIProviderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAIProviderException(
+            AIProviderException ex, HttpServletRequest request) {
+        log.warn("AI provider rejected a request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.<Void>builder()
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .errorCode("AI_PROVIDER_ERROR")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .timestamp(Instant.now().toString())
+                .build());
+    }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataConflict(

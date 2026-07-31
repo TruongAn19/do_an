@@ -1,5 +1,6 @@
 package com.example.quanly.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,5 +13,7 @@ import com.example.quanly.domain.SubCourtAvailableTime;
 @Repository
 public interface SubCourtAvailableTimeRepository extends JpaRepository<SubCourtAvailableTime, Long> {
     Optional<SubCourtAvailableTime> findBySubCourtAndAvailableTime(SubCourt subCourt, AvailableTime availableTime);
+
+    List<SubCourtAvailableTime> findBySubCourt(SubCourt subCourt);
 
 }
