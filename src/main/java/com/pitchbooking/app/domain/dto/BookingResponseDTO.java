@@ -24,6 +24,7 @@ public class BookingResponseDTO {
     private String courtName;
     private String time;
     private List<BookingDetailResponseDTO> bookingDetails;
+    private List<RentalToolDTO> rentalTools;
 
     // CANCEL_BOOKING_FEATURE — surfaced to FE for refund UI
     private BookingType bookingType;

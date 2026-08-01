@@ -43,6 +43,36 @@ public class PendingBookingData implements Serializable {
     private double depositPrice;
     private List<SlotData> slots;
     private List<Long> temporaryBookingIds;
+    private double equipmentRentalPrice;
+    private List<EquipmentSelectionData> equipments = List.of();
+
+    public PendingBookingData(
+            Long temporaryBookingId, Long userId, String userEmail,
+            String receiverName, String receiverAddress, String receiverPhone,
+            Long productId, Long availableTimeId, Long subPitchId,
+            LocalDate firstBookingDate, BookingType bookingType, LocalDate recurringEndDate,
+            List<Integer> daysOfWeek, Integer durationMonths,
+            double totalBookingPrice, double depositPrice,
+            List<SlotData> slots, List<Long> temporaryBookingIds) {
+        this.temporaryBookingId = temporaryBookingId;
+        this.userId = userId;
+        this.userEmail = userEmail;
+        this.receiverName = receiverName;
+        this.receiverAddress = receiverAddress;
+        this.receiverPhone = receiverPhone;
+        this.productId = productId;
+        this.availableTimeId = availableTimeId;
+        this.subPitchId = subPitchId;
+        this.firstBookingDate = firstBookingDate;
+        this.bookingType = bookingType;
+        this.recurringEndDate = recurringEndDate;
+        this.daysOfWeek = daysOfWeek;
+        this.durationMonths = durationMonths;
+        this.totalBookingPrice = totalBookingPrice;
+        this.depositPrice = depositPrice;
+        this.slots = slots;
+        this.temporaryBookingIds = temporaryBookingIds;
+    }
 
     @Data
     @AllArgsConstructor
@@ -59,5 +89,16 @@ public class PendingBookingData implements Serializable {
                                   @JsonProperty("sale") long sale) {
             return new SlotData(date, price, sale);
         }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class EquipmentSelectionData implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private Long equipmentId;
+        private int quantity;
+        private double unitPrice;
+        private double totalPrice;
     }
 }

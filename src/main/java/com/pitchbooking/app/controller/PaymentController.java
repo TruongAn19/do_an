@@ -163,6 +163,7 @@ public class PaymentController {
                     .data(Map.of("type", "BOOKING", "bookingId", booking.getId(), "bookingCode", booking.getBookingCode()))
                     .build());
         } catch (BusinessConflictException e) {
+            bookingService.cancelPendingBooking(data);
             // Slot was taken by another user during payment — rare race condition
             pendingBookingCache.remove(pendingId);
             log.error("Xung đột lịch sau thanh toán thành công (pendingId={}): {}", pendingId, e.getMessage());

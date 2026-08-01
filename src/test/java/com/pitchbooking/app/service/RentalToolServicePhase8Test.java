@@ -160,6 +160,7 @@ class RentalToolServicePhase8Test {
 
         BookingDetail bookingDetail = new BookingDetail();
         bookingDetail.setPrice(500_000d);
+        bookingDetail.setProduct(product);
 
         when(equipmentRepository.findById(equipment.getId())).thenReturn(Optional.of(equipment));
         when(rentalPricingService.totalPrice(RentalType.ON_SITE, equipment, 2, 0)).thenReturn(80_000d);
@@ -207,6 +208,7 @@ class RentalToolServicePhase8Test {
 
         BookingDetail bookingDetail = new BookingDetail();
         bookingDetail.setPrice(500_000d);
+        bookingDetail.setProduct(product);
 
         RentalTool previousRental = new RentalTool();
         previousRental.setType(RentalType.ON_SITE);
@@ -246,6 +248,39 @@ class RentalToolServicePhase8Test {
     }
 
     @Test
+    @DisplayName("ON_SITE rental only accepts equipment from the booked parent pitch")
+    void onSiteRental_equipmentFromAnotherProduct_rejectsWithoutReservingStock() {
+        CreateRentalRequest req = buildOnSiteRequest();
+        Booking booking = buildOnSiteBooking(
+                LocalDate.now().plusDays(1), LocalTime.of(18, 0), BookingStatus.DA_DAT);
+
+        Product anotherProduct = new Product();
+        anotherProduct.setId(99L);
+        BookingDetail bookingDetail = new BookingDetail();
+        bookingDetail.setProduct(anotherProduct);
+
+        when(equipmentRepository.findById(equipment.getId())).thenReturn(Optional.of(equipment));
+        when(rentalPricingService.totalPrice(RentalType.ON_SITE, equipment, 2, 0))
+                .thenReturn(80_000d);
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(bookingRepository.findByBookingCodeWithLock("BK123"))
+                .thenReturn(Optional.of(booking));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
+        when(bookingDetailRepository.findByBookingId(booking.getId()))
+                .thenReturn(java.util.List.of(bookingDetail));
+
+        assertThatThrownBy(() -> rentalToolService.handleSubmitRental(req, user))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Phụ kiện không thuộc sân đã đặt.");
+
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(5);
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
     @DisplayName("ON_SITE rental rejects quantity greater than locked booking stock")
     void onSiteRental_insufficientLockedStock_rejectsWithoutSaving() {
         CreateRentalRequest req = buildOnSiteRequest();
@@ -261,6 +296,10 @@ class RentalToolServicePhase8Test {
                 .thenReturn(Optional.of(booking));
         when(equipmentRepository.findByIdWithLock(equipment.getId()))
                 .thenReturn(Optional.of(equipment));
+        BookingDetail bookingDetail = new BookingDetail();
+        bookingDetail.setProduct(product);
+        when(bookingDetailRepository.findByBookingId(booking.getId()))
+                .thenReturn(java.util.List.of(bookingDetail));
 
         assertThatThrownBy(() -> rentalToolService.handleSubmitRental(req, user))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -273,21 +312,22 @@ class RentalToolServicePhase8Test {
     }
 
     @Test
-    @DisplayName("Cancelling ON_SITE rental releases reserved booking stock once")
-    void cancelOnSiteRental_releasesReservedStock() {
+    @DisplayName("Linked ON_SITE rental cannot be cancelled separately")
+    void cancelLinkedOnSiteRental_isRejected() {
         RentalTool rental = buildReservedOnSiteRental();
+        rental.setBookingId("123");
         when(rentalToolRepository.findByIdWithLock(rental.getId())).thenReturn(Optional.of(rental));
-        when(equipmentRepository.findByIdWithLock(equipment.getId()))
-                .thenReturn(Optional.of(equipment));
-        when(rentalToolRepository.save(rental)).thenReturn(rental);
-        when(rentalToolMapper.toDTO(rental)).thenReturn(new RentalToolDTO());
 
-        rentalToolService.changeStatus(rental.getId(), RentalToolStatus.CANCELLED);
+        assertThatThrownBy(() -> rentalToolService.changeStatus(
+                rental.getId(), RentalToolStatus.CANCELLED))
+                .isInstanceOf(BusinessConflictException.class)
+                .hasMessage("Phụ kiện đi kèm sân không thể hủy riêng. Vui lòng hủy đơn đặt sân.");
 
-        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.CANCELLED);
-        assertThat(rental.isOnSiteStockReserved()).isFalse();
-        assertThat(equipment.getBookingStockQuantity()).isEqualTo(7);
-        verify(equipmentRepository).save(equipment);
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.PENDING);
+        assertThat(rental.isOnSiteStockReserved()).isTrue();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(5);
+        verify(equipmentRepository, never()).save(any(Equipment.class));
+        verify(rentalToolRepository, never()).save(any(RentalTool.class));
     }
 
     @Test

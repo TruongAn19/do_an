@@ -6,6 +6,7 @@ import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.BookingType;
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.RefundStatus;
+import com.pitchbooking.app.domain.RentalPaymentStatus;
 import com.pitchbooking.app.domain.RentalTool;
 import com.pitchbooking.app.domain.RentalToolStatus;
 import com.pitchbooking.app.domain.RentalType;
@@ -15,15 +16,18 @@ import com.pitchbooking.app.domain.AvailableTime;
 import com.pitchbooking.app.domain.TemporaryBooking;
 import com.pitchbooking.app.domain.User;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
+import com.pitchbooking.app.domain.dto.BookingEquipmentSelection;
 import com.pitchbooking.app.domain.dto.CancelBookingResponse;
 import com.pitchbooking.app.domain.dto.PendingBookingData;
 import com.pitchbooking.app.domain.dto.PreparedBookingResult;
+import com.pitchbooking.app.domain.dto.RentalToolDTO;
 import com.pitchbooking.app.config.ContactProperties;
 import com.pitchbooking.app.mapper.BookingMapper;
 import com.pitchbooking.app.repository.*;
 import com.pitchbooking.app.service.pricing.PricingService;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.exception.BusinessConflictException;
+import com.pitchbooking.app.exception.ForbiddenOperationException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +43,12 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -77,7 +85,41 @@ public class BookingService {
     }
 
     public Optional<BookingResponseDTO> fetchBookingById(long id) {
-        return this.bookingRepository.findById(id).map(bookingMapper::toDTO);
+        return this.bookingRepository.findById(id).map(booking -> {
+            BookingResponseDTO dto = bookingMapper.toDTO(booking);
+            List<RentalTool> rentals = rentalToolRepository
+                    .findRentalToolsByBookingId(String.valueOf(booking.getId()));
+            Set<Long> equipmentIds = rentals.stream()
+                    .map(RentalTool::getEquipmentId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Map<Long, Equipment> equipmentsById = equipmentIds.isEmpty()
+                    ? Map.of()
+                    : equipmentRepository.findAllById(equipmentIds).stream()
+                            .collect(Collectors.toMap(Equipment::getId, equipment -> equipment));
+
+            dto.setRentalTools(rentals.stream()
+                    .map(rental -> toBookingRentalDTO(rental, equipmentsById.get(rental.getEquipmentId())))
+                    .toList());
+            return dto;
+        });
+    }
+
+    private RentalToolDTO toBookingRentalDTO(RentalTool rental, Equipment equipment) {
+        RentalToolDTO dto = new RentalToolDTO();
+        dto.setId(rental.getId());
+        dto.setRentalToolCode(rental.getRentalToolCode());
+        dto.setType(rental.getType() != null ? rental.getType().name() : null);
+        dto.setEquipmentId(rental.getEquipmentId() != null ? rental.getEquipmentId().toString() : null);
+        dto.setEquipmentName(equipment != null ? equipment.getName() : null);
+        dto.setProductId(rental.getProductId() != null ? rental.getProductId().toString() : null);
+        dto.setQuantity(rental.getQuantity() != null ? rental.getQuantity() : 0);
+        dto.setRentalPrice(rental.getRentalPrice());
+        dto.setStatus(rental.getStatus() != null ? rental.getStatus().name() : null);
+        dto.setPaymentStatus(rental.getPaymentStatus() != null ? rental.getPaymentStatus().name() : null);
+        dto.setRentalDate(rental.getRentalDate() != null ? rental.getRentalDate().toString() : null);
+        dto.setRefundStatus(rental.getRefundStatus() != null ? rental.getRefundStatus().name() : null);
+        return dto;
     }
 
     @Transactional
@@ -103,6 +145,9 @@ public class BookingService {
 
         BookingStatus target = BookingStatus.fromLabel(status);
         if (currentBooking.getStatus() == target) {
+            if (target == BookingStatus.DA_THANH_TOAN) {
+                completeBundledEquipmentRentals(currentBooking);
+            }
             return;
         }
         if (currentBooking.getStatus() != BookingStatus.DA_DAT
@@ -113,11 +158,65 @@ public class BookingService {
         }
 
         currentBooking.setStatus(target);
+        completeBundledEquipmentRentals(currentBooking);
         bookingRepository.save(currentBooking);
+    }
+
+    private void completeBundledEquipmentRentals(Booking booking) {
+        List<RentalTool> bundled = rentalToolRepository
+                .findRentalToolsByBookingId(String.valueOf(booking.getId()));
+        LocalDateTime now = LocalDateTime.now();
+
+        for (RentalTool rental : bundled) {
+            if (rental.getType() != RentalType.ON_SITE
+                    || rental.getStatus() == RentalToolStatus.CANCELLED) {
+                continue;
+            }
+
+            if (rental.isOnSiteStockReserved()) {
+                Equipment equipment = equipmentRepository.findByIdWithLock(rental.getEquipmentId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy phụ kiện ID: " + rental.getEquipmentId()));
+                equipment.setBookingStockQuantity(
+                        equipment.getBookingStockQuantity() + rental.getQuantity());
+                equipmentRepository.save(equipment);
+                rental.setOnSiteStockReserved(false);
+            }
+
+            rental.setStatus(RentalToolStatus.COMPLETED);
+            rental.setPaymentStatus(RentalPaymentStatus.PAID);
+            rental.setUpdateAt(now);
+            rentalToolRepository.save(rental);
+        }
     }
 
     public List<RentalTool> getRentalToolsByBookingId(long id) {
         return rentalToolRepository.findRentalToolsByBookingId(String.valueOf(id));
+    }
+
+    public List<Equipment> getAvailableEquipmentsForBooking(String bookingCode, long userId) {
+        Booking booking = bookingRepository.findByBookingCode(bookingCode);
+        if (booking == null) {
+            throw new ResourceNotFoundException("Không tìm thấy booking với mã: " + bookingCode);
+        }
+        if (booking.getUser() == null || booking.getUser().getId() != userId) {
+            throw new ForbiddenOperationException("Booking không thuộc người dùng đang đăng nhập.");
+        }
+
+        Set<Long> productIds = bookingDetailRepository.findByBookingId(booking.getId()).stream()
+                .map(BookingDetail::getProduct)
+                .filter(Objects::nonNull)
+                .map(Product::getId)
+                .collect(Collectors.toSet());
+
+        if (productIds.isEmpty()) {
+            throw new IllegalStateException("Booking không có thông tin sân cha.");
+        }
+        if (productIds.size() != 1) {
+            throw new IllegalStateException("Các lượt trong booking không thuộc cùng một sân cha.");
+        }
+
+        return equipmentRepository.findByProductAndAvailableTrue(productIds.iterator().next());
     }
 
     public List<BookingResponseDTO> fetchBookingByUser(User user) {
@@ -136,6 +235,18 @@ public class BookingService {
             long productId, long timeId, long subPitchId, LocalDate bookingDate,
             String bookingType, LocalDate recurringEndDate,
             List<Integer> daysOfWeek, Integer durationMonths) {
+        return preparePendingBooking(user, receiverName, receiverAddress, receiverPhone,
+                productId, timeId, subPitchId, bookingDate, bookingType, recurringEndDate,
+                daysOfWeek, durationMonths, List.of());
+    }
+
+    @Transactional
+    public PreparedBookingResult preparePendingBooking(User user,
+            String receiverName, String receiverAddress, String receiverPhone,
+            long productId, long timeId, long subPitchId, LocalDate bookingDate,
+            String bookingType, LocalDate recurringEndDate,
+            List<Integer> daysOfWeek, Integer durationMonths,
+            List<BookingEquipmentSelection> selectedEquipments) {
 
         // 1. Kiểm tra người dùng
         user = userRepository.findUserById(user.getId());
@@ -154,6 +265,11 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khung giờ ID: " + timeId));
 
         validateBookingSelection(product, subPitch, time);
+        List<PendingBookingData.EquipmentSelectionData> equipmentSelections =
+                prepareEquipmentSelections(product, selectedEquipments);
+        double equipmentRentalPrice = equipmentSelections.stream()
+                .mapToDouble(PendingBookingData.EquipmentSelectionData::getTotalPrice)
+                .sum();
 
         // 3. Tính toán danh sách ngày + giá (shared với /estimate)
         com.pitchbooking.app.domain.dto.BookingPriceBreakdown breakdown = pricingService
@@ -213,9 +329,57 @@ public class BookingService {
                 daysOfWeek, durationMonths,
                 breakdown.getTotalPrice(), breakdown.getDepositPrice(), breakdown.getSlots(),
                 holdIds);
+        data.setEquipmentRentalPrice(equipmentRentalPrice);
+        data.setEquipments(equipmentSelections);
 
         long pendingId = pendingBookingCache.store(data);
-        return new PreparedBookingResult(pendingId, breakdown.getDepositPrice());
+        return new PreparedBookingResult(
+                pendingId,
+                breakdown.getDepositPrice(),
+                equipmentRentalPrice,
+                breakdown.getDepositPrice() + equipmentRentalPrice);
+    }
+
+    private List<PendingBookingData.EquipmentSelectionData> prepareEquipmentSelections(
+            Product product,
+            List<BookingEquipmentSelection> selectedEquipments) {
+        if (selectedEquipments == null || selectedEquipments.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> quantitiesByEquipment = new LinkedHashMap<>();
+        for (BookingEquipmentSelection selection : selectedEquipments) {
+            if (selection == null || selection.getEquipmentId() == null || selection.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Thông tin phụ kiện không hợp lệ.");
+            }
+            quantitiesByEquipment.merge(
+                    selection.getEquipmentId(), selection.getQuantity(), Math::addExact);
+        }
+
+        List<PendingBookingData.EquipmentSelectionData> result = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : quantitiesByEquipment.entrySet()) {
+            Equipment equipment = equipmentRepository.findByIdWithLock(entry.getKey())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy phụ kiện ID: " + entry.getKey()));
+            if (!equipment.isAvailable()
+                    || equipment.getProduct() == null
+                    || equipment.getProduct().getId() != product.getId()) {
+                throw new IllegalArgumentException("Phụ kiện không thuộc sân đang đặt.");
+            }
+            if (equipment.getRentalPricePerPlay() <= 0) {
+                throw new IllegalArgumentException("Phụ kiện chưa được cấu hình giá thuê tại sân.");
+            }
+            if (equipment.getBookingStockQuantity() < entry.getValue()) {
+                throw new BusinessConflictException(
+                        "Phụ kiện " + equipment.getName() + " chỉ còn "
+                                + equipment.getBookingStockQuantity() + " sản phẩm tại sân.");
+            }
+
+            double totalPrice = equipment.getRentalPricePerPlay() * entry.getValue();
+            result.add(new PendingBookingData.EquipmentSelectionData(
+                    equipment.getId(), entry.getValue(), equipment.getRentalPricePerPlay(), totalPrice));
+        }
+        return result;
     }
 
     private void validateBookingSelection(
@@ -344,7 +508,7 @@ public class BookingService {
         booking.setDaysOfWeek(data.getDaysOfWeek() != null ? data.getDaysOfWeek().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")) : null);
         booking.setDurationMonths(data.getDurationMonths());
         booking.setDepositPrice(data.getDepositPrice());
-        booking.setTotalPrice(data.getTotalBookingPrice());
+        booking.setTotalPrice(data.getTotalBookingPrice() + data.getEquipmentRentalPrice());
         booking.setStatus(BookingStatus.DA_DAT);
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -363,9 +527,65 @@ public class BookingService {
         }
         bookingDetailRepository.saveAll(details);
 
+        createBundledEquipmentRentals(data, savedBooking, product, user);
+
         releaseTemporaryBookings(data);
 
         return bookingMapper.toDTO(savedBooking);
+    }
+
+    private void createBundledEquipmentRentals(
+            PendingBookingData data,
+            Booking booking,
+            Product product,
+            User user) {
+        if (data.getEquipments() == null || data.getEquipments().isEmpty()) {
+            return;
+        }
+
+        String latestRentalCode = Booking.NO_RENTAL;
+        for (PendingBookingData.EquipmentSelectionData selection : data.getEquipments()) {
+            Equipment equipment = equipmentRepository.findByIdWithLock(selection.getEquipmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy phụ kiện ID: " + selection.getEquipmentId()));
+            if (!equipment.isAvailable()
+                    || equipment.getProduct() == null
+                    || equipment.getProduct().getId() != product.getId()) {
+                throw new BusinessConflictException("Phụ kiện không còn thuộc sân đang đặt.");
+            }
+            if (equipment.getBookingStockQuantity() < selection.getQuantity()) {
+                throw new BusinessConflictException(
+                        "Phụ kiện " + equipment.getName() + " không còn đủ số lượng sau khi thanh toán.");
+            }
+
+            equipment.setBookingStockQuantity(
+                    equipment.getBookingStockQuantity() - selection.getQuantity());
+            equipmentRepository.save(equipment);
+
+            RentalTool rental = new RentalTool();
+            rental.setFullName(data.getReceiverName());
+            rental.setEmail(data.getUserEmail());
+            rental.setPhone(data.getReceiverPhone());
+            rental.setType(RentalType.ON_SITE);
+            rental.setBookingId(String.valueOf(booking.getId()));
+            rental.setEquipmentId(equipment.getId());
+            rental.setProductId(product.getId());
+            rental.setPrice(equipment.getPrice() * selection.getQuantity());
+            rental.setRentalPrice(selection.getTotalPrice());
+            rental.setStatus(RentalToolStatus.PENDING);
+            rental.setPaymentStatus(RentalPaymentStatus.PAID);
+            rental.setQuantity(selection.getQuantity());
+            rental.setRentalDate(data.getFirstBookingDate());
+            rental.setCreateAt(LocalDateTime.now());
+            rental.setUpdateAt(LocalDateTime.now());
+            rental.setOnSiteStockReserved(true);
+            rental.setUserId(user.getId());
+            RentalTool savedRental = rentalToolRepository.save(rental);
+            latestRentalCode = savedRental.getRentalToolCode();
+        }
+
+        booking.setRentalToolCode(latestRentalCode);
+        bookingRepository.save(booking);
     }
 
     /**

@@ -224,12 +224,14 @@ public class RentalToolService {
         Equipment equipment = equipmentRepository.findByIdWithLock(rentalTool.getEquipmentId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy thiết bị id=" + rentalTool.getEquipmentId()));
+
+        List<BookingDetail> bookingDetails = bookingDetailRepository.findByBookingId(booking.getId());
+        validateEquipmentBelongsToBookingProduct(equipment, bookingDetails);
         reserveOnSiteStock(rentalTool, equipment);
 
         rentalTool.setRentalDate(booking.getBookingDate());
         rentalTool.setBookingId(String.valueOf(booking.getId()));
 
-        List<BookingDetail> bookingDetails = bookingDetailRepository.findByBookingId(booking.getId());
         double totalBookingDetailPrice = bookingDetails.stream()
                 .mapToDouble(BookingDetail::getPrice)
                 .sum();
@@ -247,6 +249,30 @@ public class RentalToolService {
         bookingRepository.save(booking);
 
         return rentalToolMapper.toDTO(rentalTool);
+    }
+
+    private void validateEquipmentBelongsToBookingProduct(
+            Equipment equipment,
+            List<BookingDetail> bookingDetails) {
+        if (equipment.getProduct() == null) {
+            throw new IllegalStateException("Phụ kiện chưa được gắn với sân cha.");
+        }
+
+        Set<Long> bookingProductIds = bookingDetails.stream()
+                .map(BookingDetail::getProduct)
+                .filter(Objects::nonNull)
+                .map(Product::getId)
+                .collect(Collectors.toSet());
+
+        if (bookingProductIds.isEmpty()) {
+            throw new IllegalStateException("Booking không có thông tin sân cha.");
+        }
+        if (bookingProductIds.size() != 1) {
+            throw new IllegalStateException("Các lượt trong booking không thuộc cùng một sân cha.");
+        }
+        if (!bookingProductIds.contains(equipment.getProduct().getId())) {
+            throw new IllegalArgumentException("Phụ kiện không thuộc sân đã đặt.");
+        }
     }
 
     private void reserveOnSiteStock(RentalTool rentalTool, Equipment equipment) {
@@ -321,6 +347,14 @@ public class RentalToolService {
         }
         if (rentalTool.getStatus() == status) {
             return rentalToolMapper.toDTO(rentalTool);
+        }
+
+        if (status == RentalToolStatus.CANCELLED
+                && rentalTool.getType() == RentalType.ON_SITE
+                && rentalTool.getBookingId() != null
+                && !rentalTool.getBookingId().isBlank()) {
+            throw new BusinessConflictException(
+                    "Phụ kiện đi kèm sân không thể hủy riêng. Vui lòng hủy đơn đặt sân.");
         }
 
         switch (status) {

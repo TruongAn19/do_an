@@ -3,11 +3,13 @@ package com.pitchbooking.app.controller.client;
 import com.pitchbooking.app.domain.*;
 import com.pitchbooking.app.domain.dto.ApiResponse;
 import com.pitchbooking.app.domain.dto.BookingResponseDTO;
+import com.pitchbooking.app.domain.dto.EquipmentResponseDTO;
 import com.pitchbooking.app.domain.dto.ProductResponseDTO;
 import com.pitchbooking.app.domain.dto.RentalToolDTO;
 import com.pitchbooking.app.domain.dto.UserResponseDTO;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.RentalToolRepository;
+import com.pitchbooking.app.mapper.EquipmentResponseMapper;
 import com.pitchbooking.app.service.*;
 import com.pitchbooking.app.service.validator.PasswordPolicy;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +51,7 @@ public class HomePageController {
         RentalToolService rentalToolService;
         EquipmentService equipmentService;
         BookingDetailRepository bookingDetailRepository;
+        EquipmentResponseMapper equipmentResponseMapper;
 
         @GetMapping("/api/v1/client/home")
         public ResponseEntity<ApiResponse<Map<String, Object>>> getHomePage(
@@ -80,16 +83,17 @@ public class HomePageController {
                         topEquipmentIds = rentalToolRepository.findTop4EquipmentIdsByMonth(
                                         previousMonth.getYear(), previousMonth.getMonthValue(), PageRequest.of(0, 4));
                 }
-                List<Equipment> topEquipments = topEquipmentIds.stream()
+                List<EquipmentResponseDTO> topEquipments = topEquipmentIds.stream()
                                 .map(id -> equipmentService.getEquipmentById(id))
                                 .filter(Optional::isPresent)
                                 .map(Optional::get)
                                 .filter(r -> !"DELETED".equals(r.getStatus()))
+                                .map(equipmentResponseMapper::toDTO)
                                 .collect(Collectors.toList());
 
                 Map<String, Object> data = Map.of(
                                 "products", mainProducts.getContent(),
-                                "equipments", byProducts.getContent(),
+                                "equipments", equipmentResponseMapper.toDTOs(byProducts.getContent()),
                                 "topProducts", topProducts,
                                 "topEquipments", topEquipments,
                                 "currentPage", page,

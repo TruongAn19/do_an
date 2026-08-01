@@ -2,7 +2,9 @@ package com.pitchbooking.app.controller.admin;
 
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.EquipmentResponseDTO;
 import com.pitchbooking.app.domain.dto.EquipmentUpsertRequest;
+import com.pitchbooking.app.mapper.EquipmentResponseMapper;
 import com.pitchbooking.app.service.EquipmentService;
 import com.pitchbooking.app.service.EquipmentStockByDateService;
 import com.pitchbooking.app.service.ProductService;
@@ -27,6 +29,7 @@ public class EquipmentController {
     private final UploadService uploadService;
     private final EquipmentStockByDateService equipmentStockByDateService;
     private final ProductService productService;
+    private final EquipmentResponseMapper equipmentResponseMapper;
 
     @GetMapping("/api/v1/admin/equipments")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEquipments(
@@ -36,7 +39,7 @@ public class EquipmentController {
         Page<Equipment> byProducts = equipmentService.getAllEquipment(pageable);
 
         Map<String, Object> result = Map.of(
-                "equipments", byProducts.getContent(),
+                "equipments", equipmentResponseMapper.toDTOs(byProducts.getContent()),
                 "currentPage", page,
                 "totalPages", byProducts.getTotalPages()
         );
@@ -46,16 +49,16 @@ public class EquipmentController {
     }
 
     @GetMapping("/api/v1/admin/equipments/{equipmentId}")
-    public ResponseEntity<ApiResponse<Equipment>> getEquipmentDetail(@PathVariable long equipmentId) {
+    public ResponseEntity<ApiResponse<EquipmentResponseDTO>> getEquipmentDetail(@PathVariable long equipmentId) {
         Equipment equipment = equipmentService.getEquipmentById(equipmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị id=" + equipmentId));
-        return ResponseEntity.ok(ApiResponse.<Equipment>builder()
-                .status(200).message("Thành công").data(equipment).build());
+        return ResponseEntity.ok(ApiResponse.<EquipmentResponseDTO>builder()
+                .status(200).message("Thành công").data(equipmentResponseMapper.toDTO(equipment)).build());
     }
 
     @PostMapping(value = "/api/v1/admin/equipments", consumes = "multipart/form-data")
     @Transactional
-    public ResponseEntity<ApiResponse<Equipment>> createEquipment(
+    public ResponseEntity<ApiResponse<EquipmentResponseDTO>> createEquipment(
             @Valid @RequestPart("equipment") EquipmentUpsertRequest request,
             @RequestPart(value = "equipmentImg", required = false) MultipartFile file) {
 
@@ -68,13 +71,13 @@ public class EquipmentController {
         Equipment saved = equipmentService.handSaveEquipment(equipment);
         equipmentStockByDateService.generateStockForEquipment(saved);
 
-        return ResponseEntity.ok(ApiResponse.<Equipment>builder()
-                .status(200).message("Tạo thiết bị thành công").data(saved).build());
+        return ResponseEntity.ok(ApiResponse.<EquipmentResponseDTO>builder()
+                .status(200).message("Tạo thiết bị thành công").data(equipmentResponseMapper.toDTO(saved)).build());
     }
 
     @PutMapping(value = "/api/v1/admin/equipments/{equipmentId}", consumes = "multipart/form-data")
     @Transactional
-    public ResponseEntity<ApiResponse<Equipment>> updateEquipment(
+    public ResponseEntity<ApiResponse<EquipmentResponseDTO>> updateEquipment(
             @PathVariable long equipmentId,
             @Valid @RequestPart("equipment") EquipmentUpsertRequest request,
             @RequestPart(value = "equipmentImg", required = false) MultipartFile file) {
@@ -91,8 +94,8 @@ public class EquipmentController {
         }
         Equipment saved = equipmentService.handSaveEquipment(existing);
 
-        return ResponseEntity.ok(ApiResponse.<Equipment>builder()
-                .status(200).message("Cập nhật thiết bị thành công").data(saved).build());
+        return ResponseEntity.ok(ApiResponse.<EquipmentResponseDTO>builder()
+                .status(200).message("Cập nhật thiết bị thành công").data(equipmentResponseMapper.toDTO(saved)).build());
     }
 
     private void applyRequest(Equipment equipment, EquipmentUpsertRequest request) {

@@ -1,10 +1,10 @@
 package com.pitchbooking.app.controller.admin;
 
-import com.pitchbooking.app.domain.Product;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.ProductResponseDTO;
 import com.pitchbooking.app.domain.dto.TopEquipmentDto;
-import com.pitchbooking.app.repository.ProductRepository;
 import com.pitchbooking.app.service.EquipmentStatisticsService;
+import com.pitchbooking.app.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +21,7 @@ import java.util.Map;
 public class EquipmentStatisticsController {
 
     private final EquipmentStatisticsService statisticsService;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics(
@@ -47,7 +47,7 @@ public class EquipmentStatisticsController {
         Map<YearMonth, Integer> rentalsByMonth = statisticsService.getRentalCountByMonthRange(courtId, sixMonthsAgo, currentMonth);
         Map<YearMonth, Double> revenueByMonth = statisticsService.getRevenueByMonthRange(courtId, sixMonthsAgo, currentMonth);
 
-        List<Product> listProduct = productRepository.findAll();
+        List<ProductResponseDTO> listProduct = productService.getAllProductOptions();
 
         Map<String, Object> data = Map.of(
                 "listProduct", listProduct,

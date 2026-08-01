@@ -2,6 +2,7 @@ package com.pitchbooking.app.service;
 
 import com.pitchbooking.app.domain.AvailableTime;
 import com.pitchbooking.app.domain.Booking;
+import com.pitchbooking.app.domain.BookingDetail;
 import com.pitchbooking.app.domain.BookingStatus;
 import com.pitchbooking.app.domain.BookingType;
 import com.pitchbooking.app.domain.Equipment;
@@ -19,6 +20,7 @@ import com.pitchbooking.app.domain.dto.PendingBookingData;
 import com.pitchbooking.app.domain.dto.PreparedBookingResult;
 import com.pitchbooking.app.config.ContactProperties;
 import com.pitchbooking.app.exception.BusinessConflictException;
+import com.pitchbooking.app.exception.ForbiddenOperationException;
 import com.pitchbooking.app.mapper.BookingMapper;
 import com.pitchbooking.app.repository.BookingDetailRepository;
 import com.pitchbooking.app.repository.BookingRepository;
@@ -129,31 +131,118 @@ class BookingServicePhase8Test {
     }
 
     @Test
-    @DisplayName("Paying a booking does not mark linked rentals as returned")
-    void updateBooking_toPaid_keepsRentalStatusUnchanged() {
+    @DisplayName("Booking equipment list is derived from the booking parent pitch")
+    void bookingEquipments_usesBookingProductInsteadOfClientProductId() {
+        Booking booking = new Booking();
+        booking.setId(77L);
+        booking.setBookingCode("BK77");
+        booking.setUser(user);
+
+        BookingDetail detail = new BookingDetail();
+        detail.setProduct(product);
+        Equipment equipment = new Equipment();
+        equipment.setId(5L);
+        equipment.setProduct(product);
+
+        when(bookingRepository.findByBookingCode("BK77")).thenReturn(booking);
+        when(bookingDetailRepository.findByBookingId(booking.getId())).thenReturn(List.of(detail));
+        when(equipmentRepository.findByProductAndAvailableTrue(product.getId()))
+                .thenReturn(List.of(equipment));
+
+        assertThat(bookingService.getAvailableEquipmentsForBooking("BK77", user.getId()))
+                .containsExactly(equipment);
+    }
+
+    @Test
+    @DisplayName("Booking detail includes equipment rentals linked to the booking")
+    void fetchBookingById_includesLinkedEquipmentRentals() {
+        Booking booking = new Booking();
+        booking.setId(5L);
+
+        Equipment equipment = new Equipment();
+        equipment.setId(1L);
+        equipment.setName("Vợt pickleball");
+
+        RentalTool rental = new RentalTool();
+        rental.setId(7L);
+        rental.setRentalToolCode("RT1785587455035");
+        rental.setBookingId("5");
+        rental.setEquipmentId(1L);
+        rental.setProductId(10L);
+        rental.setQuantity(1);
+        rental.setRentalPrice(20_000d);
+        rental.setType(RentalType.ON_SITE);
+        rental.setStatus(RentalToolStatus.PENDING);
+        rental.setPaymentStatus(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
+
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        when(bookingMapper.toDTO(booking)).thenReturn(new BookingResponseDTO());
+        when(rentalToolRepository.findRentalToolsByBookingId("5")).thenReturn(List.of(rental));
+        when(equipmentRepository.findAllById(any())).thenReturn(List.of(equipment));
+
+        BookingResponseDTO result = bookingService.fetchBookingById(5L).orElseThrow();
+
+        assertThat(result.getRentalTools()).hasSize(1);
+        assertThat(result.getRentalTools().get(0).getEquipmentName()).isEqualTo("Vợt pickleball");
+        assertThat(result.getRentalTools().get(0).getQuantity()).isEqualTo(1);
+        assertThat(result.getRentalTools().get(0).getRentalPrice()).isEqualTo(20_000d);
+        assertThat(result.getRentalTools().get(0).getPaymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    @DisplayName("Booking equipment list cannot be read by another user")
+    void bookingEquipments_otherUserIsRejected() {
+        Booking booking = new Booking();
+        booking.setId(77L);
+        booking.setBookingCode("BK77");
+        booking.setUser(user);
+        when(bookingRepository.findByBookingCode("BK77")).thenReturn(booking);
+
+        assertThatThrownBy(() -> bookingService.getAvailableEquipmentsForBooking("BK77", 99L))
+                .isInstanceOf(ForbiddenOperationException.class)
+                .hasMessage("Booking không thuộc người dùng đang đăng nhập.");
+
+        verify(equipmentRepository, never()).findByProductAndAvailableTrue(any());
+    }
+
+    @Test
+    @DisplayName("Paying a booking completes bundled rentals and keeps them paid")
+    void updateBooking_toPaid_completesBundledRentals() {
         Booking booking = new Booking();
         booking.setId(88L);
         booking.setStatus(BookingStatus.DA_DAT);
 
+        Equipment equipment = new Equipment();
+        equipment.setId(5L);
+        equipment.setBookingStockQuantity(3);
+
         RentalTool rental = new RentalTool();
         rental.setId(99L);
         rental.setBookingId(String.valueOf(booking.getId()));
-        rental.setStatus(RentalToolStatus.RENTING);
+        rental.setType(RentalType.ON_SITE);
+        rental.setStatus(RentalToolStatus.PENDING);
+        rental.setPaymentStatus(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
+        rental.setEquipmentId(equipment.getId());
+        rental.setQuantity(2);
+        rental.setOnSiteStockReserved(true);
 
         when(bookingRepository.findByIdWithLock(booking.getId())).thenReturn(Optional.of(booking));
-        org.mockito.Mockito.lenient()
-                .when(rentalToolRepository.findRentalToolsByBookingId(
-                        String.valueOf(booking.getId())))
+        when(rentalToolRepository.findRentalToolsByBookingId(String.valueOf(booking.getId())))
                 .thenReturn(List.of(rental));
+        when(equipmentRepository.findByIdWithLock(equipment.getId()))
+                .thenReturn(Optional.of(equipment));
 
         bookingService.updateBooking(booking.getId(), BookingStatus.DA_THANH_TOAN.name());
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_THANH_TOAN);
-        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.RENTING);
+        assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.COMPLETED);
+        assertThat(rental.getPaymentStatus())
+                .isEqualTo(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
+        assertThat(rental.isOnSiteStockReserved()).isFalse();
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(5);
         verify(bookingRepository).save(booking);
-        verify(rentalToolRepository, never())
-                .findRentalToolsByBookingId(String.valueOf(booking.getId()));
-        verify(rentalToolRepository, never()).saveAll(any());
+        verify(equipmentRepository).save(equipment);
+        verify(rentalToolRepository).save(rental);
     }
 
     @Test
@@ -200,6 +289,7 @@ class BookingServicePhase8Test {
         rental.setEquipmentId(equipment.getId());
         rental.setQuantity(2);
         rental.setOnSiteStockReserved(true);
+        rental.setPaymentStatus(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
 
         when(bookingRepository.findByIdWithLock(booking.getId()))
                 .thenReturn(Optional.of(booking));
@@ -212,6 +302,8 @@ class BookingServicePhase8Test {
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_HUY);
         assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.CANCELLED);
+        assertThat(rental.getPaymentStatus())
+                .isEqualTo(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
         assertThat(rental.isOnSiteStockReserved()).isFalse();
         assertThat(equipment.getBookingStockQuantity()).isEqualTo(5);
         verify(equipmentRepository).save(equipment);
@@ -470,5 +562,69 @@ class BookingServicePhase8Test {
         verify(rentalToolRepository, never()).saveAll(any());
         verify(temporaryBookingRepository).deleteAllById(List.of(999L));
         assertThat(result.getStatus()).isEqualTo("DA_DAT");
+    }
+
+    @Test
+    @DisplayName("Paid pending booking creates bundled ON_SITE rentals and keeps pitch deposit separate")
+    void confirmPendingBooking_withEquipments_createsPaidBundledRentals() {
+        LocalDate bookingDate = LocalDate.now().plusDays(1);
+        PendingBookingData data = new PendingBookingData(
+                999L, user.getId(), user.getEmail(),
+                "Receiver", "Address", "0900000000",
+                product.getId(), availableTime.getId(), subPitch.getId(),
+                bookingDate, BookingType.ONE_TIME,
+                null, null, null,
+                400_000d, 50_000d,
+                List.of(new PendingBookingData.SlotData(bookingDate, 400_000d, 0L)),
+                List.of(999L));
+        data.setEquipmentRentalPrice(60_000d);
+
+        Equipment equipment = new Equipment();
+        equipment.setId(5L);
+        equipment.setName("Ball");
+        equipment.setAvailable(true);
+        equipment.setProduct(product);
+        equipment.setPrice(500_000d);
+        equipment.setBookingStockQuantity(5);
+        data.setEquipments(List.of(new PendingBookingData.EquipmentSelectionData(
+                equipment.getId(), 2, 30_000d, 60_000d)));
+
+        when(userRepository.findUserById(user.getId())).thenReturn(user);
+        when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+        when(subPitchRepository.findByIdWithLock(subPitch.getId())).thenReturn(Optional.of(subPitch));
+        when(timeRepository.findById(availableTime.getId())).thenReturn(Optional.of(availableTime));
+        when(bookingDetailRepository.findBySubPitchAndAvailableTimeAndDate(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(equipmentRepository.findByIdWithLock(equipment.getId())).thenReturn(Optional.of(equipment));
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
+            Booking booking = invocation.getArgument(0);
+            booking.setId(123L);
+            return booking;
+        });
+        when(rentalToolRepository.save(any(RentalTool.class))).thenAnswer(invocation -> {
+            RentalTool rental = invocation.getArgument(0);
+            rental.setId(456L);
+            rental.setRentalToolCode("RT456");
+            return rental;
+        });
+        when(bookingMapper.toDTO(any(Booking.class))).thenReturn(new BookingResponseDTO());
+
+        bookingService.confirmPendingBooking(data);
+
+        ArgumentCaptor<Booking> bookingCaptor = ArgumentCaptor.forClass(Booking.class);
+        verify(bookingRepository, times(2)).save(bookingCaptor.capture());
+        Booking savedBooking = bookingCaptor.getAllValues().get(1);
+        assertThat(savedBooking.getDepositPrice()).isEqualTo(50_000d);
+        assertThat(savedBooking.getTotalPrice()).isEqualTo(460_000d);
+        assertThat(savedBooking.getRentalToolCode()).isEqualTo("RT456");
+
+        ArgumentCaptor<RentalTool> rentalCaptor = ArgumentCaptor.forClass(RentalTool.class);
+        verify(rentalToolRepository).save(rentalCaptor.capture());
+        RentalTool rental = rentalCaptor.getValue();
+        assertThat(rental.getType()).isEqualTo(RentalType.ON_SITE);
+        assertThat(rental.getPaymentStatus()).isEqualTo(com.pitchbooking.app.domain.RentalPaymentStatus.PAID);
+        assertThat(rental.getRentalPrice()).isEqualTo(60_000d);
+        assertThat(rental.getBookingId()).isEqualTo("123");
+        assertThat(equipment.getBookingStockQuantity()).isEqualTo(3);
     }
 }

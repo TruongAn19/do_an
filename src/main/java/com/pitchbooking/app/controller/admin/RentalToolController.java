@@ -9,6 +9,7 @@ import com.pitchbooking.app.domain.dto.NotificationDTO;
 import com.pitchbooking.app.domain.dto.RentalToolDTO;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.repository.RentalToolRepository;
+import com.pitchbooking.app.mapper.EquipmentResponseMapper;
 import com.pitchbooking.app.service.EquipmentService;
 import com.pitchbooking.app.service.NotificationService;
 import com.pitchbooking.app.service.RentalToolService;
@@ -28,6 +29,7 @@ public class RentalToolController {
         private final EquipmentService equipmentService;
         private final NotificationService notificationService;
         private final RentalToolRepository rentalToolRepository;
+        private final EquipmentResponseMapper equipmentResponseMapper;
 
         @GetMapping
         public ResponseEntity<ApiResponse<Map<String, Object>>> getRentals(
@@ -55,7 +57,9 @@ public class RentalToolController {
                 Equipment equipment = equipmentService.getEquipmentById(Long.parseLong(rentalTool.getEquipmentId()))
                                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị"));
 
-                Map<String, Object> result = Map.of("rentalTool", rentalTool, "equipment", equipment);
+                Map<String, Object> result = Map.of(
+                                "rentalTool", rentalTool,
+                                "equipment", equipmentResponseMapper.toDTO(equipment));
 
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                 .status(200).message("Thành công").data(result).build());

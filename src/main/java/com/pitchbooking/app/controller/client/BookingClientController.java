@@ -13,6 +13,7 @@ import com.pitchbooking.app.domain.TemporaryBooking;
 import com.pitchbooking.app.domain.User;
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.mapper.EquipmentResponseMapper;
 import com.pitchbooking.app.exception.ResourceNotFoundException;
 import com.pitchbooking.app.domain.dto.AvailableTimeDTO;
 import com.pitchbooking.app.domain.dto.CancelBookingRequest;
@@ -80,6 +81,7 @@ public class BookingClientController {
         SecurityUtils securityUtils;
         NtfyService ntfyService;
         NotificationService notificationService;
+        EquipmentResponseMapper equipmentResponseMapper;
         PricingService pricingService;
 
         @GetMapping("/recommend/{productId}")
@@ -111,11 +113,13 @@ public class BookingClientController {
 
                 double price = product.getPrice();
                 double totalPrice = price - (price * product.getSale() / 100.0);
+                List<Equipment> equipments = equipmentService.getAvailableEquipmentsByCourt(productId);
 
                 Map<String, Object> data = Map.of(
                                 "product", product,
                                 "courts", courts,
                                 "availableTimes", configuredTimes,
+                                "equipments", equipmentResponseMapper.toDTOs(equipments),
                                 "totalPrice", totalPrice);
 
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
@@ -287,17 +291,21 @@ public class BookingClientController {
                                 req.getReceiverName(), req.getReceiverAddress(), req.getReceiverPhone(),
                                 req.getProductId(), req.getAvailableTimeId(), req.getCourtId(), req.getBookingDate(),
                                 req.getBookingType(), req.getRecurringEndDate(),
-                                req.getDaysOfWeek(), req.getDurationMonths());
+                                req.getDaysOfWeek(), req.getDurationMonths(), req.getEquipments());
 
                 PaymentRequest paymentRequest = new PaymentRequest();
                 paymentRequest.setId(prepared.pendingId());
-                paymentRequest.setAmount(prepared.depositPrice());
+                paymentRequest.setAmount(prepared.paymentAmount());
                 paymentRequest.setType(PaymentType.PENDING_BOOKING);
                 paymentRequest.setRedirectUrl("");
 
                 VnpayResponse vnpayResponse = paymentService.createVnPayPayment(paymentRequest, request);
 
-                Map<String, Object> data = Map.of("paymentUrl", vnpayResponse.getPaymentUrl());
+                Map<String, Object> data = Map.of(
+                                "paymentUrl", vnpayResponse.getPaymentUrl(),
+                                "depositPrice", prepared.depositPrice(),
+                                "equipmentRentalPrice", prepared.equipmentRentalPrice(),
+                                "paymentAmount", prepared.paymentAmount());
 
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(ApiResponse.<Map<String, Object>>builder()
@@ -327,14 +335,15 @@ public class BookingClientController {
                                 .status(200).message("Thành công").data(dto).build());
         }
 
-        @GetMapping("/{bookingCode}/{courtId}/equipments")
+        @GetMapping("/{bookingCode}/equipments")
         public ResponseEntity<ApiResponse<Map<String, Object>>> getBookingEquipments(
-                        @PathVariable String bookingCode,
-                        @PathVariable long courtId) {
+                        @PathVariable String bookingCode) {
 
-                List<Equipment> equipmentList = equipmentService.getAvailableEquipmentsByCourt(courtId);
+                User currentUser = getCurrentUser();
+                List<Equipment> equipmentList = bookingService.getAvailableEquipmentsForBooking(
+                                bookingCode, currentUser.getId());
                 Map<String, Object> data = Map.of(
-                                "equipments", equipmentList,
+                                "equipments", equipmentResponseMapper.toDTOs(equipmentList),
                                 "bookingCode", bookingCode);
                 return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                                 .status(200).message("Thành công").data(data).build());

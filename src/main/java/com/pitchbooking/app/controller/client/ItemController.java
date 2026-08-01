@@ -3,10 +3,12 @@ package com.pitchbooking.app.controller.client;
 import com.pitchbooking.app.domain.AvailableTime;
 import com.pitchbooking.app.domain.Equipment;
 import com.pitchbooking.app.domain.dto.ApiResponse;
+import com.pitchbooking.app.domain.dto.EquipmentResponseDTO;
 import com.pitchbooking.app.domain.dto.ProductCriteriaDTO;
 import com.pitchbooking.app.domain.dto.ProductResponseDTO;
 import com.pitchbooking.app.service.ProductService;
 import com.pitchbooking.app.service.EquipmentService;
+import com.pitchbooking.app.mapper.EquipmentResponseMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,6 +35,7 @@ public class ItemController {
 
     ProductService productService;
     EquipmentService equipmentService;
+    EquipmentResponseMapper equipmentResponseMapper;
 
     @GetMapping("/api/v1/products")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getProducts(
@@ -74,7 +77,8 @@ public class ItemController {
                 .sorted(Comparator.comparing(AvailableTime::getTime))
                 .toList();
         double discountPrice = product.getPrice() - (product.getPrice() * product.getSale() / 100);
-        List<Equipment> equipments = equipmentService.getEquipmentsByProductId(productId);
+        List<EquipmentResponseDTO> equipments = equipmentResponseMapper.toDTOs(
+                equipmentService.getEquipmentsByProductId(productId));
 
         Map<String, Object> data = Map.of(
                 "product", product,
@@ -100,7 +104,7 @@ public class ItemController {
         Page<Equipment> equipmentPage = equipmentService.getEquipments(factoryList, priceList, sort, pageable);
 
         Map<String, Object> result = Map.of(
-                "equipments", equipmentPage.getContent(),
+                "equipments", equipmentResponseMapper.toDTOs(equipmentPage.getContent()),
                 "currentPage", page,
                 "totalPages", equipmentPage.getTotalPages(),
                 "totalElements", equipmentPage.getTotalElements());
@@ -110,10 +114,10 @@ public class ItemController {
     }
 
     @GetMapping("/api/v1/equipments/{equipmentId}")
-    public ResponseEntity<ApiResponse<Equipment>> getEquipment(@PathVariable long equipmentId) {
+    public ResponseEntity<ApiResponse<EquipmentResponseDTO>> getEquipment(@PathVariable long equipmentId) {
         Equipment equipment = equipmentService.getEquipmentById(equipmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thiết bị id=" + equipmentId));
-        return ResponseEntity.ok(ApiResponse.<Equipment>builder()
-                .status(200).message("Thành công").data(equipment).build());
+        return ResponseEntity.ok(ApiResponse.<EquipmentResponseDTO>builder()
+                .status(200).message("Thành công").data(equipmentResponseMapper.toDTO(equipment)).build());
     }
 }

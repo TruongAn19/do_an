@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.Valid;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -47,4 +48,7 @@ public class PlaceBookingRequest {
     // Các trường mới cho đặt sân cố định (sân tháng)
     private java.util.List<Integer> daysOfWeek; // 1: Thứ 2, ..., 7: Chủ nhật
     private Integer durationMonths; // 1, 2, hoặc 3 tháng
+
+    @Valid
+    private java.util.List<BookingEquipmentSelection> equipments = java.util.List.of();
 }

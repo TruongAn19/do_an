@@ -1,5 +1,6 @@
 package com.pitchbooking.app.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 
 import jakarta.persistence.Entity;
@@ -26,6 +27,7 @@ public class Role {
     private String name;
     private String description;
     @OneToMany(mappedBy = "role")
+    @JsonIgnore
     private List<User> users;
 
     @Override

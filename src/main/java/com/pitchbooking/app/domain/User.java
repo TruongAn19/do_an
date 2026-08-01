@@ -1,6 +1,7 @@
 package com.pitchbooking.app.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,7 @@ public class User {
 
     @NotBlank(message = "Password không được để trống")
     @Size(min = 6, message = "Password ít nhất có 6 ký tự")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @NotEmpty(message = "Full Name cannot be empty")
@@ -55,7 +57,7 @@ public class User {
 
     @Override
     public String toString() {
-        return "User [id=" + id + ", email=" + email + ", password=" + password + ", fullName=" + fullName
+        return "User [id=" + id + ", email=" + email + ", fullName=" + fullName
                 + ", address=" + address + ", phone=" + phone + ", avatar=" + avatar + "]";
     }
 
