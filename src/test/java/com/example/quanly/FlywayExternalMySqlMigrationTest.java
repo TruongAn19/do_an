@@ -29,7 +29,7 @@ class FlywayExternalMySqlMigrationTest {
         MigrateResult result = flyway.migrate();
 
         assertTrue(result.success);
-        assertEquals("4", flyway.info().current().getVersion().getVersion());
+        assertEquals("6", flyway.info().current().getVersion().getVersion());
         try (Connection connection = DriverManager.getConnection(url, username, password);
              ResultSet columns = connection.getMetaData().getColumns(
                      connection.getCatalog(), null, "user", "active")) {
