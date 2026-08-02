@@ -173,6 +173,8 @@ public class BookingService {
                 continue;
             }
 
+            boolean changed = false;
+
             if (rental.isOnSiteStockReserved()) {
                 Equipment equipment = equipmentRepository.findByIdWithLock(rental.getEquipmentId())
                         .orElseThrow(() -> new ResourceNotFoundException(
@@ -181,12 +183,21 @@ public class BookingService {
                         equipment.getBookingStockQuantity() + rental.getQuantity());
                 equipmentRepository.save(equipment);
                 rental.setOnSiteStockReserved(false);
+                changed = true;
             }
 
-            rental.setStatus(RentalToolStatus.COMPLETED);
-            rental.setPaymentStatus(RentalPaymentStatus.PAID);
-            rental.setUpdateAt(now);
-            rentalToolRepository.save(rental);
+            if (rental.getStatus() != RentalToolStatus.COMPLETED) {
+                rental.setStatus(RentalToolStatus.COMPLETED);
+                changed = true;
+            }
+            if (rental.getPaymentStatus() != RentalPaymentStatus.PAID) {
+                rental.setPaymentStatus(RentalPaymentStatus.PAID);
+                changed = true;
+            }
+            if (changed) {
+                rental.setUpdateAt(now);
+                rentalToolRepository.save(rental);
+            }
         }
     }
 

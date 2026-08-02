@@ -67,6 +67,8 @@ public class EquipmentController {
         applyRequest(equipment, request);
         if (file != null && !file.isEmpty()) {
             equipment.setImage(uploadService.handleSaveUploadFile(file, "equipment"));
+        } else if (request.getImage() != null && !request.getImage().isBlank()) {
+            equipment.setImage(request.getImage().trim());
         }
         Equipment saved = equipmentService.handSaveEquipment(equipment);
         equipmentStockByDateService.generateStockForEquipment(saved);
@@ -91,6 +93,8 @@ public class EquipmentController {
         applyRequest(existing, request);
         if (file != null && !file.isEmpty()) {
             existing.setImage(uploadService.handleSaveUploadFile(file, "equipment"));
+        } else if (request.getImage() != null && !request.getImage().isBlank()) {
+            existing.setImage(request.getImage().trim());
         }
         Equipment saved = equipmentService.handSaveEquipment(existing);
 

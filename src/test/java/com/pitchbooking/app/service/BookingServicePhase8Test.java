@@ -233,6 +233,7 @@ class BookingServicePhase8Test {
                 .thenReturn(Optional.of(equipment));
 
         bookingService.updateBooking(booking.getId(), BookingStatus.DA_THANH_TOAN.name());
+        bookingService.updateBooking(booking.getId(), BookingStatus.DA_THANH_TOAN.name());
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.DA_THANH_TOAN);
         assertThat(rental.getStatus()).isEqualTo(RentalToolStatus.COMPLETED);

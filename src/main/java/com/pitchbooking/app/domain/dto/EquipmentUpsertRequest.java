@@ -14,6 +14,8 @@ public class EquipmentUpsertRequest {
 
     private String factory;
 
+    private String image;
+
     @NotNull(message = "Giá trị thiết bị không được để trống")
     @PositiveOrZero(message = "Giá trị thiết bị không được âm")
     private Double price;
