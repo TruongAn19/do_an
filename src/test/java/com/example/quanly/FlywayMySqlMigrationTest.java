@@ -23,7 +23,22 @@ class FlywayMySqlMigrationTest {
             .withPassword("test");
 
     @Test
-    void allMigrationsApplyToRealMySqlAndReachVersion6() throws Exception {
+    void migrationsPreserveExistingProductIdsAndReachVersion6() throws Exception {
+        Flyway bootstrapFlyway = Flyway.configure()
+                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .target("4")
+                .load();
+        bootstrapFlyway.migrate();
+
+        try (Connection connection = MYSQL.createConnection("");
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO products (id, name, quantity, status)
+                    VALUES (4, 'Existing user court', 3, 'ACTIVE')
+                    """);
+        }
+
         Flyway flyway = Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
@@ -34,6 +49,14 @@ class FlywayMySqlMigrationTest {
 
         assertTrue(result.success);
         assertEquals("6", flyway.info().current().getVersion().getVersion());
+        try (Connection connection = MYSQL.createConnection("");
+             Statement statement = connection.createStatement();
+             ResultSet existingProduct = statement.executeQuery(
+                     "SELECT name FROM products WHERE id = 4")) {
+            assertTrue(existingProduct.next());
+            assertEquals("Existing user court", existingProduct.getString(1),
+                    "V5 không được ghi đè product đã tồn tại");
+        }
         try (Connection connection = MYSQL.createConnection("");
              ResultSet columns = connection.getMetaData().getColumns(
                      MYSQL.getDatabaseName(), null, "user", "active")) {
@@ -50,9 +73,9 @@ class FlywayMySqlMigrationTest {
              Statement statement = connection.createStatement();
              ResultSet seeded = statement.executeQuery("""
                      SELECT
-                       (SELECT COUNT(*) FROM products WHERE id BETWEEN 4 AND 23),
-                       (SELECT COUNT(*) FROM racket WHERE id BETWEEN 9 AND 28),
-                       (SELECT COUNT(*) FROM racket_stock_by_date WHERE racket_id BETWEEN 9 AND 28)
+                       (SELECT COUNT(*) FROM products WHERE id BETWEEN 10004 AND 10023),
+                       (SELECT COUNT(*) FROM racket WHERE id BETWEEN 10009 AND 10028),
+                       (SELECT COUNT(*) FROM racket_stock_by_date WHERE racket_id BETWEEN 10009 AND 10028)
                      """)) {
             assertTrue(seeded.next());
             assertEquals(20, seeded.getInt(1), "V5 phải seed 20 địa điểm sân");
