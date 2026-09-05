@@ -13,7 +13,7 @@ services:
     volumes:
       - pickleball_mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -43,6 +43,8 @@ services:
       - PAYMENT_VNPAY_SECRETKEY=${VNPAY_HASH_SECRET}
       - PAYMENT_VNPAY_RETURNURL=${VNPAY_RETURN_URL:-http://localhost:4200/payments/vnpay-callback}
       - PAYMENT_MOCK_ENABLED=${PAYMENT_MOCK_ENABLED:-false}
+      - JWT_SECRET=${JWT_SECRET:-dhis_is_a_very_long_secret_key_for_jwt_which_must_be_256_bits_at_least}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
     depends_on:
       pickleball-mysql:
         condition: service_healthy
